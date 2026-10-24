@@ -21,6 +21,7 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../../shared/tui-agent-launch-defaults'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
+import { pinnedStartupEnv } from '@/lib/agent-terminal-account-pins'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { LaunchSource } from '../../../shared/telemetry-events'
 import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution-context'
@@ -50,6 +51,8 @@ export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
   selectedExecutionHostId?: AgentSessionLaunchRequest['selectedExecutionHostId']
   agent: TuiAgent
   worktreeId: string
+  /** A saved account for this local terminal (null: System default) instead of the selection. */
+  launchAccountId?: string | null
   /** Captured at a new-chat action before the host can delay route selection. */
   focusIntent?: NativeChatComposerFocusIntent
   /** Tab group the user launched from; keeps split-group launches in that pane instead of the active group. */
@@ -291,7 +294,7 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
     ...(activate === false ? { activate: false } : {}),
     pendingStartup: {
       command: startupPlan.launchCommand,
-      ...(startupPlan.env ? { env: startupPlan.env } : {}),
+      ...pinnedStartupEnv(startupPlan.env, agent, isRemote ? undefined : args.launchAccountId),
       launchConfig: startupPlan.launchConfig,
       launchAgent: agent,
       ...(agentArgs !== undefined ? { agentArgsOverride: agentArgs } : {}),

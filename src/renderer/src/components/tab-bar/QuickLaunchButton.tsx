@@ -12,6 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut
 } from '@/components/ui/dropdown-menu'
+import { listAgentLaunchAccounts } from '@/lib/agent-launch-accounts'
+import { markAgentTerminalTabAccountPinned } from '@/lib/agent-terminal-account-pins'
+import { AccountLaunchRow } from './AccountLaunchRow'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { useAppStore } from '@/store'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
@@ -75,7 +79,7 @@ export function useTabAgentMenuLaunch({
   onFocusChat?: (tabId: string) => void
 }) {
   const runLaunch = useCallback(
-    (row: NewTabAgentMenuRow) => {
+    (row: NewTabAgentMenuRow, launchAccountId?: string | null) => {
       if (disabled || row.kind === 'chat-unavailable') {
         return
       }
@@ -94,6 +98,7 @@ export function useTabAgentMenuLaunch({
         agent,
         worktreeId,
         groupId,
+        ...(launchAccountId !== undefined ? { launchAccountId } : {}),
         ...(prompt !== undefined ? { prompt } : {}),
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),
         ...(launchSource !== undefined ? { launchSource } : {}),
@@ -139,6 +144,9 @@ export function useTabAgentMenuLaunch({
         onFocusHostTerminal?.()
         return
       }
+      if (launchAccountId !== undefined) {
+        markAgentTerminalTabAccountPinned(result.surface.tabId)
+      }
       onFocusTerminal(result.surface.tabId)
     },
     [
@@ -173,9 +181,10 @@ export function ProjectedAgentMenuItems({
 }: {
   disabled?: boolean
   model: NewTabAgentMenuModel
-  runLaunch: (row: NewTabAgentMenuRow) => void
+  runLaunch: (row: NewTabAgentMenuRow, launchAccountId?: string | null) => void
 }): React.JSX.Element {
   const desktopDefaultAgent = useAppStore((s) => s.settings?.defaultTuiAgent)
+  const settings = useAppStore((s) => s.settings)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
@@ -266,10 +275,29 @@ export function ProjectedAgentMenuItems({
             ) : null}
           </>
         )
+        // Why local only: account folders live on this machine; a remote host picks its own.
+        const accounts =
+          (row.kind === 'terminal' || row.kind === 'cli') &&
+          (row.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID
+            ? listAgentLaunchAccounts(
+                agent,
+                settings,
+                translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
+              )
+            : []
         return (
           <React.Fragment key={rowId(row)}>
             {startsCliGroup ? <DropdownMenuSeparator /> : null}
-            {row.kind === 'chat' && detectedIds?.includes(agent) ? (
+            {accounts.length > 0 ? (
+              <AccountLaunchRow
+                accounts={accounts}
+                disabled={disabled}
+                title={rowTitle(row, label)}
+                onLaunch={(accountId) => runLaunch(row, accountId)}
+              >
+                {rowContent}
+              </AccountLaunchRow>
+            ) : row.kind === 'chat' && detectedIds?.includes(agent) ? (
               <ChatRow row={row} label={label} disabled={disabled} runLaunch={runLaunch}>
                 {rowContent}
               </ChatRow>

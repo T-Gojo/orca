@@ -31,6 +31,8 @@ const fsAllowances: Record<string, readonly string[]> = {
   ],
   'claude-accounts/claude-profile-paths.ts': ['mkdirSync', 'writeFileAtomically'],
   'claude-accounts/claude-profile-router.ts': ['mkdirSync', 'rmSync', 'writeFileAtomically'],
+  // Per-terminal account pointers: a folder path, never a credential.
+  'claude-accounts/claude-terminal-account-pin.ts': ['mkdirSync', 'writeFileAtomically'],
   'claude-accounts/claude-account-folder.ts': ['rmSync', 'rmdirSync', 'unlinkSync'],
   // This write targets process stdin, not a file.
   'claude-accounts/claude-command-process.ts': ['write'],

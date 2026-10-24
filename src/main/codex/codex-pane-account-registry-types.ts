@@ -7,6 +7,8 @@ export type CodexPaneAccountRecord = {
   accountId: string | null
   /** Older records lack route provenance. */
   homeRoute?: CodexPaneHomeRoute
+  /** The user opened this pane for this account; switching the selection leaves it there. */
+  pinnedByLaunch?: true
 }
 
 export type CodexPaneAccountRegistryFile = {

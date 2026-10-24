@@ -66,6 +66,7 @@ export type PtySpawnCommitState = {
   sessionSizeBeforeAttach: PtyGrid | undefined
   isDaemonHostSpawn: boolean
   codexResumeHomeSelected: boolean
+  codexHomePinned: boolean
   codexResumeUnavailable?: boolean
   selectedCodexHomePath: string | null
   codexSelectionTarget: CodexAccountSelectionTarget

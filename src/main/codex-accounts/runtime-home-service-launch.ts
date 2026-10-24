@@ -1,9 +1,14 @@
 import { resolveHostCodexSessionSourceHome } from '../codex/codex-session-source-home'
 import { startSystemCodexSessionBridgeInBackground } from '../codex/codex-session-bridge'
 import {
+  getSystemCodexHomePath,
   resolveOrcaManagedCodexHomePath,
   syncSystemCodexResourcesIntoManagedHome
 } from '../codex/codex-home-paths'
+import {
+  CODEX_TERMINAL_ACCOUNT_PIN_ENV,
+  readTerminalAccountPin
+} from '../../shared/agent-terminal-account-pin'
 import { syncSystemConfigIntoManagedCodexHome } from '../codex/codex-config-mirror'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import {
@@ -44,6 +49,10 @@ export abstract class CodexRuntimeHomeLaunch extends CodexRuntimeHomeRouting {
       this.finishWslLaunchPreparation(wslTarget, homePath)
       return homePath
     }
+    const pinned = this.preparePinnedHostCodexLaunch(launchEnv)
+    if (pinned !== undefined) {
+      return pinned
+    }
     const selfContainedAccount = this.getSelfContainedManagedHostAccount()
     if (selfContainedAccount) {
       const perAccountHome = this.prepareSelfContainedManagedHomeForLaunch(
@@ -70,6 +79,40 @@ export abstract class CodexRuntimeHomeLaunch extends CodexRuntimeHomeRouting {
       resolveHostCodexSessionSourceHome(this.store.getSettings())
     )
     return this.getRuntimeHomePath()
+  }
+
+  /**
+   * A terminal opened for a specific account: its own home, leaving the global selection and
+   * its bookkeeping untouched. undefined when the launch is not pinned or names the selection.
+   */
+  private preparePinnedHostCodexLaunch(launchEnv?: NodeJS.ProcessEnv): string | null | undefined {
+    const accountId = readTerminalAccountPin(launchEnv, CODEX_TERMINAL_ACCOUNT_PIN_ENV)
+    const settings = this.store.getSettings()
+    if (accountId === undefined || accountId === normalizeCodexRuntimeSelection(settings).host) {
+      return undefined
+    }
+    if (accountId === null) {
+      // System default is the user's own login in their real Codex home.
+      return null
+    }
+    const account = this.getActiveAccount(settings.codexManagedAccounts, accountId)
+    if (!account || this.getWslManagedHomePath(account)) {
+      throw new Error('That Codex account is no longer saved in Orca.')
+    }
+    const resolved = this.resolveSelfContainedManagedHome(account)
+    if (resolved.kind === 'indeterminate') {
+      throw new ManagedCodexHomeTemporarilyUnavailableError()
+    }
+    if (resolved.kind === 'untrusted') {
+      throw new Error(`Sign in to ${account.email} again in Settings before opening it.`)
+    }
+    syncSystemCodexResourcesIntoManagedHome(resolved.homePath)
+    syncSystemConfigIntoManagedCodexHome({
+      runtimeHomePath: resolved.homePath,
+      systemHomePath: getSystemCodexHomePath()
+    })
+    this.startSelfContainedSessionBridgeForLaunch(resolved.homePath)
+    return resolved.homePath
   }
 
   /** Resolve the launch home without side effects for catalog reads; null means real ~/.codex. */

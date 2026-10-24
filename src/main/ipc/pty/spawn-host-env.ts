@@ -2,6 +2,11 @@ import type { AgentProviderSessionMetadata } from '../../../shared/agent-session
 import { getAppEnvironment } from '../../../shared/app-environment'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import { stampRuntimeSourceEnv } from '../../../shared/runtime-source-env'
+import {
+  CODEX_TERMINAL_ACCOUNT_PIN_ENV,
+  readTerminalAccountPin,
+  withoutTerminalAccountPin
+} from '../../../shared/agent-terminal-account-pin'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { isAgentStatusHooksEnabled } from '../../agent-hooks/managed-agent-hook-controls'
@@ -57,6 +62,8 @@ export type PtySpawnHostEnv = {
   env: Record<string, string> | undefined
   selectedCodexHomePath: string | null
   codexResumeHomeSelected: boolean
+  /** Opened for a specific Codex account; the pane registry attributes it by its home. */
+  codexHomePinned: boolean
   skipCodexHomeEnv: boolean
   stripInheritedOrcaCodexHome: boolean
 }
@@ -153,17 +160,24 @@ export async function resolvePtySpawnHostEnv(args: PtySpawnHostEnvArgs): Promise
   }
   args.mark?.('codex_home')
   const isWsl = shouldSkipCodexHomeEnvForWindowsShell(args.shellOverride, args.cwd)
+  const codexHomePinned =
+    target.runtime !== 'wsl' &&
+    !args.preAdopted &&
+    readTerminalAccountPin(baseEnv, CODEX_TERMINAL_ACCOUNT_PIN_ENV) !== undefined
+  // The hint has served home selection; the shell must not carry it into nested launches.
+  const spawnBaseEnv = withoutTerminalAccountPin(baseEnv, CODEX_TERMINAL_ACCOUNT_PIN_ENV)
   const skipCodexHomeEnv = args.isDaemonHostSpawn && isWsl && !selectedCodexHomePath
   const ptySettings = args.isDaemonHostSpawn ? deps.getSettings?.() : undefined
   const hostEnv: PtySpawnHostEnv = {
     codexResumeLaunch,
     launchCommand,
-    baseEnv,
-    env: baseEnv,
+    baseEnv: spawnBaseEnv,
+    env: spawnBaseEnv,
     selectedCodexHomePath,
     codexResumeHomeSelected: Boolean(
       codexResumeHome && codexHomePathsEqual(selectedCodexHomePath, codexResumeHome.codexHomePath)
     ),
+    codexHomePinned,
     skipCodexHomeEnv,
     stripInheritedOrcaCodexHome:
       args.isDaemonHostSpawn &&
@@ -192,7 +206,7 @@ export async function resolvePtySpawnHostEnv(args: PtySpawnHostEnvArgs): Promise
   }
   const wslDistro = target.runtime === 'wsl' ? args.expectedWslDistro : null
   // Preserve caller environment for reused renderer/split requests.
-  const env = { ...baseEnv }
+  const env = { ...spawnBaseEnv }
   try {
     await inheritOmpLaunchEnvironment(env, {
       isWsl,

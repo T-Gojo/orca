@@ -340,6 +340,19 @@ describe('codex pane account registry', () => {
 })
 
 describe('listStaleCodexPanes', () => {
+  it('leaves a pane opened for a specific account alone, across a registry reload', () => {
+    recordCodexPaneAccount('pty-1', {
+      selectionKey: 'host',
+      accountId: 'account-a',
+      pinnedByLaunch: true
+    })
+    _internals.resetCache()
+
+    expect(
+      listStaleCodexPanes({ ptyIds: ['pty-1'], settings: settingsWithSelection('account-b') })
+    ).toEqual([])
+  })
+
   it('reports a pane launched under a now-deselected account', () => {
     recordCodexPaneAccount('pty-1', { selectionKey: 'host', accountId: 'account-a' })
 

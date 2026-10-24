@@ -113,7 +113,8 @@ function parseRegistry(parsed: unknown): CodexPaneAccountRegistryFile {
       empty.panes[ptyId] = {
         selectionKey: record.selectionKey,
         accountId: record.accountId,
-        ...(homeRoute ? { homeRoute } : {})
+        ...(homeRoute ? { homeRoute } : {}),
+        ...(record.pinnedByLaunch === true ? { pinnedByLaunch: true as const } : {})
       }
     }
   }

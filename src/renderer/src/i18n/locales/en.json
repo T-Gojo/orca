@@ -3928,6 +3928,8 @@
             "8e9d603a09": "Unpin Tab"
           },
           "QuickLaunchButton": {
+            "openWithAccount": "Open with account",
+            "defaultAccount": "Default",
             "348a04c1ad": "Agent settings…",
             "ec2adf093e": "Launch {{value0}} in a new terminal",
             "465e432ef1": "Could not build launch command for {{value0}}.",

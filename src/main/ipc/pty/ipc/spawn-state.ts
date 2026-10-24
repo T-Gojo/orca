@@ -94,6 +94,7 @@ export type PtyIpcSpawnState = {
   skipCodexHomeEnv: boolean
   stripInheritedOrcaCodexHome: boolean
   codexResumeHomeSelected: boolean
+  codexHomePinned: boolean
   hadSessionSizeBeforeAttach: boolean
   sessionSizeBeforeAttach: { cols: number; rows: number } | undefined
   initiallyHidden: boolean
@@ -171,6 +172,7 @@ export function createPtyIpcSpawnState(
     skipCodexHomeEnv: false,
     stripInheritedOrcaCodexHome: false,
     codexResumeHomeSelected: false,
+    codexHomePinned: false,
     hadSessionSizeBeforeAttach: false,
     sessionSizeBeforeAttach: undefined,
     initiallyHidden: false,

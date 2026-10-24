@@ -45,7 +45,8 @@ export function publishCommittedPtySpawn<Reply extends PtySpawnResult>(
     ptyId: result.id,
     isDaemonHostSpawn: state.isDaemonHostSpawn,
     isReattach: result.isReattach === true,
-    pinnedByResume: state.codexResumeHomeSelected,
+    pinnedByResume: state.codexResumeHomeSelected || state.codexHomePinned,
+    pinnedByLaunch: state.codexHomePinned,
     launchCodexHomePath: state.selectedCodexHomePath,
     target: state.codexSelectionTarget,
     settings: deps.getSettings?.()
