@@ -16,6 +16,7 @@ import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import { useStatusBarDensity } from './status-bar-density'
 import { getUsageOwnerHostScope, useOwnerUsageRateLimits } from './use-owner-usage-rate-limits'
 import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
+import { useUsageRosterAccounts } from './use-usage-roster-accounts'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
@@ -83,6 +84,10 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   }, [ensureDetectedAgents])
 
   const refreshDetectedAgents = useAppStore((s) => s.refreshDetectedAgents)
+  const { rosterAccounts, refreshAccountUsage } = useUsageRosterAccounts(
+    remoteOwned,
+    localRateLimits
+  )
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) {
       return
@@ -90,13 +95,17 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     setIsRefreshing(true)
     try {
       // Why: re-run PATH detection so a freshly-installed/removed CLI's bar appears/hides without restarting Orca.
-      await Promise.all([(refreshRemote ?? refreshRateLimits)(), refreshDetectedAgents()])
+      await Promise.all([
+        (refreshRemote ?? refreshRateLimits)(),
+        refreshDetectedAgents(),
+        refreshAccountUsage()
+      ])
     } finally {
       if (mountedRef.current) {
         setIsRefreshing(false)
       }
     }
-  }, [isRefreshing, refreshRemote, refreshRateLimits, refreshDetectedAgents])
+  }, [isRefreshing, refreshRemote, refreshRateLimits, refreshDetectedAgents, refreshAccountUsage])
 
   if (!statusBarVisible) {
     return null
@@ -299,6 +308,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     petEnabled,
     recordFeatureInteraction,
     remoteOwner,
+    rosterAccounts,
     rosterProviders,
     segmentsIconOnly,
     segmentsRef,

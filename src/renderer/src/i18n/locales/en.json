@@ -4560,6 +4560,8 @@
             "gotIt": "Got it"
           },
           "UsageRosterPanel": {
+            "accountLoading": "Loading…",
+            "accountNotLoaded": "Refresh to load usage",
             "title": "Usage",
             "openDetails": "Open usage details",
             "notSignedIn": "not signed in",

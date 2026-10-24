@@ -87,6 +87,7 @@ export function StatusBarSurface({
     overflowing,
     petEnabled,
     remoteOwner,
+    rosterAccounts,
     rosterProviders,
     segmentsIconOnly,
     segmentsRef,
@@ -213,6 +214,7 @@ export function StatusBarSurface({
                     canSignIn={canSignInFromUsageRow}
                     onManageAccounts={handleManageAccounts}
                     onUsageDetails={handleUsageDetails}
+                    accountsByProvider={rosterAccounts}
                     renderRow={(p, rowNode) => {
                       // Why: a placeholder has nothing to drill into; its row opens the host's accounts.
                       if (isOwnerNotSetUpPlaceholder(p)) {
