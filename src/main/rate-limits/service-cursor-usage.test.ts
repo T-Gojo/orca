@@ -24,6 +24,16 @@ vi.mock('./minimax/minimax-fetcher', () => ({ fetchMiniMaxRateLimits: vi.fn() })
 vi.mock('./grok-fetcher', () => ({ fetchGrokRateLimits: vi.fn() }))
 vi.mock('./grok-auth', () => ({ readGrokAuthSession: vi.fn(() => ({ status: 'missing' })) }))
 vi.mock('./zcode-usage-fetcher', () => ({ fetchZcodeRateLimits: vi.fn() }))
+vi.mock('./kiro-usage-fetcher', () => ({
+  fetchKiroRateLimits: async () => ({
+    provider: 'kiro',
+    session: null,
+    weekly: null,
+    updatedAt: Date.now(),
+    error: null,
+    status: 'unavailable'
+  })
+}))
 
 vi.mock('./antigravity-usage-fetcher', () => ({
   fetchAntigravityRateLimits: vi.fn()

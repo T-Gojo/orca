@@ -8,6 +8,12 @@ type CursorProfileRequest = {
   dbPath: string
 }
 
+type KiroCliTokenRequest = {
+  id: number
+  kind: 'kiroCliToken'
+  dbPath: string
+}
+
 type OpenCodeBinderSessionsRequest = {
   id: number
   kind: 'openCodeBinderSessions'
@@ -15,7 +21,10 @@ type OpenCodeBinderSessionsRequest = {
   cursor: OpenCodeSessionCursor
 }
 
-export type ForeignSqliteReaderRequest = CursorProfileRequest | OpenCodeBinderSessionsRequest
+export type ForeignSqliteReaderRequest =
+  | CursorProfileRequest
+  | KiroCliTokenRequest
+  | OpenCodeBinderSessionsRequest
 
 export type ForeignSqliteReaderKind = ForeignSqliteReaderRequest['kind']
 

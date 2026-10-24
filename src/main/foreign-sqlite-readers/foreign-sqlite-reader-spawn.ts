@@ -4,6 +4,7 @@ import { Worker } from 'node:worker_threads'
 import { currentWorkerEntryLayout } from '../worker-thread-entry-path'
 import type { CursorDesktopProfileReadResult } from './cursor-profile-result'
 import { ForeignSqliteReaderClient } from './foreign-sqlite-reader-client'
+import type { KiroCliTokenReadResult } from './kiro-cli-token-result'
 import { resolveForeignSqliteReaderEntryPath } from './foreign-sqlite-reader-entry-path'
 import type { BinderSessionRow, OpenCodeSessionCursor } from './opencode-binder-sessions-result'
 
@@ -24,6 +25,10 @@ function getSharedClient(): ForeignSqliteReaderClient {
 
 export function readCursorDesktopProfile(dbPath: string): Promise<CursorDesktopProfileReadResult> {
   return getSharedClient().readCursorProfile(dbPath)
+}
+
+export function readKiroCliToken(dbPath: string): Promise<KiroCliTokenReadResult> {
+  return getSharedClient().readKiroCliToken(dbPath)
 }
 
 /** Return oldest-first rows after cursor; unreadable or unavailable readers answer []. */

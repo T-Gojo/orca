@@ -85,7 +85,9 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
     this.detachWindowListeners?.()
     this.mainWindow = mainWindow
     const refreshOnResume = (): void => {
-      void this.refreshIfWindowActive()
+      if (!this.manualRefreshOnly) {
+        void this.refreshIfWindowActive()
+      }
     }
     // Why: attach() can replace windows; remove the previous closed listener too, not only the focus listeners.
     const detachWindowListeners = (): void => {
@@ -108,6 +110,16 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
     mainWindow.on('restore', refreshOnResume)
     mainWindow.on('closed', onClosed)
     this.detachWindowListeners = detachWindowListeners
+  }
+
+  /** Stop background polling and focus/show/restore refreshes; the startup read and user refreshes still run. */
+  setManualRefreshOnly(enabled: boolean): void {
+    this.manualRefreshOnly = enabled
+    if (enabled) {
+      this.stopTimer()
+    } else if (this.mainWindow) {
+      this.startTimer()
+    }
   }
 
   start(options: { fetchImmediately?: boolean } = {}): void {

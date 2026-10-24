@@ -347,7 +347,8 @@
         "antigravityToggleDescription": "Show Antigravity subscription usage for the active workspace.",
         "grokToggleDescription": "Show Grok subscription credit usage when signed in via Grok CLI.",
         "cursorToggleDescription": "Show Cursor plan usage when signed in through cursor-agent or Cursor IDE.",
-        "zcodeToggleDescription": "Show ZCode Coding Plan quota usage."
+        "zcodeToggleDescription": "Show ZCode Coding Plan quota usage.",
+        "kiroToggleDescription": "Show Kiro credit usage when signed in through kiro-cli or Kiro IDE."
       },
       "menuBarIcon": {
         "title": "Show Menu Bar Icon",
@@ -4303,7 +4304,8 @@
             "codexSignInError": "Codex sign-in failed. Please try again.",
             "cursorUsageMenu": "Cursor Usage",
             "hiddenUsageProviders": "Also: {{value0}}",
-            "zcodeUsageMenu": "ZCode Usage"
+            "zcodeUsageMenu": "ZCode Usage",
+            "kiroUsageMenu": "Kiro Usage"
           },
           "StatusBarUsageEmptyCta": {
             "828c764a79": "Connect an account",
@@ -4502,6 +4504,7 @@
             "e2c6a4f917": "Run Grok to refresh",
             "d1b7f509ac": "Run grok in a terminal on the computer running Orca and wait for it to start. If prompted, complete sign-in, then retry usage. You do not need to send a chat message.",
             "f90b3d7a16": "Run Kimi to refresh",
+            "kiroRunToRefresh": "Run Kiro to refresh",
             "a37e8c15d4": "Run kimi in a terminal on the computer running Orca and wait for it to start, then retry usage.",
             "fbc80d8be2": "Zen balance",
             "c03c61f53f": "Balance",
@@ -9994,6 +9997,9 @@
             "zcodeUsageTitle": "ZCode Usage",
             "zcodeUsageDescription": "Show ZCode Coding Plan quota usage in the status bar.",
             "zcode": "zcode",
+            "kiroUsageTitle": "Kiro Usage",
+            "kiroUsageDescription": "Show Kiro monthly credit usage in the status bar.",
+            "kiro": "kiro",
             "zai": "zai",
             "glm": "glm",
             "tray": {

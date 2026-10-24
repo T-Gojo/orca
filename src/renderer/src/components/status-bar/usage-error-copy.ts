@@ -33,6 +33,9 @@ export function getProviderDisplayName(provider: ProviderRateLimits['provider'])
   if (provider === 'cursor') {
     return 'Cursor'
   }
+  if (provider === 'kiro') {
+    return 'Kiro'
+  }
   return provider
 }
 
@@ -80,13 +83,13 @@ function isUsageAuthError(message: string | null): boolean {
 
 function getDelegatedCliRefreshProvider(
   p: ProviderRateLimits
-): Extract<ProviderRateLimits['provider'], 'grok' | 'kimi'> | null {
+): Extract<ProviderRateLimits['provider'], 'grok' | 'kimi' | 'kiro'> | null {
   if (p.usageMetadata?.failureKind !== 'delegated-refresh-required') {
     return null
   }
   // Why: only these providers require a user-run CLI to rotate the read-only
   // session Orca consumes; Claude handles the same failure kind in-app.
-  return p.provider === 'grok' || p.provider === 'kimi' ? p.provider : null
+  return p.provider === 'grok' || p.provider === 'kimi' || p.provider === 'kiro' ? p.provider : null
 }
 
 /** System Default's login expired on the server: Claude refreshes it the next time it runs. */
@@ -112,6 +115,9 @@ export function getProviderUsageStatusLabel(p: ProviderRateLimits): string {
   }
   if (delegatedCliProvider === 'kimi') {
     return translate('auto.components.status.bar.tooltip.f90b3d7a16', 'Run Kimi to refresh')
+  }
+  if (delegatedCliProvider === 'kiro') {
+    return translate('auto.components.status.bar.tooltip.kiroRunToRefresh', 'Run Kiro to refresh')
   }
   if (p.provider === 'claude') {
     switch (p.usageMetadata?.failureKind) {

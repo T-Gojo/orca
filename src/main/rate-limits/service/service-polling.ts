@@ -27,6 +27,9 @@ export abstract class RateLimitServicePolling extends RateLimitServiceFetchQueue
 
   protected startTimer(): void {
     this.stopTimer()
+    if (this.manualRefreshOnly) {
+      return
+    }
     this.timer = setInterval(() => {
       if (!this.shouldBackgroundPoll()) {
         return
@@ -80,7 +83,8 @@ export abstract class RateLimitServicePolling extends RateLimitServiceFetchQueue
       grok: this.state.grok,
       antigravity: this.state.antigravity,
       cursor: this.state.cursor,
-      zcode: this.state.zcode
+      zcode: this.state.zcode,
+      kiro: this.state.kiro
     }
     return Object.entries(byProvider).map(([provider, limits]) => ({
       provider: provider as ActiveRateLimitProvider,

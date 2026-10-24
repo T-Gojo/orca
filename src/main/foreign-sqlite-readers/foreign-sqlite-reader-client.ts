@@ -6,6 +6,11 @@ import {
   type CursorDesktopProfileReadResult
 } from './cursor-profile-result'
 import {
+  kiroCliTokenReadFailure,
+  parseKiroCliTokenReadResult,
+  type KiroCliTokenReadResult
+} from './kiro-cli-token-result'
+import {
   openCodeBinderSessionsFailure,
   parseOpenCodeBinderSessions,
   type BinderSessionRow,
@@ -22,11 +27,13 @@ import type {
 const READ_TIMEOUT_MS: Record<ForeignSqliteReaderKind, number> = {
   // Allow margin beyond observed 4–6s WAL-index rebuilds.
   cursorProfile: 10_000,
+  kiroCliToken: 10_000,
   openCodeBinderSessions: 60_000
 }
 // Keep workers alive across poll intervals to avoid spawning on every round.
 const DEFAULT_IDLE_TEARDOWN_MS: Record<ForeignSqliteReaderKind, number> = {
   cursorProfile: 30_000,
+  kiroCliToken: 30_000,
   // The binder polls once per minute.
   openCodeBinderSessions: 120_000
 }
@@ -115,6 +122,7 @@ export class ForeignSqliteReaderLane<T> {
 
 export class ForeignSqliteReaderClient {
   private readonly cursorProfile: ForeignSqliteReaderLane<CursorDesktopProfileReadResult>
+  private readonly kiroCliToken: ForeignSqliteReaderLane<KiroCliTokenReadResult>
   private readonly openCodeBinderSessions: ForeignSqliteReaderLane<BinderSessionRow[]>
 
   constructor(options: {
@@ -135,6 +143,12 @@ export class ForeignSqliteReaderClient {
       cursorProfileReadFailure,
       settings('cursorProfile')
     )
+    this.kiroCliToken = new ForeignSqliteReaderLane(
+      'kiroCliToken',
+      parseKiroCliTokenReadResult,
+      kiroCliTokenReadFailure,
+      settings('kiroCliToken')
+    )
     this.openCodeBinderSessions = new ForeignSqliteReaderLane(
       'openCodeBinderSessions',
       parseOpenCodeBinderSessions,
@@ -145,6 +159,10 @@ export class ForeignSqliteReaderClient {
 
   readCursorProfile(dbPath: string): Promise<CursorDesktopProfileReadResult> {
     return this.cursorProfile.read(dbPath, (id) => ({ id, kind: 'cursorProfile', dbPath }))
+  }
+
+  readKiroCliToken(dbPath: string): Promise<KiroCliTokenReadResult> {
+    return this.kiroCliToken.read(dbPath, (id) => ({ id, kind: 'kiroCliToken', dbPath }))
   }
 
   /** Return oldest-first sessions after cursor, or [] if the worker cannot answer. */
@@ -164,6 +182,7 @@ export class ForeignSqliteReaderClient {
 
   dispose(): void {
     this.cursorProfile.dispose()
+    this.kiroCliToken.dispose()
     this.openCodeBinderSessions.dispose()
   }
 }

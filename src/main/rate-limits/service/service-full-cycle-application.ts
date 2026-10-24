@@ -40,6 +40,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       grokResultPromise,
       cursorResultPromise,
       zcodeResultPromise,
+      kiroResultPromise,
       antigravityResultPromise
     } = prepared
     if (signal.aborted) {
@@ -192,12 +193,14 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         : this.state.minimax
     })
 
-    const [grokSettled, cursorSettled, zcodeSettled, antigravitySettled] = await Promise.all([
-      grokResultPromise,
-      cursorResultPromise,
-      zcodeResultPromise,
-      antigravityResultPromise
-    ])
+    const [grokSettled, cursorSettled, zcodeSettled, kiroSettled, antigravitySettled] =
+      await Promise.all([
+        grokResultPromise,
+        cursorResultPromise,
+        zcodeResultPromise,
+        kiroResultPromise,
+        antigravityResultPromise
+      ])
     if (signal.aborted) {
       return
     }
@@ -216,6 +219,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         }
     const shouldApplyZcode = zcodeGeneration === this.zcodeFetchGeneration
     const antigravity = settleSiblingProviderResult('antigravity', antigravitySettled)
+    const kiro = settleSiblingProviderResult('kiro', kiroSettled)
     // Why: the stale policy keeps a recent snapshot through a failed refresh, but
     // a snapshot belonging to a different Cursor account must not survive the
     // switch — the Accounts pane would name the new account beside the old
@@ -239,6 +243,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       this.trackActiveFailureStreak('zcode', zcode)
     }
     this.trackActiveFailureStreak('antigravity', antigravity)
+    this.trackActiveFailureStreak('kiro', kiro)
     this.updateState({
       ...this.state,
       grok: this.applyStalePolicy(grok, previousState.grok),
@@ -250,7 +255,8 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
           : zcode.status === 'error' && !sameZcodeAccount
             ? zcode
             : this.applyStalePolicy(zcode, previousState.zcode),
-      antigravity: this.applyStalePolicy(antigravity, previousState.antigravity)
+      antigravity: this.applyStalePolicy(antigravity, previousState.antigravity),
+      kiro: this.applyStalePolicy(kiro, previousState.kiro)
     })
   }
 }

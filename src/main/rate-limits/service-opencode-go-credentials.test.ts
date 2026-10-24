@@ -34,6 +34,16 @@ vi.mock('./kimi-fetcher', () => ({
 vi.mock('./cursor-fetcher', () => ({ fetchCursorRateLimits: vi.fn() }))
 vi.mock('./cursor-auth', () => ({ readCursorAuthSession: vi.fn() }))
 vi.mock('./zcode-usage-fetcher', () => ({ fetchZcodeRateLimits: vi.fn() }))
+vi.mock('./kiro-usage-fetcher', () => ({
+  fetchKiroRateLimits: async () => ({
+    provider: 'kiro',
+    session: null,
+    weekly: null,
+    updatedAt: Date.now(),
+    error: null,
+    status: 'unavailable'
+  })
+}))
 vi.mock('./antigravity-usage-fetcher', () => ({ fetchAntigravityRateLimits: vi.fn() }))
 
 vi.mock('./opencode-go-usage-source-selection', () => ({

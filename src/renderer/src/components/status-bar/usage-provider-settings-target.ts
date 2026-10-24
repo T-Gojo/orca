@@ -20,9 +20,11 @@ export function getUsageProviderAccountsSectionId(
     case 'cursor':
       return 'accounts-cursor'
     case 'antigravity':
+    case 'kiro':
     case 'kimi':
       // Why: Orca must not mutate Kimi's CLI-owned credential lifecycle.
       // Antigravity credentials live in the agy CLI; quota is fetched directly via agy.
+      // Kiro's login is owned by kiro-cli / Kiro IDE; Orca only reads it.
       return null
     case 'zcode':
       return 'accounts-zcode'
