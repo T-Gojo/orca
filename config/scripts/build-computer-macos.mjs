@@ -28,12 +28,32 @@ chmodSync(binaryPath, 0o755)
 createHelperApp()
 
 function buildUniversalBinary() {
+  const sliceDir = path.join(packagePath, '.build', 'universal-slices')
+  mkdirSync(sliceDir, { recursive: true })
   const builtBinaries = universalTriples.map((triple) => {
-    run('swift', ['build', '-c', 'release', '--package-path', packagePath, '--triple', triple])
-    return path.join(packagePath, '.build', triple, 'release', 'orca-computer-use-macos')
+    const args = ['build', '-c', 'release', '--package-path', packagePath, '--triple', triple]
+    run('swift', args)
+    // Why ask SwiftPM: newer toolchains share one output folder across triples, so each slice is
+    // copied out before the next build overwrites it.
+    const binDir = output('swift', [...args, '--show-bin-path'])
+    const slice = path.join(sliceDir, `orca-computer-use-macos-${triple}`)
+    copyFileSync(path.join(binDir, 'orca-computer-use-macos'), slice)
+    return slice
   })
   mkdirSync(path.dirname(binaryPath), { recursive: true })
+  rmSync(binaryPath, { force: true })
   run('lipo', ['-create', ...builtBinaries, '-output', binaryPath])
+}
+
+function output(command, args) {
+  const result = spawnSync(command, args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit']
+  })
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1)
+  }
+  return result.stdout.trim()
 }
 
 function createHelperApp() {

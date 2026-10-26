@@ -136,7 +136,8 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       this.sendErrorStatus(`The server update did not complete: ${serveHandoffFailure}`, true)
     }
 
-    if (!app.isPackaged) {
+    // Why: a fork's custom build updates by rebuilding from source; an official release would replace it.
+    if (!app.isPackaged || app.getVersion().includes('-custom.')) {
       return
     }
 
