@@ -40,8 +40,7 @@ export function getTightestUsageSection(p: ProviderRateLimits): UsageSection | n
   if (sections.length === 0) {
     return null
   }
-  // Why: the footer promises one quiet summary per provider; choose urgency by
-  // consumption even when the user displays the complementary “% left” value.
+  // Rank by consumption even when the displayed percentage means remaining allowance.
   const tightest = sections.reduce((current, candidate) =>
     clampUsedPercent(candidate.window.usedPercent) > clampUsedPercent(current.window.usedPercent)
       ? candidate
@@ -145,11 +144,7 @@ export function UsageRow({
   )
 }
 
-/**
- * Consolidated "Usage" popover — one row per agent (icon · name · reset ·
- * per-window bars), opened from the status-bar roster pill. Deep per-agent
- * actions route to Settings via the callbacks.
- */
+/** Render one usage row per provider; hosts can wrap rows with account controls or detail menus. */
 export function UsageRosterPanel({
   providers,
   display,
@@ -176,9 +171,7 @@ export function UsageRosterPanel({
   canSignIn: (provider: ProviderId) => boolean
   onManageAccounts: () => void
   onUsageDetails: () => void
-  // Lets the host wrap a provider's row in a richer control (e.g. the
-  // Claude/Codex account-switch drill-in submenu); return null to use the
-  // default clickable row.
+  // Return null to use the default row instead of a host-supplied detail/account wrapper.
   renderRow?: (p: ProviderRateLimits, row: React.ReactNode) => React.ReactNode
   /** Claude/Codex saved accounts, listed under the provider in the Detailed view. */
   accountsByProvider?: UsageRosterAccountsByProvider
@@ -192,7 +185,6 @@ export function UsageRosterPanel({
       )
     ].flatMap((provider) => usedSections(provider).map((section) => section.window.resetsAt))
   )
-  // Worst-first so the agent nearest a limit sits on top.
   const sorted = [...providers].sort(
     (a, b) => providerMaxUsed(usedSections(b)) - providerMaxUsed(usedSections(a))
   )
@@ -222,8 +214,7 @@ export function UsageRosterPanel({
           </DropdownMenuItem>
         </div>
       </div>
-      {/* Density picker lives at the top of the popover it controls (view-switcher
-          pattern) so both modes are named and discoverable on first open. */}
+      {/* Keep the density picker in the popover so both usage modes are discoverable. */}
       <div className="px-3.5 pb-2.5">
         <SettingsSegmentedControl<StatusBarUsageMode>
           value={statusBarUsageMode}

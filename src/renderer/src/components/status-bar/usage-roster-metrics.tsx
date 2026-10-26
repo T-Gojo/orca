@@ -11,9 +11,7 @@ import { usageTextColorClass } from './usage-roster-formatting'
 
 export type UsageSection = { label: string; window: RateLimitWindow }
 
-// Windows/buckets that actually carry data — absent limits arrive as null, but a
-// partial/rehydrated provider can also carry an undefined window; both must be
-// dropped so downstream consumers never dereference `window.usedPercent`.
+// Drop null and missing windows from partial/rehydrated snapshots before reading percentages.
 export function usedSections(p: ProviderRateLimits): UsageSection[] {
   return getWindowSections(p).filter(
     (s): s is UsageSection => s.window !== null && s.window !== undefined
@@ -29,8 +27,7 @@ export function shortLabel(
   if (p.buckets?.some((b) => b.name === section.label)) {
     return section.label
   }
-  // fableWeekly shares the 7d window with weekly; label it distinctly so the two
-  // don't both render as "wk".
+  // Distinguish Fable from the other weekly window instead of rendering two wk labels.
   if (section.window === p.fableWeekly) {
     return 'Fable'
   }

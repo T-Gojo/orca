@@ -22,8 +22,7 @@ export function getUsageProviderAccountsSectionId(
     case 'antigravity':
     case 'kiro':
     case 'kimi':
-      // Why: Orca must not mutate Kimi's CLI-owned credential lifecycle.
-      // Antigravity credentials live in the agy CLI; quota is fetched directly via agy.
+      // Kimi and Antigravity keep credentials in their own CLIs; Orca has no account settings for them.
       // Kiro's login is owned by kiro-cli / Kiro IDE; Orca only reads it.
       return null
     case 'zcode':
@@ -39,8 +38,7 @@ export function usageRowSignInOpensSettings(
   if (getUsageProviderAccountsSectionId(provider) === null) {
     return false
   }
-  // Why: with saved accounts the Claude menu lists each one with its own inline Sign in.
-  // A remote server's accounts aren't in local settings, so it keeps the shortcut.
+  // Saved local Claude accounts offer inline sign-in; remote rosters are absent from local settings and keep the shortcut.
   return !(
     provider === 'claude' &&
     !settings?.activeRuntimeEnvironmentId?.trim() &&
