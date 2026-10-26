@@ -15,6 +15,9 @@ import { readZcodePlanApiKey } from './zcode/zcode-plan-api-key-store'
 import { readOpenCodeGoApiKey } from './opencode/opencode-go-api-key-store'
 import { createAccountRuntimeTargetSettingsSync } from './rate-limits/account-runtime-target-sync'
 import { getAntigravityAccountService } from './antigravity/native-account-host'
+import { probeAntigravityAccountUsage } from './rate-limits/antigravity-account-usage-probe'
+import { getAppEnvironment } from '../shared/app-environment'
+import { join } from 'node:path'
 import { normalizeCodexRuntimeSelection } from './codex-accounts/runtime-selection'
 import { normalizeClaudeRuntimeSelection } from './claude-accounts/runtime-selection'
 import type { ClaudeStatusLineRateLimits } from '../shared/claude-statusline-rate-limits'
@@ -137,6 +140,16 @@ export function createProviderAccountServices(
       activeAccountId: state.activeAccountId,
       accounts: state.accounts.map((account) => ({ id: account.id, email: account.email }))
     }
+  })
+  rateLimits.setAntigravityAccountUsageProbe((accountId) => {
+    const service = getAntigravityAccountService({ runtime: 'host' })
+    return probeAntigravityAccountUsage(accountId, {
+      logins: {
+        read: (id) => service.readSavedCredential(id),
+        update: (id, previous, next) => service.updateSavedCredential(id, previous, next)
+      },
+      probeRoot: join(getAppEnvironment().getPath('userData'), 'antigravity-accounts', 'probe')
+    })
   })
   rateLimits.setNetworkProxySettingsResolver(() => store.getSettings())
   rateLimits.setInactiveClaudeAccountsResolver(() => {

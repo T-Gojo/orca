@@ -10,6 +10,9 @@ export type AntigravityAccountsSnapshot = {
 
 export type AntigravityAccountsReader = () => Promise<AntigravityAccountsSnapshot | null>
 
+/** Reads one saved account's usage without switching to it; null when it cannot. */
+export type AntigravityAccountUsageProbe = (accountId: string) => Promise<ProviderRateLimits | null>
+
 function isAntigravityReading(value: unknown): value is ProviderRateLimits {
   return (
     typeof value === 'object' &&
@@ -29,12 +32,22 @@ function isAntigravityReading(value: unknown): value is ProviderRateLimits {
 export class AntigravityAccountUsageTracker {
   private readings: Map<string, ProviderRateLimits> | null = null
   private accounts: AntigravityAccountsSnapshot | null = null
+  private inactiveRefresh: Promise<void> | null = null
+  private probe: AntigravityAccountUsageProbe | null = null
+  private onInactiveRead: (() => void) | null = null
 
   constructor(private readonly cachePath: () => string | null) {}
 
+  useInactiveProbe(probe: AntigravityAccountUsageProbe, onRead: () => void): void {
+    this.probe = probe
+    this.onInactiveRead = onRead
+  }
+
+  /** `refresh`: the user asked, so every saved account is read again after the active one. */
   async track(
     read: AntigravityAccountsReader | null,
-    fetch: () => Promise<ProviderRateLimits>
+    fetch: () => Promise<ProviderRateLimits>,
+    refresh = false
   ): Promise<ProviderRateLimits> {
     const before = read ? await read().catch(() => null) : null
     const reading = await fetch()
@@ -47,7 +60,47 @@ export class AntigravityAccountUsageTracker {
       readings.set(activeId, reading)
       this.persist(readings, after)
     }
+    // Why after the active read: one agy at a time, and saved accounts never delay its meter.
+    void this.refreshInactive(refresh).then(() => this.onInactiveRead?.())
     return reading
+  }
+
+  /**
+   * Reads every other saved account, one agy run at a time. A user refresh reads them all; other
+   * cycles only fill accounts that have no reading yet.
+   */
+  refreshInactive(force: boolean): Promise<void> {
+    const probe = this.probe
+    if (!probe || !this.accounts) {
+      return Promise.resolve()
+    }
+    this.inactiveRefresh ??= this.readInactive(probe, force, this.accounts).finally(() => {
+      this.inactiveRefresh = null
+    })
+    return this.inactiveRefresh
+  }
+
+  private async readInactive(
+    probe: AntigravityAccountUsageProbe,
+    force: boolean,
+    accounts: AntigravityAccountsSnapshot
+  ): Promise<void> {
+    const readings = this.load()
+    let changed = false
+    for (const account of accounts.accounts) {
+      if (account.id === accounts.activeAccountId || (!force && readings.has(account.id))) {
+        continue
+      }
+      const reading = await probe(account.id).catch(() => null)
+      // Why keep an older success: a passing failure should not erase the last known quota.
+      if (reading && (reading.status === 'ok' || readings.get(account.id)?.status !== 'ok')) {
+        readings.set(account.id, reading)
+        changed = true
+      }
+    }
+    if (changed) {
+      this.persist(readings, accounts)
+    }
   }
 
   /** undefined when no Antigravity account is saved, so the meter keeps its single-account form. */

@@ -72,7 +72,7 @@ function readingCaption(account: AntigravityAccountUsage): string {
       ? translate('auto.components.status.bar.antigravityAccounts.notRead', 'Refresh to read usage')
       : translate(
           'auto.components.status.bar.antigravityAccounts.neverRead',
-          'No reading yet. Switch to this account and refresh to read it.'
+          'No reading yet. Refresh to read it.'
         )
   }
   const ago = formatTimeAgo(limits.updatedAt)

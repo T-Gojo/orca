@@ -81,4 +81,25 @@ describe('AntigravityAccountUsageTracker', () => {
 
     expect(tracker.list(null)?.find((entry) => entry.accountId === 'a')?.rateLimits).toBeNull()
   })
+
+  it('reads the saved accounts on a refresh, and only unread ones otherwise', async () => {
+    const tracker = new AntigravityAccountUsageTracker(() => join(dir, 'usage-cache.json'))
+    await tracker.track(
+      async () => accounts('a'),
+      async () => reading(40)
+    )
+    const probed: string[] = []
+    const probe = async (id: string) => {
+      probed.push(id)
+      return reading(70)
+    }
+
+    tracker.useInactiveProbe(probe, () => {})
+    await tracker.refreshInactive(false)
+    await tracker.refreshInactive(false)
+    await tracker.refreshInactive(true)
+
+    expect(probed).toEqual(['b', 'b'])
+    expect(tracker.list(reading(40))?.[1].rateLimits?.weekly?.usedPercent).toBe(70)
+  })
 })

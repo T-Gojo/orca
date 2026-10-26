@@ -4748,7 +4748,7 @@
             "fiveHours": "5 hours",
             "unnamed": "Antigravity account",
             "notRead": "Refresh to read usage",
-            "neverRead": "No reading yet. Switch to this account and refresh to read it.",
+            "neverRead": "No reading yet. Refresh to read it.",
             "activeUpdated": "Active · Updated {{value0}}",
             "lastReading": "Last reading {{value0}}"
           }

@@ -1,4 +1,7 @@
-import type { AntigravityAccountsReader } from '../antigravity-account-usage'
+import type {
+  AntigravityAccountsReader,
+  AntigravityAccountUsageProbe
+} from '../antigravity-account-usage'
 import type { BrowserWindow } from 'electron'
 import { hasMiniMaxSessionCookie } from '../../minimax/minimax-cookie-store'
 import { hasMiniMaxApiKey } from '../../minimax/minimax-api-key-store'
@@ -70,6 +73,10 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
 
   setAntigravityAccountsReader(reader: AntigravityAccountsReader): void {
     this.antigravityAccountsReader = reader
+  }
+
+  setAntigravityAccountUsageProbe(probe: AntigravityAccountUsageProbe): void {
+    this.antigravityAccountUsage.useInactiveProbe(probe, () => this.pushToRenderer())
   }
 
   setNetworkProxySettingsResolver(resolver: () => NetworkProxySettings): void {

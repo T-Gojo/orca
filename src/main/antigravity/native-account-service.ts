@@ -129,6 +129,32 @@ export class AntigravityAccountService {
     })
   }
 
+  /** A saved account's login, for reading its usage without making it the native login. */
+  readSavedCredential(id: string): Promise<string | null> {
+    return this.serialize(async () => {
+      return this.store.read().accounts.find((account) => account.id === id)?.credentials ?? null
+    })
+  }
+
+  /** Keeps a saved login current after agy refreshed it outside the native store. */
+  updateSavedCredential(id: string, previous: string, next: string): Promise<void> {
+    return this.serialize(async () => {
+      const vault = this.store.read()
+      const account = vault.accounts.find((entry) => entry.id === id)
+      // Why both: a concurrent save or a different Google identity must never be overwritten.
+      if (
+        !account ||
+        account.credentials !== previous ||
+        !matches(account, parseAntigravityNativeCredential(next))
+      ) {
+        return
+      }
+      account.credentials = next
+      account.updatedAt = this.now()
+      this.store.write(vault)
+    })
+  }
+
   prepareForLaunch(): Promise<void> {
     return this.serialize(async () => {
       const { vault, current } = await this.reconcile()
