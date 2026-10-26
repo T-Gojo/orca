@@ -104,11 +104,19 @@ install_app() {
     echo "No build at $app; run: $0 build" >&2
     exit 1
   fi
-  if pgrep -f "$APP_PATH/Contents/MacOS/Orca" >/dev/null; then
+  # Why anchored: the terminal daemon names the app executable in its arguments and may keep running.
+  if pgrep -f "^$APP_PATH/Contents/MacOS/Orca( |\$)" >/dev/null; then
     echo "Orca is running. Quit it (Cmd+Q) and run this again." >&2
     exit 1
   fi
   mkdir -p "$BACKUP_DIR"
+  if [[ -d "$APP_PATH" ]] &&
+    ! defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString | grep -q -- '-custom\.'; then
+    # Why separate: later installs replace Orca-previous.app, but the official build is the way back.
+    rm -rf "$BACKUP_DIR/Orca-official.app"
+    ditto "$APP_PATH" "$BACKUP_DIR/Orca-official.app"
+    echo "Official app saved to $BACKUP_DIR/Orca-official.app"
+  fi
   if [[ -d "$APP_PATH" ]]; then
     rm -rf "$BACKUP_DIR/Orca-previous.app"
     mv "$APP_PATH" "$BACKUP_DIR/Orca-previous.app"
