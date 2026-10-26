@@ -47,6 +47,7 @@ vi.mock('./kiro-usage-fetcher', () => ({
     provider: 'kiro',
     session: null,
     weekly: null,
+    // ast-grep-ignore: test-no-wall-clock -- a fresh unavailable Kiro snapshot keeps activation debounce tests on their own providers
     updatedAt: Date.now(),
     error: null,
     status: 'unavailable'

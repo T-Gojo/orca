@@ -17,6 +17,24 @@ export function isAgentTerminalTabAccountPinned(tabId: string): boolean {
   return pinnedTabIds.has(tabId)
 }
 
+// Why keyed by PTY: the account-restart queue names the PTY it will replace.
+const restartAccountByPtyId = new Map<string, string | null>()
+
+/** The account a queued restart of this PTY comes back on; null is System default. */
+export function setPaneRestartAccount(ptyId: string, accountId: string | null): void {
+  restartAccountByPtyId.set(ptyId, accountId)
+}
+
+/** undefined: the restart follows the global selection. */
+export function takePaneRestartAccount(ptyId: string | undefined): string | null | undefined {
+  if (!ptyId || !restartAccountByPtyId.has(ptyId)) {
+    return undefined
+  }
+  const accountId = restartAccountByPtyId.get(ptyId) ?? null
+  restartAccountByPtyId.delete(ptyId)
+  return accountId
+}
+
 /** The spawn env hint that opens this launch on `accountId`; empty for agents without accounts. */
 export function agentTerminalAccountPinEnv(
   agent: TuiAgent,
@@ -40,4 +58,12 @@ export function pinnedStartupEnv(
   const pin = accountId === undefined ? {} : agentTerminalAccountPinEnv(agent, accountId)
   const merged = Object.keys(pin).length > 0 ? { ...env, ...pin } : env
   return merged ? { env: merged } : {}
+}
+
+/** A host-route launch's agent with its account pin; that route only ever starts local panes. */
+export function agentWithAccountPin(
+  agent: TuiAgent,
+  accountId: string | null | undefined
+): { agent: TuiAgent; env?: Record<string, string> } {
+  return { agent, ...pinnedStartupEnv(undefined, agent, accountId) }
 }

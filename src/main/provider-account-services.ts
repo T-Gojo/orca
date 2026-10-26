@@ -14,6 +14,7 @@ import { readMiniMaxApiKey } from './minimax/minimax-api-key-store'
 import { readZcodePlanApiKey } from './zcode/zcode-plan-api-key-store'
 import { readOpenCodeGoApiKey } from './opencode/opencode-go-api-key-store'
 import { createAccountRuntimeTargetSettingsSync } from './rate-limits/account-runtime-target-sync'
+import { getAntigravityAccountService } from './antigravity/native-account-host'
 import { normalizeCodexRuntimeSelection } from './codex-accounts/runtime-selection'
 import { normalizeClaudeRuntimeSelection } from './claude-accounts/runtime-selection'
 import type { ClaudeStatusLineRateLimits } from '../shared/claude-statusline-rate-limits'
@@ -130,6 +131,13 @@ export function createProviderAccountServices(
   rateLimits.setAntigravityUsageEnabledResolver(() =>
     store.getUI().statusBarItems.includes('antigravity')
   )
+  rateLimits.setAntigravityAccountsReader(async () => {
+    const state = await getAntigravityAccountService({ runtime: 'host' }).listAccounts()
+    return {
+      activeAccountId: state.activeAccountId,
+      accounts: state.accounts.map((account) => ({ id: account.id, email: account.email }))
+    }
+  })
   rateLimits.setNetworkProxySettingsResolver(() => store.getSettings())
   rateLimits.setInactiveClaudeAccountsResolver(() => {
     const settings = store.getSettings()

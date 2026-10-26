@@ -58,8 +58,9 @@ export function useTerminalPaneProcessExitActions(controller: TerminalPaneCloseC
   } = controller
 
   const buildAccountRestartStartup = useCallback(
-    (agent: AccountRestartAgent, leafId: string) =>
+    (agent: AccountRestartAgent, leafId: string, ptyId: string) =>
       buildPaneAccountRestartStartup(agent, {
+        ptyId,
         tabId,
         worktreeId,
         leafId,
@@ -246,7 +247,7 @@ export function useTerminalPaneProcessExitActions(controller: TerminalPaneCloseC
         continue
       }
       const agent = consumePendingPaneAccountRestart(ptyId)
-      const startup = agent ? buildAccountRestartStartup(agent, pane.leafId) : null
+      const startup = agent ? buildAccountRestartStartup(agent, pane.leafId, ptyId) : null
       if (agent && startup) {
         // Why: one Claude switch restarts many panes at once; none was the one the user clicked.
         handleRestartPane(pane.id, startup, { focus: agent === 'codex' })

@@ -5,7 +5,10 @@ import { SettingsSegmentedControl } from '@/components/settings/SettingsFormCont
 import { useResetCountdownClock } from '@/hooks/useResetCountdownClock'
 import { translate } from '@/i18n/i18n'
 import { CURSOR_MODELS_BUCKET_NAME } from '../../../../shared/cursor-usage-buckets'
-import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
+import type {
+  AntigravityAccountUsage,
+  ProviderRateLimits
+} from '../../../../shared/rate-limit-types'
 import {
   clampUsedPercent,
   type UsagePercentageDisplay
@@ -23,6 +26,7 @@ import {
   type UsageSection
 } from './usage-roster-metrics'
 import { UsageAccountBlock } from './UsageRosterAccountBlock'
+import { AntigravityAccountUsageRows } from './AntigravityAccountUsageRows'
 import type { UsageRosterAccount, UsageRosterAccountsByProvider } from './usage-roster-accounts'
 
 type ProviderId = ProviderRateLimits['provider']
@@ -66,7 +70,8 @@ export function UsageRow({
   showSignInAction,
   now,
   mode = 'verbose',
-  accounts
+  accounts,
+  headerOnly = false
 }: {
   p: ProviderRateLimits
   display: UsagePercentageDisplay
@@ -75,6 +80,8 @@ export function UsageRow({
   now: number
   mode?: StatusBarUsageMode
   accounts?: UsageRosterAccount[]
+  /** The provider's own lines are shown elsewhere (Antigravity's per-account rows). */
+  headerOnly?: boolean
 }): React.JSX.Element {
   const sections = usedSections(p)
   const hasUsage = sections.length > 0
@@ -128,7 +135,7 @@ export function UsageRow({
             <UsageAccountBlock key={account.key} account={account} display={display} now={now} />
           ))}
         </div>
-      ) : hasUsage && mode === 'verbose' ? (
+      ) : hasUsage && mode === 'verbose' && !headerOnly ? (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-[30px]">
           {sections.map((section) => (
             <UsageMetric
@@ -158,7 +165,8 @@ export function UsageRosterPanel({
   onManageAccounts,
   onUsageDetails,
   renderRow,
-  accountsByProvider = NO_ROSTER_ACCOUNTS
+  accountsByProvider = NO_ROSTER_ACCOUNTS,
+  antigravityAccounts
 }: {
   providers: ProviderRateLimits[]
   display: UsagePercentageDisplay
@@ -175,6 +183,8 @@ export function UsageRosterPanel({
   renderRow?: (p: ProviderRateLimits, row: React.ReactNode) => React.ReactNode
   /** Claude/Codex saved accounts, listed under the provider in the Detailed view. */
   accountsByProvider?: UsageRosterAccountsByProvider
+  /** Saved Antigravity accounts; each opens its own usage beside the panel. */
+  antigravityAccounts?: AntigravityAccountUsage[]
 }): React.JSX.Element {
   // Why: one boundary-scheduled clock keeps every open row current without per-provider timers.
   const now = useResetCountdownClock(
@@ -249,6 +259,12 @@ export function UsageRosterPanel({
       {sorted.map((p) => {
         const state = getUsageRosterRowState(p, usedSections(p).length > 0)
         const showSignInAction = state.kind === 'sign-in' && canSignIn(p.provider)
+        const accountRows =
+          p.provider === 'antigravity' &&
+          statusBarUsageMode === 'verbose' &&
+          antigravityAccounts?.length
+            ? antigravityAccounts
+            : null
         const rowNode = (
           <UsageRow
             p={p}
@@ -262,6 +278,7 @@ export function UsageRosterPanel({
                 ? accountsByProvider[p.provider]
                 : undefined
             }
+            headerOnly={accountRows !== null}
           />
         )
         if (showSignInAction) {
@@ -275,18 +292,21 @@ export function UsageRosterPanel({
             </DropdownMenuItem>
           )
         }
-        const custom = renderRow?.(p, rowNode)
-        if (custom) {
-          return <React.Fragment key={p.provider}>{custom}</React.Fragment>
-        }
-        return (
+        const row = renderRow?.(p, rowNode) ?? (
           <DropdownMenuItem
-            key={p.provider}
             onSelect={() => onOpenProvider(p.provider)}
             className="w-full cursor-pointer rounded-none px-3.5 py-2.5"
           >
             {rowNode}
           </DropdownMenuItem>
+        )
+        return (
+          <React.Fragment key={p.provider}>
+            {row}
+            {accountRows ? (
+              <AntigravityAccountUsageRows accounts={accountRows} display={display} />
+            ) : null}
+          </React.Fragment>
         )
       })}
       <div className="border-t border-border/70" />

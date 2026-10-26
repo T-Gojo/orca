@@ -21,7 +21,7 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../../shared/tui-agent-launch-defaults'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
-import { pinnedStartupEnv } from '@/lib/agent-terminal-account-pins'
+import { agentWithAccountPin, pinnedStartupEnv } from '@/lib/agent-terminal-account-pins'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { LaunchSource } from '../../../shared/telemetry-events'
 import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution-context'
@@ -249,7 +249,7 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
     newTabPromptLaunchesThroughHost({ promptDelivery, pastesPrompt: true, isRemote })
   ) {
     const launched = launchNewTabPromptThroughHost({
-      agent,
+      ...agentWithAccountPin(agent, args.launchAccountId),
       worktreeId,
       ...(groupId ? { groupId } : {}),
       prompt: trimmedPrompt,

@@ -15,6 +15,8 @@ import type { SessionOptionValue } from '../../../shared/native-chat-session-opt
 export type HostAgentLaunchArgs = {
   agent: TuiAgent
   worktreeId: string
+  /** Spawn env for the pane, e.g. a per-terminal account pin. */
+  env?: Record<string, string>
   groupId?: string
   /** Kept by the window: a pane whose agent could not start offers to copy it. */
   prompt: string
@@ -77,6 +79,7 @@ export function launchAgentThroughHost(args: HostAgentLaunchArgs): {
     pendingStartup: {
       command: '',
       launchAgent: args.agent,
+      ...(args.env ? { env: args.env } : {}),
       agentLaunch: {
         launch: launchParams(args),
         ...(args.suppressStartupUpdatePrompt ? { suppressStartupUpdatePrompt: true } : {})

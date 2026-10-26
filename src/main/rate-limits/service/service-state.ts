@@ -23,6 +23,12 @@ import {
   DEFAULT_POLL_MS
 } from './service-types'
 import { readGrokAuthSession } from '../grok-auth'
+import { join } from 'node:path'
+import { getAppEnvironment } from '../../../shared/app-environment'
+import {
+  AntigravityAccountUsageTracker,
+  type AntigravityAccountsReader
+} from '../antigravity-account-usage'
 
 export abstract class RateLimitServiceState {
   protected state: InternalRateLimitState = {
@@ -114,6 +120,10 @@ export abstract class RateLimitServiceState {
   protected zcodePlanConfigResolver: (() => ZcodePlanRateLimitConfig) | null = null
   protected geminiCliOAuthEnabledResolver: GeminiCliOAuthEnabledResolver | null = null
   protected antigravityUsageEnabledResolver: AntigravityUsageEnabledResolver | null = null
+  protected antigravityAccountsReader: AntigravityAccountsReader | null = null
+  protected antigravityAccountUsage = new AntigravityAccountUsageTracker(() =>
+    join(getAppEnvironment().getPath('userData'), 'antigravity-accounts', 'usage-cache.json')
+  )
   protected inactiveClaudeAccountsResolver: (() => InactiveClaudeAccountInfo[]) | null = null
   protected inactiveCodexAccountsResolver: (() => InactiveCodexAccountInfo[]) | null = null
   protected networkProxySettingsResolver: (() => NetworkProxySettings) | null = null

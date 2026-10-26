@@ -197,7 +197,7 @@ export function getWindowSections(
 
 // Tooltips invert the theme; use background text tokens for legible primary and secondary content.
 
-function ProviderRateLimitWindowSection({
+export function ProviderRateLimitWindowSection({
   window,
   label,
   textClass,

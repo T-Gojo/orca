@@ -1458,6 +1458,16 @@
             }
           }
         }
+      },
+      "antigravityLaunchAccounts": {
+        "switched": "Antigravity switched to {{value0}}",
+        "switchedAll": "Antigravity keeps one login, so other Antigravity terminals use this account from their next request.",
+        "switchFailed": "Could not switch Antigravity account"
+      },
+      "tabAgentAccountSwitch": {
+        "notResumable": "This Claude session cannot be resumed yet. Send it a message first, then try again.",
+        "restarting": "Restarting on {{value0}}",
+        "claudeWaits": "Claude restarts once its current turn ends, then resumes this conversation."
       }
     },
     "hooks": {
@@ -4005,7 +4015,8 @@
             "chatUnavailableAfterSelection": "Couldn't start a {{value0}} chat.",
             "startChat": "Start a chat with {{value0}}",
             "cliTag": "(CLI)",
-            "agentsLoading": "Loading agents"
+            "agentsLoading": "Loading agents",
+            "switchAccountAndOpen": "Switch account and open"
           },
           "RecentTabSwitcher": {
             "329638ff6f": "Switch Tab",
@@ -4169,6 +4180,13 @@
           "TabBarQuickCommandHostLoadStatus": {
             "82e294f3ca": "Host unavailable",
             "7c129b08ff": "Loading host…"
+          },
+          "AccountLaunchRow": {
+            "currentAccount": "Current"
+          },
+          "ChangeAccountMenuItems": {
+            "label": "Change Account",
+            "heading": "Continue this session on"
           }
         }
       },
@@ -4725,6 +4743,14 @@
           "usageUnitLabel": {
             "used": "Used",
             "remaining": "Remaining"
+          },
+          "antigravityAccounts": {
+            "fiveHours": "5 hours",
+            "unnamed": "Antigravity account",
+            "notRead": "Refresh to read usage",
+            "neverRead": "No reading yet. Switch to this account and refresh to read it.",
+            "activeUpdated": "Active · Updated {{value0}}",
+            "lastReading": "Last reading {{value0}}"
           }
         }
       },
@@ -20111,7 +20137,9 @@
       "deliveryFailed": "The new {{agent}} session started, but its context could not be sent.",
       "deliveryUnconfirmed": "Orca could not confirm {{agent}} received the session context. Check the new session, and paste it yourself if its input is empty.",
       "copyPrompt": "Copy prompt",
-      "launchFailed": "Could not start a new {{agent}} session."
+      "launchFailed": "Could not start a new {{agent}} session.",
+      "account": "Account",
+      "defaultAccount": "{{value0}} (Default)"
     },
     "status": {
       "bar": {

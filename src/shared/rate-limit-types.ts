@@ -152,6 +152,14 @@ export type InactiveAccountUsage = {
   isFetching: boolean
 }
 
+/** A saved Antigravity account's usage: live for the active one, its last reading otherwise. */
+export type AntigravityAccountUsage = {
+  accountId: string
+  email: string | null
+  active: boolean
+  rateLimits: ProviderRateLimits | null
+}
+
 export type GrokAccountStatus = {
   signedIn: boolean
   email: string | null
@@ -199,4 +207,6 @@ export type RateLimitState = {
   codexTarget: RateLimitRuntimeTarget
   inactiveClaudeAccounts: InactiveAccountUsage[]
   inactiveCodexAccounts: InactiveAccountUsage[]
+  /** Optional: hosts without saved Antigravity accounts, or older hosts, omit it. */
+  antigravityAccounts?: AntigravityAccountUsage[]
 }

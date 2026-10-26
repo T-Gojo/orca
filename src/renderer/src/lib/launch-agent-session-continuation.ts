@@ -20,6 +20,7 @@ import {
 import type { AgentLaunchChoice } from '@/lib/agent-menu-selection'
 import type { AgentLaunchRoute } from '@/lib/agent-launch-routing'
 import { translate } from '@/i18n/i18n'
+import { markAgentTerminalTabAccountPinned } from '@/lib/agent-terminal-account-pins'
 
 type LaunchAgentSessionContinuationArgs = {
   agent: TuiAgent
@@ -30,6 +31,8 @@ type LaunchAgentSessionContinuationArgs = {
   launchChoice?: AgentLaunchChoice
   launchSource: LaunchSource
   signal?: AbortSignal
+  /** A saved account for a local terminal hand-off; null is System default. */
+  launchAccountId?: string | null
 }
 
 /** Detected agents, then those that open as a chat on the workspace's host without their CLI. */
@@ -98,7 +101,8 @@ export async function launchAgentSessionContinuation({
   initialCwd,
   launchChoice,
   launchSource,
-  signal
+  signal,
+  launchAccountId
 }: LaunchAgentSessionContinuationArgs): Promise<boolean> {
   const label = getAgentLabel(agent)
   // Blind PTY writes do not prove prompt delivery; claiming success can hide a lost handoff (#22479).
@@ -141,10 +145,17 @@ export async function launchAgentSessionContinuation({
   if (!(await ensureAgentAvailable(agent, worktreeId, plan.route, signal))) {
     return false
   }
-  const result = launchAgentInNewTab({ ...delivery, agentSessionLaunchPlan: plan })
+  const result = launchAgentInNewTab({
+    ...delivery,
+    agentSessionLaunchPlan: plan,
+    ...(launchAccountId !== undefined ? { launchAccountId: launchAccountId } : {})
+  })
   if (!result) {
     notifyLaunchFailed(label)
     return false
+  }
+  if (launchAccountId !== undefined && result.surface.kind === 'local-terminal') {
+    markAgentTerminalTabAccountPinned(result.surface.tabId)
   }
 
   if (result.promptDeliveryResult) {

@@ -65,6 +65,25 @@ export abstract class CodexRuntimeHomeRouting extends CodexRuntimeHomeManagedHom
     return resolved.homePath
   }
 
+  /** A pane restarted on a chosen account resumes in that account's home; null is the real home. */
+  resolvePinnedHostAccountCodexHomePathForResume(accountId: string | null): string | null {
+    if (accountId === null) {
+      return null
+    }
+    const account = this.getActiveAccount(this.store.getSettings().codexManagedAccounts, accountId)
+    if (!account || this.getWslManagedHomePath(account)) {
+      throw new Error('That Codex account is no longer saved in Orca.')
+    }
+    const resolved = this.resolveSelfContainedManagedHome(account)
+    if (resolved.kind === 'indeterminate') {
+      throw new ManagedCodexHomeTemporarilyUnavailableError()
+    }
+    if (resolved.kind === 'untrusted') {
+      throw new Error(`Sign in to ${account.email} again in Settings before opening it.`)
+    }
+    return resolved.homePath
+  }
+
   /** Trust-gates host previews without changing WSL routing or durable account state. */
   resolveCodexManagedAccountHomeForInactiveFetch(
     account: CodexManagedAccount

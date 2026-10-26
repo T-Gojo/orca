@@ -34,6 +34,7 @@ import {
   usageChipShowsPercentage
 } from './usage-unit-label'
 import { useStatusBarController } from './use-status-bar-controller'
+import { useAppStore } from '../../store'
 import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
 import { StatusBarVisibilityMenu } from './StatusBarVisibilityMenu'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
@@ -63,6 +64,7 @@ export function StatusBarSurface({
   // Memoized labels still need to follow language changes.
   useTranslation()
   const controller = useStatusBarController(floatingTerminalOpen)
+  const localAntigravityAccounts = useAppStore((s) => s.rateLimits.antigravityAccounts)
   if (!controller) {
     return null
   }
@@ -213,6 +215,7 @@ export function StatusBarSurface({
                     onManageAccounts={handleManageAccounts}
                     onUsageDetails={handleUsageDetails}
                     accountsByProvider={rosterAccounts}
+                    antigravityAccounts={remoteOwner ? undefined : localAntigravityAccounts}
                     renderRow={(p, rowNode) => {
                       // Why: a placeholder has nothing to drill into; its row opens the host's accounts.
                       if (isOwnerNotSetUpPlaceholder(p)) {

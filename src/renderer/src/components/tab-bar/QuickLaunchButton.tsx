@@ -13,6 +13,10 @@ import {
   DropdownMenuShortcut
 } from '@/components/ui/dropdown-menu'
 import { listAgentLaunchAccounts } from '@/lib/agent-launch-accounts'
+import {
+  switchAntigravityAccountForLaunch,
+  useAntigravityLaunchAccounts
+} from '@/lib/antigravity-launch-accounts'
 import { markAgentTerminalTabAccountPinned } from '@/lib/agent-terminal-account-pins'
 import { AccountLaunchRow } from './AccountLaunchRow'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
@@ -186,6 +190,10 @@ export function ProjectedAgentMenuItems({
     openSettingsTarget({ pane: 'agents', repoId: null })
     openSettingsPage()
   }, [openSettingsPage, openSettingsTarget])
+  const antigravityAccounts = useAntigravityLaunchAccounts(
+    model.state === 'settled' &&
+      model.rows.some((row) => row.agent === 'antigravity' && isLocalTerminalRow(row))
+  )
   if (model.state === 'loading') {
     // Why: rows fill in once when every answer is known, instead of reshuffling under the pointer.
     return (
@@ -270,15 +278,15 @@ export function ProjectedAgentMenuItems({
           </>
         )
         // Why local only: account folders live on this machine; a remote host picks its own.
-        const accounts =
-          (row.kind === 'terminal' || row.kind === 'cli') &&
-          (row.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID
-            ? listAgentLaunchAccounts(
+        const accounts = !isLocalTerminalRow(row)
+          ? []
+          : agent === 'antigravity'
+            ? antigravityAccounts
+            : listAgentLaunchAccounts(
                 agent,
                 settings,
                 translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
               )
-            : []
         return (
           <React.Fragment key={rowId(row)}>
             {startsCliGroup ? <DropdownMenuSeparator /> : null}
@@ -287,7 +295,21 @@ export function ProjectedAgentMenuItems({
                 accounts={accounts}
                 disabled={disabled}
                 title={rowTitle(row, label)}
-                onLaunch={(accountId) => runLaunch(row, accountId)}
+                {...(agent === 'antigravity'
+                  ? {
+                      heading: translate(
+                        'auto.components.tab.bar.QuickLaunchButton.switchAccountAndOpen',
+                        'Switch account and open'
+                      )
+                    }
+                  : {})}
+                onLaunch={(accountId) =>
+                  agent === 'antigravity'
+                    ? void switchAntigravityAccountForLaunch(antigravityAccounts, accountId).then(
+                        (switched) => switched && runLaunch(row)
+                      )
+                    : runLaunch(row, accountId)
+                }
               >
                 {rowContent}
               </AccountLaunchRow>
@@ -310,6 +332,14 @@ export function ProjectedAgentMenuItems({
       })}
       <AgentSettingsMenuItem onSelect={openAgentSettings} />
     </>
+  )
+}
+
+// Account pins and switches route this machine's CLI; a remote host keeps its own logins.
+function isLocalTerminalRow(row: NewTabAgentMenuRow): boolean {
+  return (
+    (row.kind === 'terminal' || row.kind === 'cli') &&
+    (row.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID
   )
 }
 

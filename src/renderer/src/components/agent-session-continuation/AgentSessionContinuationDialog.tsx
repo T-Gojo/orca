@@ -1,3 +1,5 @@
+import { listAgentLaunchAccounts } from '@/lib/agent-launch-accounts'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { agentsOfferedForLaunch } from '@/lib/host-chat-program'
 import { worktreeLaunchWorkspace } from '@/lib/agent-launch-route-input'
 import { useEffect, useRef, useState } from 'react'
@@ -46,6 +48,12 @@ type AgentSessionContinuationDialogProps = {
 
 const EMPTY_DISABLED_AGENTS: TuiAgent[] = []
 
+const SYSTEM_DEFAULT_ACCOUNT_KEY = 'system-default'
+
+function accountKey(accountId: string | null): string {
+  return accountId ?? SYSTEM_DEFAULT_ACCOUNT_KEY
+}
+
 export function AgentSessionContinuationDialog({
   open,
   request,
@@ -65,9 +73,17 @@ export function AgentSessionContinuationDialog({
     request: AgentSessionContinuationRequest | null
     mode: AgentSessionContinuationContextMode
   } | null>(null)
+  const [accountPick, setAccountPick] = useState<{
+    request: AgentSessionContinuationRequest | null
+    agent: TuiAgent
+    accountId: string | null
+  } | null>(null)
   if (!open) {
     if (pick) {
       setPick(null)
+    }
+    if (accountPick) {
+      setAccountPick(null)
     }
     if (contextPick) {
       setContextPick(null)
@@ -115,6 +131,26 @@ export function AgentSessionContinuationDialog({
       defaultAgent: settings?.defaultTuiAgent
     })
   const selection = observation.selectionFor(selectedAgent, currentPick?.surface)
+  // Why local terminals only: an account pin routes this machine's CLI; chats and remote hosts sign in their own way.
+  const accounts =
+    selectedAgent &&
+    selection.choice?.route === 'terminal-tui' &&
+    (selection.choice.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID
+      ? listAgentLaunchAccounts(
+          selectedAgent,
+          settings,
+          translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
+        )
+      : []
+  const pickedAccount =
+    accountPick?.request === request && accountPick.agent === selectedAgent && accounts.length > 0
+      ? accountPick
+      : null
+  const accountValue = accountKey(
+    pickedAccount
+      ? pickedAccount.accountId
+      : (accounts.find((account) => account.selected)?.id ?? null)
+  )
 
   useEffect(() => {
     if (!starting) {
@@ -143,7 +179,8 @@ export function AgentSessionContinuationDialog({
       initialCwd: request.initialCwd,
       launchChoice: selection.choice,
       launchSource: request.launchSource,
-      signal: abortRef.current?.signal
+      signal: abortRef.current?.signal,
+      ...(pickedAccount ? { launchAccountId: pickedAccount.accountId } : {})
     })
     setStarting(false)
     if (launched) {
@@ -245,6 +282,40 @@ export function AgentSessionContinuationDialog({
               </p>
             ) : null}
           </div>
+
+          {accounts.length > 0 && selectedAgent ? (
+            <div className="min-w-0 space-y-1.5">
+              <label className="text-xs font-medium">
+                {translate('components.agentSessionContinuation.account', 'Account')}
+              </label>
+              <Select
+                value={accountValue}
+                onValueChange={(value) => {
+                  const account = accounts.find((entry) => accountKey(entry.id) === value)
+                  if (account) {
+                    setAccountPick({ request, agent: selectedAgent, accountId: account.id })
+                  }
+                }}
+              >
+                <SelectTrigger className="min-w-0 w-full" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((account) => (
+                    <SelectItem key={accountKey(account.id)} value={accountKey(account.id)}>
+                      {account.selected
+                        ? translate(
+                            'components.agentSessionContinuation.defaultAccount',
+                            '{{value0}} (Default)',
+                            { value0: account.label }
+                          )
+                        : account.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           <div className="min-w-0 space-y-1.5">
             <label className="text-xs font-medium">

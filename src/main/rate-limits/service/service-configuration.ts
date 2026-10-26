@@ -1,3 +1,4 @@
+import type { AntigravityAccountsReader } from '../antigravity-account-usage'
 import type { BrowserWindow } from 'electron'
 import { hasMiniMaxSessionCookie } from '../../minimax/minimax-cookie-store'
 import { hasMiniMaxApiKey } from '../../minimax/minimax-api-key-store'
@@ -65,6 +66,10 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
 
   setAntigravityUsageEnabledResolver(resolver: AntigravityUsageEnabledResolver): void {
     this.antigravityUsageEnabledResolver = resolver
+  }
+
+  setAntigravityAccountsReader(reader: AntigravityAccountsReader): void {
+    this.antigravityAccountsReader = reader
   }
 
   setNetworkProxySettingsResolver(resolver: () => NetworkProxySettings): void {
@@ -165,7 +170,8 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
       inactiveCodexAccounts: this.buildInactiveArray(
         this.inactiveCodexCache,
         this.inactiveCodexFetching
-      )
+      ),
+      antigravityAccounts: this.antigravityAccountUsage.list(this.state.antigravity)
     }
   }
 }

@@ -1,3 +1,4 @@
+import { ChangeAccountMenuItems } from './ChangeAccountMenuItems'
 import { Pin, PinOff, Pencil, SquareTerminal, X, ListX } from 'lucide-react'
 import {
   DropdownMenu,
@@ -187,6 +188,7 @@ export function SortableTabContextMenu({
           leadingSeparator={!showTerminalViewSwitch}
           onComplete={onSessionSwitchComplete}
         />
+        {nativeChat ? null : <ChangeAccountMenuItems key={sessionSwitchOpening} tab={tab} />}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onTogglePin}>
           {isPinned ? (
