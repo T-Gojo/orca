@@ -123,6 +123,10 @@ install_app() {
     echo "Previous app saved to $BACKUP_DIR/Orca-previous.app"
   fi
   ditto "$app" "$APP_PATH"
+  # Why: a pinned Dock tile keeps following the bundle moved into the backup folder, so clicks
+  # on it stop activating the new app until LaunchServices and the Dock pick up the new bundle.
+  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH"
+  killall Dock 2>/dev/null || true
   echo "Installed $(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString) to $APP_PATH"
 }
 
