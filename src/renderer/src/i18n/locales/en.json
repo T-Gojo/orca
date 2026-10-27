@@ -4815,6 +4815,10 @@
             "neverRead": "No reading yet. Refresh to read it.",
             "activeUpdated": "Active · Updated {{value0}}",
             "lastReading": "Last reading {{value0}}"
+          },
+          "savedAccounts": {
+            "credits": "Credits",
+            "unnamed": "Saved account"
           }
         }
       },
@@ -21119,7 +21123,41 @@
       "cancelFailed": "Could not reach the server to cancel yet.",
       "cancel": "Cancel"
     },
-    "remoteScopeAccountsAddHere": "Showing accounts managed by {{value0}}. New accounts sign in there; you finish in this device’s browser."
+    "remoteScopeAccountsAddHere": "Showing accounts managed by {{value0}}. New accounts sign in there; you finish in this device’s browser.",
+    "kiro": {
+      "creditsUsed": "Credits: {{percent}}% used",
+      "title": "Kiro",
+      "scope": "Save kiro-cli logins on {{host}} and switch between them. kiro-cli keeps one login, so switching changes it for every new kiro-cli session there.",
+      "retry": "Retry",
+      "signedInAs": "kiro-cli is signed in as {{email}}.",
+      "identityUnknown": "kiro-cli is signed in, but Kiro could not confirm the account yet. Run kiro-cli once, then refresh.",
+      "signedOut": "kiro-cli is not signed in on this host.",
+      "save": "Save current account",
+      "addAnother": "Sign in another account",
+      "refresh": "Refresh accounts",
+      "usage": "Refresh usage",
+      "working": "Updating account",
+      "loginSteps": "Your previous login is saved. Run this in a terminal on {{host}}, finish the browser sign-in, then click Refresh accounts and Save current account.",
+      "copied": "Copied",
+      "copy": "Copy command",
+      "empty": "No saved Kiro accounts. Save the current kiro-cli login to start switching.",
+      "saved": "Saved Kiro account",
+      "active": "Active",
+      "inUse": "In use",
+      "switch": "Switch",
+      "remove": "Remove",
+      "sessions": "Running kiro-cli sessions keep their account until restarted. The Kiro IDE keeps its own login.",
+      "switched": "Kiro switched to {{value0}}",
+      "switchedAll": "kiro-cli keeps one login, so new kiro-cli sessions use this account. Running ones keep theirs until restarted.",
+      "switchFailed": "Could not switch Kiro account",
+      "searchTitle": "Kiro Accounts",
+      "searchDescription": "Save kiro-cli logins and switch between them, with each account’s credit usage.",
+      "keyword": {
+        "kiro": "kiro",
+        "kiroCli": "kiro-cli"
+      },
+      "thisComputer": "this computer"
+    }
   },
   "fileSearch": {
     "failed": "Search failed. Try again.",

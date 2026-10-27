@@ -1,7 +1,4 @@
-import type {
-  AntigravityAccountsReader,
-  AntigravityAccountUsageProbe
-} from '../antigravity-account-usage'
+import type { SavedAccountsReader, SavedAccountUsageProbe } from '../saved-account-usage'
 import type { BrowserWindow } from 'electron'
 import { hasMiniMaxSessionCookie } from '../../minimax/minimax-cookie-store'
 import { hasMiniMaxApiKey } from '../../minimax/minimax-api-key-store'
@@ -71,12 +68,20 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
     this.antigravityUsageEnabledResolver = resolver
   }
 
-  setAntigravityAccountsReader(reader: AntigravityAccountsReader): void {
+  setAntigravityAccountsReader(reader: SavedAccountsReader): void {
     this.antigravityAccountsReader = reader
   }
 
-  setAntigravityAccountUsageProbe(probe: AntigravityAccountUsageProbe): void {
+  setAntigravityAccountUsageProbe(probe: SavedAccountUsageProbe): void {
     this.antigravityAccountUsage.useInactiveProbe(probe, () => this.pushToRenderer())
+  }
+
+  setKiroAccountsReader(reader: SavedAccountsReader): void {
+    this.kiroAccountsReader = reader
+  }
+
+  setKiroAccountUsageProbe(probe: SavedAccountUsageProbe): void {
+    this.kiroAccountUsage.useInactiveProbe(probe, () => this.pushToRenderer())
   }
 
   setNetworkProxySettingsResolver(resolver: () => NetworkProxySettings): void {
@@ -178,7 +183,8 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
         this.inactiveCodexCache,
         this.inactiveCodexFetching
       ),
-      antigravityAccounts: this.antigravityAccountUsage.list(this.state.antigravity)
+      antigravityAccounts: this.antigravityAccountUsage.list(this.state.antigravity),
+      kiroAccounts: this.kiroAccountUsage.list(this.state.kiro)
     }
   }
 }

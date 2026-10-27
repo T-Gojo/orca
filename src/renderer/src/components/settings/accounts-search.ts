@@ -214,6 +214,23 @@ export const getAccountsAntigravitySearchEntries = createLocalizedCatalog(() => 
   }
 ])
 
+export const getAccountsKiroSearchEntries = createLocalizedCatalog(() => [
+  {
+    title: translate('accounts.kiro.searchTitle', 'Kiro Accounts'),
+    description: translate(
+      'accounts.kiro.searchDescription',
+      'Save kiro-cli logins and switch between them, with each account’s credit usage.'
+    ),
+    keywords: [
+      ...translateSearchKeyword('accounts.kiro.keyword.kiro', 'kiro'),
+      ...translateSearchKeyword('accounts.kiro.keyword.kiroCli', 'kiro-cli'),
+      ...translateSearchKeyword('accounts.antigravity.keyword.accounts', 'accounts'),
+      ...translateSearchKeyword('auto.components.settings.accounts.search.a9f3d7b5c8', 'login'),
+      ...translateSearchKeyword('auto.components.settings.accounts.search.cursor.kw.usage', 'usage')
+    ]
+  }
+])
+
 export const getAccountsCursorSearchEntries = createLocalizedCatalog(() => [
   {
     title: translate('auto.components.settings.accounts.search.cursor.title', 'Cursor Usage'),
@@ -285,6 +302,7 @@ export const getAccountsPaneSearchEntries = createLocalizedCatalog((): SettingsS
   ...getAccountsMiniMaxSearchEntries(),
   ...getAccountsGrokSearchEntries(),
   ...getAccountsAntigravitySearchEntries(),
+  ...getAccountsKiroSearchEntries(),
   ...getAccountsCursorSearchEntries(),
   ...getAccountsZcodePlanSearchEntries()
 ])

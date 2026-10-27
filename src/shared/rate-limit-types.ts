@@ -152,8 +152,8 @@ export type InactiveAccountUsage = {
   isFetching: boolean
 }
 
-/** A saved Antigravity account's usage: live for the active one, its last reading otherwise. */
-export type AntigravityAccountUsage = {
+/** A saved Antigravity or Kiro account's usage: live for the active one, its last reading otherwise. */
+export type SavedAccountUsage = {
   accountId: string
   email: string | null
   active: boolean
@@ -208,5 +208,7 @@ export type RateLimitState = {
   inactiveClaudeAccounts: InactiveAccountUsage[]
   inactiveCodexAccounts: InactiveAccountUsage[]
   /** Optional: hosts without saved Antigravity accounts, or older hosts, omit it. */
-  antigravityAccounts?: AntigravityAccountUsage[]
+  antigravityAccounts?: SavedAccountUsage[]
+  /** Optional: hosts without saved Kiro accounts, or older hosts, omit it. */
+  kiroAccounts?: SavedAccountUsage[]
 }

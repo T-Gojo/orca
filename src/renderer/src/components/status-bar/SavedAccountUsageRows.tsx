@@ -8,7 +8,7 @@ import { useResetCountdownClock } from '@/hooks/useResetCountdownClock'
 import { translate } from '@/i18n/i18n'
 import { formatWindowLabel } from '@/lib/window-label-formatter'
 import type {
-  AntigravityAccountUsage,
+  SavedAccountUsage,
   ProviderRateLimits,
   RateLimitBucket
 } from '../../../../shared/rate-limit-types'
@@ -22,10 +22,21 @@ import { UsageMetric } from './usage-roster-metrics'
 
 type BucketGroup = { name: string; buckets: RateLimitBucket[] }
 
+// Why a fallback: Kiro reports one monthly credit pool rather than named buckets.
+function windowBuckets(limits: ProviderRateLimits | null): RateLimitBucket[] {
+  if (!limits || (limits.buckets?.length ?? 0) > 0) {
+    return limits?.buckets ?? []
+  }
+  const credits = translate('auto.components.status.bar.savedAccounts.credits', 'Credits')
+  return [limits.session, limits.weekly, limits.monthly].flatMap((window) =>
+    window ? [{ ...window, name: credits }] : []
+  )
+}
+
 // Why grouped: agy reports one pool per model family, and each family has its own windows.
 function groupBuckets(limits: ProviderRateLimits | null): BucketGroup[] {
   const groups: BucketGroup[] = []
-  for (const bucket of limits?.buckets ?? []) {
+  for (const bucket of windowBuckets(limits)) {
     const name = bucket.group ?? bucket.name
     const group = groups.find((entry) => entry.name === name)
     if (group) {
@@ -48,7 +59,7 @@ function windowTitle(bucket: RateLimitBucket): string {
 }
 
 function tightestBucket(limits: ProviderRateLimits | null): RateLimitBucket | null {
-  const buckets = limits?.buckets ?? []
+  const buckets = windowBuckets(limits)
   return buckets.length === 0
     ? null
     : buckets.reduce((tightest, bucket) =>
@@ -58,14 +69,13 @@ function tightestBucket(limits: ProviderRateLimits | null): RateLimitBucket | nu
       )
 }
 
-function accountLabel(account: AntigravityAccountUsage): string {
+function accountLabel(account: SavedAccountUsage): string {
   return (
-    account.email ??
-    translate('auto.components.status.bar.antigravityAccounts.unnamed', 'Antigravity account')
+    account.email ?? translate('auto.components.status.bar.savedAccounts.unnamed', 'Saved account')
   )
 }
 
-function readingCaption(account: AntigravityAccountUsage): string {
+function readingCaption(account: SavedAccountUsage): string {
   const limits = account.rateLimits
   if (!limits || !limits.updatedAt) {
     return account.active
@@ -97,7 +107,7 @@ function AccountUsagePanel({
   account,
   display
 }: {
-  account: AntigravityAccountUsage
+  account: SavedAccountUsage
   display: UsagePercentageDisplay
 }): React.JSX.Element {
   const groups = groupBuckets(account.rateLimits)
@@ -137,16 +147,16 @@ function AccountUsagePanel({
   )
 }
 
-/** One row per saved Antigravity account; hovering one opens its usage, grouped by model family. */
-export function AntigravityAccountUsageRows({
+/** One row per saved Antigravity or Kiro account; hovering one opens its usage by pool. */
+export function SavedAccountUsageRows({
   accounts,
   display
 }: {
-  accounts: AntigravityAccountUsage[]
+  accounts: SavedAccountUsage[]
   display: UsagePercentageDisplay
 }): React.JSX.Element {
   return (
-    <div data-antigravity-accounts className="pb-1.5">
+    <div data-saved-accounts className="pb-1.5">
       {accounts.map((account) => {
         const tightest = tightestBucket(account.rateLimits)
         return (

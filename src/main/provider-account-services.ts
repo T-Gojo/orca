@@ -20,6 +20,8 @@ import {
   setAntigravityNativeCredentialChangeListener
 } from './antigravity/native-account-host'
 import { probeAntigravityAccountUsage } from './rate-limits/antigravity-account-usage-probe'
+import { getKiroAccountService } from './kiro/kiro-account-host'
+import { probeKiroAccountUsage } from './rate-limits/kiro-account-usage-probe'
 import { getAppEnvironment } from '../shared/app-environment'
 import { join } from 'node:path'
 import { normalizeCodexRuntimeSelection } from './codex-accounts/runtime-selection'
@@ -156,6 +158,24 @@ export function createProviderAccountServices(
         update: (id, previous, next) => service.updateSavedCredential(id, previous, next)
       },
       probeRoot: join(getAppEnvironment().getPath('userData'), 'antigravity-accounts', 'probe')
+    })
+  })
+  rateLimits.setKiroAccountsReader(async () => {
+    const state = await getKiroAccountService().listAccounts()
+    return {
+      activeAccountId: state.activeAccountId,
+      accounts: state.accounts.map((account) => ({
+        id: account.id,
+        email: account.email,
+        authProvenance: account.userId
+      }))
+    }
+  })
+  rateLimits.setKiroAccountUsageProbe((accountId) => {
+    const service = getKiroAccountService()
+    return probeKiroAccountUsage(accountId, {
+      read: (id) => service.readSavedLogin(id),
+      update: (id, previous, next) => service.updateSavedLogin(id, previous, next)
     })
   })
   setAntigravityNativeCredentialChangeListener(() =>

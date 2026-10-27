@@ -65,6 +65,7 @@ export function StatusBarSurface({
   useTranslation()
   const controller = useStatusBarController(floatingTerminalOpen)
   const localAntigravityAccounts = useAppStore((s) => s.rateLimits.antigravityAccounts)
+  const localKiroAccounts = useAppStore((s) => s.rateLimits.kiroAccounts)
   if (!controller) {
     return null
   }
@@ -216,6 +217,7 @@ export function StatusBarSurface({
                     onUsageDetails={handleUsageDetails}
                     accountsByProvider={rosterAccounts}
                     antigravityAccounts={remoteOwner ? undefined : localAntigravityAccounts}
+                    kiroAccounts={remoteOwner ? undefined : localKiroAccounts}
                     renderRow={(p, rowNode) => {
                       // Why: a placeholder has nothing to drill into; its row opens the host's accounts.
                       if (isOwnerNotSetUpPlaceholder(p)) {

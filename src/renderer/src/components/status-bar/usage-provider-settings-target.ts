@@ -19,11 +19,11 @@ export function getUsageProviderAccountsSectionId(
       return 'accounts-grok'
     case 'cursor':
       return 'accounts-cursor'
-    case 'antigravity':
     case 'kiro':
+      return 'accounts-kiro'
+    case 'antigravity':
     case 'kimi':
       // Kimi and Antigravity keep credentials in their own CLIs; Orca has no account settings for them.
-      // Kiro's login is owned by kiro-cli / Kiro IDE; Orca only reads it.
       return null
     case 'zcode':
       return 'accounts-zcode'

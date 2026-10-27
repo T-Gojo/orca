@@ -5,10 +5,7 @@ import { SettingsSegmentedControl } from '@/components/settings/SettingsFormCont
 import { useResetCountdownClock } from '@/hooks/useResetCountdownClock'
 import { translate } from '@/i18n/i18n'
 import { CURSOR_MODELS_BUCKET_NAME } from '../../../../shared/cursor-usage-buckets'
-import type {
-  AntigravityAccountUsage,
-  ProviderRateLimits
-} from '../../../../shared/rate-limit-types'
+import type { SavedAccountUsage, ProviderRateLimits } from '../../../../shared/rate-limit-types'
 import {
   clampUsedPercent,
   type UsagePercentageDisplay
@@ -26,7 +23,7 @@ import {
   type UsageSection
 } from './usage-roster-metrics'
 import { UsageAccountBlock } from './UsageRosterAccountBlock'
-import { AntigravityAccountUsageRows } from './AntigravityAccountUsageRows'
+import { SavedAccountUsageRows } from './SavedAccountUsageRows'
 import type { UsageRosterAccount, UsageRosterAccountsByProvider } from './usage-roster-accounts'
 
 type ProviderId = ProviderRateLimits['provider']
@@ -166,7 +163,8 @@ export function UsageRosterPanel({
   onUsageDetails,
   renderRow,
   accountsByProvider = NO_ROSTER_ACCOUNTS,
-  antigravityAccounts
+  antigravityAccounts,
+  kiroAccounts
 }: {
   providers: ProviderRateLimits[]
   display: UsagePercentageDisplay
@@ -184,7 +182,9 @@ export function UsageRosterPanel({
   /** Claude/Codex saved accounts, listed under the provider in the Detailed view. */
   accountsByProvider?: UsageRosterAccountsByProvider
   /** Saved Antigravity accounts; each opens its own usage beside the panel. */
-  antigravityAccounts?: AntigravityAccountUsage[]
+  antigravityAccounts?: SavedAccountUsage[]
+  /** Saved Kiro accounts, listed the same way. */
+  kiroAccounts?: SavedAccountUsage[]
 }): React.JSX.Element {
   // Why: one boundary-scheduled clock keeps every open row current without per-provider timers.
   const now = useResetCountdownClock(
@@ -259,12 +259,14 @@ export function UsageRosterPanel({
       {sorted.map((p) => {
         const state = getUsageRosterRowState(p, usedSections(p).length > 0)
         const showSignInAction = state.kind === 'sign-in' && canSignIn(p.provider)
-        const accountRows =
-          p.provider === 'antigravity' &&
-          statusBarUsageMode === 'verbose' &&
-          antigravityAccounts?.length
+        const savedAccounts =
+          p.provider === 'antigravity'
             ? antigravityAccounts
-            : null
+            : p.provider === 'kiro'
+              ? kiroAccounts
+              : undefined
+        const accountRows =
+          statusBarUsageMode === 'verbose' && savedAccounts?.length ? savedAccounts : null
         const rowNode = (
           <UsageRow
             p={p}
@@ -304,7 +306,7 @@ export function UsageRosterPanel({
           <React.Fragment key={p.provider}>
             {row}
             {accountRows ? (
-              <AntigravityAccountUsageRows accounts={accountRows} display={display} />
+              <SavedAccountUsageRows accounts={accountRows} display={display} />
             ) : null}
           </React.Fragment>
         )

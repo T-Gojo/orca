@@ -3,10 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ProviderRateLimits } from '../../shared/rate-limit-types'
-import {
-  AntigravityAccountUsageTracker,
-  type AntigravityAccountsSnapshot
-} from './antigravity-account-usage'
+import { SavedAccountUsageTracker, type SavedAccountsSnapshot } from './saved-account-usage'
 
 let dir: string
 
@@ -29,7 +26,7 @@ function reading(usedPercent: number): ProviderRateLimits {
   }
 }
 
-function accounts(activeAccountId: string): AntigravityAccountsSnapshot {
+function accounts(activeAccountId: string): SavedAccountsSnapshot {
   return {
     activeAccountId,
     accounts: [
@@ -39,10 +36,10 @@ function accounts(activeAccountId: string): AntigravityAccountsSnapshot {
   }
 }
 
-describe('AntigravityAccountUsageTracker', () => {
+describe('SavedAccountUsageTracker', () => {
   it("keeps each account's last reading after switching, and across a restart", async () => {
     const cache = join(dir, 'usage-cache.json')
-    const tracker = new AntigravityAccountUsageTracker(() => cache)
+    const tracker = new SavedAccountUsageTracker('antigravity', () => cache)
     await tracker.track(
       async () => accounts('a'),
       async () => reading(40)
@@ -60,7 +57,7 @@ describe('AntigravityAccountUsageTracker', () => {
       ['b@x.dev', true, 10]
     ])
 
-    const restarted = new AntigravityAccountUsageTracker(() => cache)
+    const restarted = new SavedAccountUsageTracker('antigravity', () => cache)
     await restarted.track(
       async () => accounts('b'),
       async () => reading(12)
@@ -69,7 +66,7 @@ describe('AntigravityAccountUsageTracker', () => {
   })
 
   it('does not file a reading when the account switched during the fetch', async () => {
-    const tracker = new AntigravityAccountUsageTracker(() => join(dir, 'usage-cache.json'))
+    const tracker = new SavedAccountUsageTracker('antigravity', () => join(dir, 'usage-cache.json'))
     let active = 'a'
     await tracker.track(
       async () => accounts(active),
@@ -83,7 +80,7 @@ describe('AntigravityAccountUsageTracker', () => {
   })
 
   it('reads the saved accounts on a refresh, and only unread ones otherwise', async () => {
-    const tracker = new AntigravityAccountUsageTracker(() => join(dir, 'usage-cache.json'))
+    const tracker = new SavedAccountUsageTracker('antigravity', () => join(dir, 'usage-cache.json'))
     await tracker.track(
       async () => accounts('a'),
       async () => reading(40)
@@ -101,5 +98,22 @@ describe('AntigravityAccountUsageTracker', () => {
 
     expect(probed).toEqual(['b', 'b'])
     expect(tracker.list(reading(40))?.[1].rateLimits?.weekly?.usedPercent).toBe(70)
+  })
+
+  it("never files another login's reading under the active account", async () => {
+    const tracker = new SavedAccountUsageTracker('kiro', () => join(dir, 'usage-cache.json'))
+    const kiroAccounts = async (): Promise<SavedAccountsSnapshot> => ({
+      activeAccountId: 'a',
+      accounts: [{ id: 'a', email: 'a@x.dev', authProvenance: 'user-a' }]
+    })
+    const ideReading: ProviderRateLimits = {
+      ...reading(80),
+      provider: 'kiro',
+      usageMetadata: { authProvenance: 'user-ide' }
+    }
+
+    await tracker.track(kiroAccounts, async () => ideReading)
+
+    expect(tracker.list(ideReading)?.[0].rateLimits).toBeNull()
   })
 })

@@ -112,9 +112,38 @@ function readPlanTitle(payload: unknown): string | null {
   return typeof title === 'string' && title.length > 0 ? title : null
 }
 
-async function requestUsageLimits(
+export type KiroUsageUser = { userId: string; email: string | null }
+
+function readUser(payload: unknown): KiroUsageUser | null {
+  if (!isRecord(payload) || !isRecord(payload.userInfo)) {
+    return null
+  }
+  const { userId, email } = payload.userInfo
+  return typeof userId === 'string' && userId.length > 0
+    ? { userId, email: typeof email === 'string' && email.length > 0 ? email : null }
+    : null
+}
+
+/** One usage read with this token; `user` names the account it belongs to when Kiro says. */
+export async function requestKiroUsageLimits(
   session: KiroAuthSession,
   signal?: AbortSignal
+): Promise<{ limits: ProviderRateLimits; user: KiroUsageUser | null }> {
+  const seen: { user: KiroUsageUser | null } = { user: null }
+  const limits = await requestUsageLimits(session, signal, (payload) => {
+    seen.user = readUser(payload)
+  })
+  return { limits: seen.user ? withUser(limits, seen.user) : limits, user: seen.user }
+}
+
+function withUser(limits: ProviderRateLimits, user: KiroUsageUser): ProviderRateLimits {
+  return { ...limits, usageMetadata: { ...limits.usageMetadata, authProvenance: user.userId } }
+}
+
+async function requestUsageLimits(
+  session: KiroAuthSession,
+  signal?: AbortSignal,
+  onPayload?: (payload: unknown) => void
 ): Promise<ProviderRateLimits> {
   const region = AWS_REGION_PATTERN.test(session.region) ? session.region : 'us-east-1'
   const url = `https://q.${region}.amazonaws.com/getUsageLimits?origin=AI_EDITOR&resourceType=AGENTIC_REQUEST`
@@ -164,6 +193,7 @@ async function requestUsageLimits(
   } catch {
     return result('error', 'Could not parse Kiro usage response', 'parse', session.source)
   }
+  onPayload?.(payload)
   const monthly = mapKiroCreditWindow(payload)
   if (!monthly) {
     return result(
@@ -210,5 +240,5 @@ export async function fetchKiroRateLimits(
       session.source
     )
   }
-  return requestUsageLimits(session, options.signal)
+  return (await requestKiroUsageLimits(session, options.signal)).limits
 }

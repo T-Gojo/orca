@@ -13,10 +13,7 @@ import {
   DropdownMenuShortcut
 } from '@/components/ui/dropdown-menu'
 import { listAgentLaunchAccounts } from '@/lib/agent-launch-accounts'
-import {
-  switchAntigravityAccountForLaunch,
-  useAntigravityLaunchAccounts
-} from '@/lib/antigravity-launch-accounts'
+import { useSingleLoginLaunchAccounts } from '@/lib/single-login-launch-accounts'
 import { markAgentTerminalTabAccountPinned } from '@/lib/agent-terminal-account-pins'
 import { AccountLaunchRow } from './AccountLaunchRow'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
@@ -190,9 +187,8 @@ export function ProjectedAgentMenuItems({
     openSettingsTarget({ pane: 'agents', repoId: null })
     openSettingsPage()
   }, [openSettingsPage, openSettingsTarget])
-  const antigravityAccounts = useAntigravityLaunchAccounts(
-    model.state === 'settled' &&
-      model.rows.some((row) => row.agent === 'antigravity' && isLocalTerminalRow(row))
+  const singleLoginAccounts = useSingleLoginLaunchAccounts(
+    model.state === 'settled' ? model.rows.filter(isLocalTerminalRow).map((row) => row.agent) : []
   )
   if (model.state === 'loading') {
     // Why: rows fill in once when every answer is known, instead of reshuffling under the pointer.
@@ -277,16 +273,16 @@ export function ProjectedAgentMenuItems({
             ) : null}
           </>
         )
+        const singleLogin = singleLoginAccounts(agent)
         // Why local only: account folders live on this machine; a remote host picks its own.
         const accounts = !isLocalTerminalRow(row)
           ? []
-          : agent === 'antigravity'
-            ? antigravityAccounts
-            : listAgentLaunchAccounts(
-                agent,
-                settings,
-                translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
-              )
+          : (singleLogin?.accounts ??
+            listAgentLaunchAccounts(
+              agent,
+              settings,
+              translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
+            ))
         return (
           <React.Fragment key={rowId(row)}>
             {startsCliGroup ? <DropdownMenuSeparator /> : null}
@@ -295,7 +291,7 @@ export function ProjectedAgentMenuItems({
                 accounts={accounts}
                 disabled={disabled}
                 title={rowTitle(row, label)}
-                {...(agent === 'antigravity'
+                {...(singleLogin
                   ? {
                       heading: translate(
                         'auto.components.tab.bar.QuickLaunchButton.switchAccountAndOpen',
@@ -304,10 +300,10 @@ export function ProjectedAgentMenuItems({
                     }
                   : {})}
                 onLaunch={(accountId) =>
-                  agent === 'antigravity'
-                    ? void switchAntigravityAccountForLaunch(antigravityAccounts, accountId).then(
-                        (switched) => switched && runLaunch(row)
-                      )
+                  singleLogin
+                    ? void singleLogin
+                        .switchTo(singleLogin.accounts, accountId)
+                        .then((switched) => switched && runLaunch(row))
                     : runLaunch(row, accountId)
                 }
               >

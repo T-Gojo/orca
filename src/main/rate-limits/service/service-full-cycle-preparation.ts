@@ -191,7 +191,13 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
         : fetchZcodeRateLimits({ signal, planCredential: zcodePlanCredential })
     )
 
-    const kiroResultPromise = settleSiblingProviderPromise(fetchKiroRateLimits({ signal }))
+    const kiroResultPromise = settleSiblingProviderPromise(
+      this.kiroAccountUsage.track(
+        this.kiroAccountsReader,
+        () => fetchKiroRateLimits({ signal }),
+        options?.force === true
+      )
+    )
 
     // Hidden meters avoid the CLI spawn; the separate promise keeps other providers responsive.
     const antigravityResultPromise = settleSiblingProviderPromise(

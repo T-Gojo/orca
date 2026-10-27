@@ -25,10 +25,7 @@ import {
 import { readGrokAuthSession } from '../grok-auth'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../../shared/app-environment'
-import {
-  AntigravityAccountUsageTracker,
-  type AntigravityAccountsReader
-} from '../antigravity-account-usage'
+import { SavedAccountUsageTracker, type SavedAccountsReader } from '../saved-account-usage'
 
 export abstract class RateLimitServiceState {
   protected state: InternalRateLimitState = {
@@ -121,9 +118,13 @@ export abstract class RateLimitServiceState {
   protected zcodePlanConfigResolver: (() => ZcodePlanRateLimitConfig) | null = null
   protected geminiCliOAuthEnabledResolver: GeminiCliOAuthEnabledResolver | null = null
   protected antigravityUsageEnabledResolver: AntigravityUsageEnabledResolver | null = null
-  protected antigravityAccountsReader: AntigravityAccountsReader | null = null
-  protected antigravityAccountUsage = new AntigravityAccountUsageTracker(() =>
+  protected antigravityAccountsReader: SavedAccountsReader | null = null
+  protected antigravityAccountUsage = new SavedAccountUsageTracker('antigravity', () =>
     join(getAppEnvironment().getPath('userData'), 'antigravity-accounts', 'usage-cache.json')
+  )
+  protected kiroAccountsReader: SavedAccountsReader | null = null
+  protected kiroAccountUsage = new SavedAccountUsageTracker('kiro', () =>
+    join(getAppEnvironment().getPath('userData'), 'kiro-accounts', 'usage-cache.json')
   )
   protected inactiveClaudeAccountsResolver: (() => InactiveClaudeAccountInfo[]) | null = null
   protected inactiveCodexAccountsResolver: (() => InactiveCodexAccountInfo[]) | null = null
