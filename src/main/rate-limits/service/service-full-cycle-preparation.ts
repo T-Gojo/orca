@@ -14,7 +14,10 @@ import { fetchMiniMaxRateLimits } from '../minimax/minimax-fetcher'
 import { createHash } from 'node:crypto'
 import { fetchOpenCodeGoUsage } from '../opencode-go-usage-source-selection'
 import { RateLimitServiceFetchPolicy } from './service-fetch-policy'
-import type { SettledProviderResult } from './service-sibling-provider-result'
+import {
+  settleSiblingProviderPromise,
+  type SettledProviderResult
+} from './service-sibling-provider-result'
 import type {
   ClaudeRuntimeAuthPreparation,
   InternalRateLimitState,
@@ -40,6 +43,7 @@ export type FetchAllCyclePrepared = {
   miniMaxGeneration: number
   zcodeConfigChanged: boolean
   zcodeGeneration: number
+  antigravityGeneration: number
   claudeFetchGated: boolean
   results: [
     PromiseSettledResult<ProviderRateLimits>,
@@ -76,9 +80,10 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
     const codexTarget = this.codexFetchTarget
     // Capture before await so a reset invalidates this cycle.
     const codexGeneration = this.codexFetchGeneration
-    const previousState = this.state
     // Gate only Codex, never siblings, when its runtime is skipped (#STA-4422).
     const codexHome = await this.resolveCodexHome(codexTarget)
+    const previousState = this.state
+    const antigravityGeneration = this.antigravityFetchGeneration
     const codexFetchGated = codexHome.skip
     const codexHomePath = codexHome.homePath
     const codexStateBeforeFetch =
@@ -173,32 +178,23 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
     })
 
     // Async Keychain/worker DB reads must not delay other providers.
-    const cursorResultPromise = readCursorAuthSession()
-      .then((authReadResult) => {
+    const cursorResultPromise = settleSiblingProviderPromise(
+      readCursorAuthSession().then((authReadResult) => {
         this.cursorAuthConfigured = authReadResult.status === 'ok'
         return fetchCursorRateLimits({ signal, authReadResult })
       })
-      .then(
-        (value) => ({ status: 'fulfilled', value }) as const,
-        (reason) => ({ status: 'rejected', reason }) as const
-      )
+    )
 
-    const zcodeResultPromise = (
+    const zcodeResultPromise = settleSiblingProviderPromise(
       zcodePlanConfigResult.error
         ? Promise.resolve(this.getZcodePlanCredentialError(zcodePlanConfigResult.error))
         : fetchZcodeRateLimits({ signal, planCredential: zcodePlanCredential })
-    ).then(
-      (value) => ({ status: 'fulfilled', value }) as const,
-      (reason) => ({ status: 'rejected', reason }) as const
     )
 
-    const kiroResultPromise = fetchKiroRateLimits({ signal }).then(
-      (value) => ({ status: 'fulfilled', value }) as const,
-      (reason) => ({ status: 'rejected', reason }) as const
-    )
+    const kiroResultPromise = settleSiblingProviderPromise(fetchKiroRateLimits({ signal }))
 
     // Hidden meters avoid the CLI spawn; the separate promise keeps other providers responsive.
-    const antigravityResultPromise = (
+    const antigravityResultPromise = settleSiblingProviderPromise(
       antigravityFetchAllowed
         ? this.antigravityAccountUsage.track(
             this.antigravityAccountsReader,
@@ -206,19 +202,12 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
             options?.force === true
           )
         : Promise.resolve(previousState.antigravity ?? antigravityUsageDisabledSnapshot())
-    ).then(
-      (value) => ({ status: 'fulfilled', value }) as const,
-      (reason) => ({ status: 'rejected', reason }) as const
     )
 
     const missingWslCodexHome =
       codexFetchGated || codexHomePath ? null : this.getMissingWslCodexHomeResult(codexTarget)
-    const grokResultPromise = fetchGrokRateLimits({
-      signal,
-      authReadResult: grokAuthReadResult
-    }).then(
-      (value) => ({ status: 'fulfilled', value }) as const,
-      (reason) => ({ status: 'rejected', reason }) as const
+    const grokResultPromise = settleSiblingProviderPromise(
+      fetchGrokRateLimits({ signal, authReadResult: grokAuthReadResult })
     )
 
     // Live display does not waive automated Retry-After gates.
@@ -308,6 +297,7 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       miniMaxGeneration,
       zcodeConfigChanged,
       zcodeGeneration,
+      antigravityGeneration,
       claudeFetchGated,
       results: [
         claudeResult,

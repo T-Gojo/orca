@@ -11,7 +11,7 @@ import {
   setPaneRestartAccount
 } from './agent-terminal-account-pins'
 import { isForeignMachineCodexPtyId } from './codex-pane-selection-lane'
-import { resolveClaudeSessionAccountId } from './claude-session-account-move'
+import { resolveClaudePaneFolder } from './claude-pane-account-folder'
 
 export type TabAgentAccountPane = {
   agent: AccountRestartAgent
@@ -53,14 +53,25 @@ export function resolveTabAgentAccountPane(
       ptyId,
       currentAccountId:
         agent === 'claude'
-          ? resolveClaudeSessionAccountId(
-              normalizeAgentProviderSession(entry.providerSession)?.transcriptPath,
-              state.settings?.claudeManagedAccounts ?? []
+          ? claudePaneAccountId(
+              resolveClaudePaneFolder(
+                normalizeAgentProviderSession(entry.providerSession)?.transcriptPath,
+                state.settings?.claudeManagedAccounts ?? []
+              )
             )
           : undefined
     }
   }
   return null
+}
+
+function claudePaneAccountId(
+  folder: ReturnType<typeof resolveClaudePaneFolder>
+): string | null | undefined {
+  if (folder?.kind === 'account') {
+    return folder.accountId
+  }
+  return folder?.kind === 'system-default' ? null : undefined
 }
 
 /** Restarts the pane's agent on `accountId`, resuming the same conversation. */

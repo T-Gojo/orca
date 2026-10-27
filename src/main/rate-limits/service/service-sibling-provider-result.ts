@@ -20,3 +20,12 @@ export function settleSiblingProviderResult(
     status: 'error'
   }
 }
+
+export function settleSiblingProviderPromise(
+  promise: Promise<ProviderRateLimits>
+): Promise<SettledProviderResult> {
+  return promise.then(
+    (value) => ({ status: 'fulfilled', value }) as const,
+    (reason) => ({ status: 'rejected', reason }) as const
+  )
+}
