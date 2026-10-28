@@ -51,6 +51,63 @@ dev() {
 
 APP_PATH="/Applications/Orca.app"
 BACKUP_DIR="$HOME/Library/Application Support/orca-fork"
+SIGNING_DIR="$BACKUP_DIR/signing"
+SIGNING_KEYCHAIN="$SIGNING_DIR/orca-fork-signing.keychain-db"
+SIGNING_NAME="Orca Fork Local Signing"
+
+# Why a stable identity: macOS keys Screen Recording and Accessibility grants to the signature.
+# An ad-hoc signature changes with every build, so each install asked for permission again.
+find_signing_identity() {
+  security find-identity "$SIGNING_KEYCHAIN" 2>/dev/null |
+    awk -v name="\"$SIGNING_NAME\"" 'index($0, name) { print $2; exit }'
+}
+
+create_signing_identity() {
+  local pass_file="$1" work
+  work="$(mktemp -d)"
+  rm -f "$SIGNING_KEYCHAIN"
+  LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32 >"$pass_file" || true
+  chmod 600 "$pass_file"
+  cat >"$work/cert.cnf" <<CNF
+[req]
+distinguished_name=dn
+x509_extensions=ext
+prompt=no
+[dn]
+CN=$SIGNING_NAME
+[ext]
+basicConstraints=critical,CA:false
+keyUsage=critical,digitalSignature
+extendedKeyUsage=critical,codeSigning
+CNF
+  openssl req -x509 -newkey rsa:2048 -nodes -days 7300 -config "$work/cert.cnf" \
+    -keyout "$work/key.pem" -out "$work/cert.pem" 2>/dev/null
+  # Why these algorithms: macOS `security import` cannot read OpenSSL 3's default PKCS#12.
+  openssl pkcs12 -export -inkey "$work/key.pem" -in "$work/cert.pem" -out "$work/id.p12" \
+    -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 -passout pass:import
+  security create-keychain -p "$(cat "$pass_file")" "$SIGNING_KEYCHAIN"
+  security set-keychain-settings "$SIGNING_KEYCHAIN"
+  security unlock-keychain -p "$(cat "$pass_file")" "$SIGNING_KEYCHAIN"
+  security import "$work/id.p12" -k "$SIGNING_KEYCHAIN" -P import -T /usr/bin/codesign >/dev/null
+  security set-key-partition-list -S apple-tool:,apple: -s -k "$(cat "$pass_file")" \
+    "$SIGNING_KEYCHAIN" >/dev/null
+  rm -rf "$work"
+}
+
+# Why a stable identity: macOS keys Screen Recording and Accessibility grants to the signature.
+# An ad-hoc signature changes with every build, so each install asked for permission again.
+signing_identity() {
+  mkdir -p "$SIGNING_DIR"
+  chmod 700 "$SIGNING_DIR"
+  local pass_file="$SIGNING_DIR/keychain-password"
+  if [[ -f "$SIGNING_KEYCHAIN" && -f "$pass_file" ]]; then
+    security unlock-keychain -p "$(cat "$pass_file")" "$SIGNING_KEYCHAIN" 2>/dev/null || true
+  fi
+  if [[ -z "$(find_signing_identity)" ]]; then
+    create_signing_identity "$pass_file" >&2
+  fi
+  find_signing_identity
+}
 
 built_app() {
   local arch
@@ -93,7 +150,14 @@ build() {
   CSC_IDENTITY_AUTO_DISCOVERY=false ORCA_BUILD_COMMIT="$(git rev-parse --short=12 HEAD)" \
     ORCA_LOCAL_BUILD_VERSION="$version" \
     pnpm exec electron-builder --config config/electron-builder.config.cjs --mac dir "$arch"
-  codesign --force --deep --sign - "$(built_app)"
+  local identity
+  identity="$(signing_identity)"
+  if [[ -z "$identity" ]]; then
+    echo "Could not create the local signing identity in $SIGNING_KEYCHAIN" >&2
+    exit 1
+  fi
+  codesign --force --deep --sign "$identity" --keychain "$SIGNING_KEYCHAIN" "$(built_app)"
+  codesign --verify --deep --strict "$(built_app)"
   echo "Built $(built_app)"
 }
 
