@@ -12,11 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut
 } from '@/components/ui/dropdown-menu'
-import { listAgentLaunchAccounts } from '@/lib/agent-launch-accounts'
-import { useSingleLoginLaunchAccounts } from '@/lib/single-login-launch-accounts'
 import { markAgentTerminalTabAccountPinned } from '@/lib/agent-terminal-account-pins'
 import { AccountLaunchRow } from './AccountLaunchRow'
-import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
+import { useAgentRowLaunchAccounts } from './use-agent-row-launch-accounts'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { useAppStore } from '@/store'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
@@ -181,7 +179,6 @@ export function ProjectedAgentMenuItems({
   runLaunch: (row: NewTabAgentMenuRow, launchAccountId?: string | null) => void
 }): React.JSX.Element {
   const desktopDefaultAgent = useAppStore((s) => s.settings?.defaultTuiAgent)
-  const settings = useAppStore((s) => s.settings)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
@@ -189,9 +186,7 @@ export function ProjectedAgentMenuItems({
     openSettingsTarget({ pane: 'agents', repoId: null })
     openSettingsPage()
   }, [openSettingsPage, openSettingsTarget])
-  const singleLoginAccounts = useSingleLoginLaunchAccounts(
-    model.state === 'settled' ? model.rows.filter(isLocalTerminalRow).map((row) => row.agent) : []
-  )
+  const rowAccounts = useAgentRowLaunchAccounts(model.state === 'settled' ? model.rows : [])
   if (model.state === 'loading') {
     // Why: rows fill in once when every answer is known, instead of reshuffling under the pointer.
     return (
@@ -275,40 +270,18 @@ export function ProjectedAgentMenuItems({
             ) : null}
           </>
         )
-        const singleLogin = singleLoginAccounts(agent)
-        // Why local only: account folders live on this machine; a remote host picks its own.
-        const accounts = !isLocalTerminalRow(row)
-          ? []
-          : (singleLogin?.accounts ??
-            listAgentLaunchAccounts(
-              agent,
-              settings,
-              translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
-            ))
+        const account = rowAccounts(row)
         const other = otherSurfaceRow(row, detectedIds)
         return (
           <React.Fragment key={rowId(row)}>
             {startsCliGroup ? <DropdownMenuSeparator /> : null}
-            {accounts.length > 0 ? (
+            {account ? (
               <AccountLaunchRow
-                accounts={accounts}
+                accounts={account.accounts}
                 disabled={disabled}
                 title={rowTitle(row, label)}
-                {...(singleLogin
-                  ? {
-                      heading: translate(
-                        'auto.components.tab.bar.QuickLaunchButton.switchAccountAndOpen',
-                        'Switch account and open'
-                      )
-                    }
-                  : {})}
-                onLaunch={(accountId) =>
-                  singleLogin
-                    ? void singleLogin
-                        .switchTo(singleLogin.accounts, accountId)
-                        .then((switched) => switched && runLaunch(row))
-                    : runLaunch(row, accountId)
-                }
+                {...(account.heading ? { heading: account.heading } : {})}
+                onLaunch={(accountId) => account.launch(accountId, runLaunch)}
               >
                 {rowContent}
               </AccountLaunchRow>
@@ -337,14 +310,6 @@ export function ProjectedAgentMenuItems({
       })}
       <AgentSettingsMenuItem onSelect={openAgentSettings} />
     </>
-  )
-}
-
-// Account pins and switches route this machine's CLI; a remote host keeps its own logins.
-function isLocalTerminalRow(row: NewTabAgentMenuRow): boolean {
-  return (
-    (row.kind === 'terminal' || row.kind === 'cli') &&
-    (row.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID
   )
 }
 
