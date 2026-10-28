@@ -8,8 +8,10 @@ import {
   readTerminalAccountPin,
   withoutTerminalAccountPin
 } from '../../../shared/agent-terminal-account-pin'
+import { SETUP_AGENT_SEQUENCE_SETUP_SCRIPT_ENV } from '../../../shared/setup-agent-sequencing'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { isTuiAgent } from '../../../shared/tui-agent-config'
+import { addWslEnvKeys } from '../../../shared/wsl-env'
 import { isAgentStatusHooksEnabled } from '../../agent-hooks/managed-agent-hook-controls'
 import { awaitExplicitAgentPluginGuestReadiness } from '../../agent-hooks/wsl-agent-plugin-readiness'
 import { ensureCodexStateDbBackfillRecoveryStarted } from '../../codex/codex-state-db-backfill-recovery'
@@ -259,6 +261,10 @@ export async function resolvePtySpawnHostEnv(args: PtySpawnHostEnvArgs): Promise
       getRuntimeSourceStamp(deps.runtime, getAppEnvironment().getPath('userData'))
     )
     promoteAgentTeamsShimPath(env, args.requestedAgentTeamsPath)
+    if (process.platform === 'win32' && env[SETUP_AGENT_SEQUENCE_SETUP_SCRIPT_ENV]) {
+      // Why: same-protocol daemons from older builds don't add this WSLENV entry themselves.
+      addWslEnvKeys(env, [SETUP_AGENT_SEQUENCE_SETUP_SCRIPT_ENV])
+    }
   } catch (err) {
     // Host prep creates hook/extension state; only this request's minted ID is safe to sweep.
     if (args.mintedSessionId) {
