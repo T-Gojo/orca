@@ -1,3 +1,4 @@
+import type { UsageSourceRollup } from '../../shared/account-usage-ledger-types'
 import { WorkerThreadRequestQueue } from '../worker-thread-request-queue'
 import type { WorkerThreadFactory } from '../lazy-worker-thread-host'
 import type { ClaudeUsageDailyAggregate, ClaudeUsageSession } from '../claude-usage/types'
@@ -35,6 +36,7 @@ export class UsageScanWorkerUnavailableError extends Error {}
 type ProviderScanResult<TSession, TDaily> = {
   sessions: TSession[]
   dailyAggregates: TDaily[]
+  sourceRollups?: UsageSourceRollup[]
 }
 
 /** Unavailable, timed-out or crashed workers reject; stores retain their previous projection instead of parsing on main. */
@@ -109,7 +111,11 @@ export async function scanClaudeUsageOnWorker(
   if (value.operation !== 'scan' || value.providerId !== 'claude') {
     throw wrongProvider('claude', value)
   }
-  return { sessions: value.sessions, dailyAggregates: value.dailyAggregates }
+  return {
+    sessions: value.sessions,
+    dailyAggregates: value.dailyAggregates,
+    ...(value.sourceRollups ? { sourceRollups: value.sourceRollups } : {})
+  }
 }
 
 export async function scanCodexUsageOnWorker(
@@ -121,7 +127,11 @@ export async function scanCodexUsageOnWorker(
   if (value.operation !== 'scan' || value.providerId !== 'codex') {
     throw wrongProvider('codex', value)
   }
-  return { sessions: value.sessions, dailyAggregates: value.dailyAggregates }
+  return {
+    sessions: value.sessions,
+    dailyAggregates: value.dailyAggregates,
+    ...(value.sourceRollups ? { sourceRollups: value.sourceRollups } : {})
+  }
 }
 
 export async function scanOpenCodeUsageOnWorker(

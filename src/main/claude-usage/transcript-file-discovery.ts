@@ -42,10 +42,14 @@ export function claudeProfileTranscriptDirs(): string[] {
   return [...claudeProfileHistoryDirs('projects'), ...claudeProfileHistoryDirs('transcripts')]
 }
 
+export function claudeTranscriptRoots(profileDirs: readonly string[]): string[] {
+  return [...new Set([CLAUDE_PROJECTS_DIR, CLAUDE_TRANSCRIPTS_DIR, ...profileDirs])]
+}
+
 export async function listClaudeTranscriptFiles(
   profileDirs = claudeProfileTranscriptDirs()
 ): Promise<string[]> {
-  const roots = new Set([CLAUDE_PROJECTS_DIR, CLAUDE_TRANSCRIPTS_DIR, ...profileDirs])
+  const roots = claudeTranscriptRoots(profileDirs)
   const files = await Promise.all([...roots].map((root) => walkJsonlFiles(root)))
   return [...new Set(files.flat())].sort()
 }

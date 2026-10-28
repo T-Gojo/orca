@@ -3,6 +3,7 @@ import type { CodexUsageDailyAggregate, CodexUsageSession } from '../codex-usage
 import type { OpenCodeUsageDailyAggregate, OpenCodeUsageSession } from '../opencode-usage/types'
 import type { MuseUsageDailyAggregate, MuseUsageSession } from '../muse-usage/types'
 import type { UsageScanWorktreeRef } from './usage-provider-contract'
+import type { UsageSourceRollup } from '../../shared/account-usage-ledger-types'
 import type {
   UsageCacheSplitRequest,
   UsageCacheSplitResult,
@@ -55,12 +56,15 @@ export type UsageScanWorkerScanValue =
       providerId: 'claude'
       sessions: ClaudeUsageSession[]
       dailyAggregates: ClaudeUsageDailyAggregate[]
+      /** Optional: an older worker build omits it. */
+      sourceRollups?: UsageSourceRollup[]
     }
   | {
       operation: 'scan'
       providerId: 'codex'
       sessions: CodexUsageSession[]
       dailyAggregates: CodexUsageDailyAggregate[]
+      sourceRollups?: UsageSourceRollup[]
     }
   | {
       operation: 'scan'

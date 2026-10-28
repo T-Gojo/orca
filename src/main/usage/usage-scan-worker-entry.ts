@@ -1,5 +1,9 @@
 import { parentPort } from 'node:worker_threads'
 import { scanClaudeUsageFiles } from '../claude-usage/scanner'
+import { claudeTranscriptRoots } from '../claude-usage/transcript-file-discovery'
+import { getCodexSessionDirectories } from '../codex-usage/codex-session-file-discovery'
+import { rollupUsageBySourceHome } from './usage-source-rollups'
+import { claudeAggregateBucket, codexAggregateBucket } from './account-usage-buckets'
 import { scanCodexUsageFiles } from '../codex-usage/scanner'
 import { scanOpenCodeUsageDatabases } from '../opencode-usage/scanner'
 import { scanMuseUsageFiles } from '../muse-usage/scanner'
@@ -92,7 +96,12 @@ async function runScan(
         operation: 'scan',
         providerId: 'claude',
         sessions: result.sessions,
-        dailyAggregates: result.dailyAggregates
+        dailyAggregates: result.dailyAggregates,
+        sourceRollups: rollupUsageBySourceHome(
+          result.processedFiles,
+          claudeTranscriptRoots(request.profileDirs ?? []),
+          claudeAggregateBucket
+        )
       }
     }
     case 'codex': {
@@ -106,7 +115,12 @@ async function runScan(
         operation: 'scan',
         providerId: 'codex',
         sessions: result.sessions,
-        dailyAggregates: result.dailyAggregates
+        dailyAggregates: result.dailyAggregates,
+        sourceRollups: rollupUsageBySourceHome(
+          result.processedFiles,
+          getCodexSessionDirectories(),
+          codexAggregateBucket
+        )
       }
     }
     case 'opencode': {

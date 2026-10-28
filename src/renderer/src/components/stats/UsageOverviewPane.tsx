@@ -9,6 +9,7 @@ import { getRecentUsageDays } from './usage-overview-daily-series'
 import { buildUsageOverview, formatUsageCost, formatUsageTokens } from './usage-overview-model'
 import { DailyIntensityGrid, ProviderUsageRow, TokenMixBar } from './usage-overview-sections'
 import { translate } from '@/i18n/i18n'
+import { UsageAccountsSection } from './UsageAccountsSection'
 
 const RECENT_DAY_COUNT = 42
 
@@ -308,6 +309,8 @@ export function UsageOverviewPane(): React.JSX.Element {
           ))}
         </div>
       </section>
+
+      <UsageAccountsSection />
     </div>
   )
 }

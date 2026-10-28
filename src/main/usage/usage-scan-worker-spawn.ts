@@ -8,6 +8,10 @@ import type { OpenCodeUsageDailyAggregate, OpenCodeUsageSession } from '../openc
 import type { MuseUsageDailyAggregate, MuseUsageSession } from '../muse-usage/types'
 import type { UsageScanWorktreeRef } from './usage-provider-contract'
 import type {
+  AccountUsageProvider,
+  UsageSourceRollup
+} from '../../shared/account-usage-ledger-types'
+import type {
   UsageCacheSplitRequest,
   UsageCacheSplitResult,
   UsageSourceCacheRef
@@ -43,6 +47,29 @@ function getSharedClient(): UsageScanWorkerClient {
   return sharedClient
 }
 
+type SourceRollupListener = (
+  provider: AccountUsageProvider,
+  rollups: UsageSourceRollup[]
+) => Promise<void>
+
+let sourceRollupListener: SourceRollupListener | null = null
+
+/** The account ledger records each scan's per-home totals; a scan never waits on its failure. */
+export function setUsageSourceRollupListener(listener: SourceRollupListener | null): void {
+  sourceRollupListener = listener
+}
+
+async function withRollups<Result extends { sourceRollups?: UsageSourceRollup[] }>(
+  provider: AccountUsageProvider,
+  scan: Promise<Result>
+): Promise<Result> {
+  const result = await scan
+  if (result.sourceRollups && sourceRollupListener) {
+    await sourceRollupListener(provider, result.sourceRollups).catch(() => {})
+  }
+  return result
+}
+
 export function scanClaudeUsageFilesViaWorker(
   worktrees: UsageScanWorktreeRef[],
   sourceCache: UsageSourceCacheRef
@@ -50,15 +77,18 @@ export function scanClaudeUsageFilesViaWorker(
   sessions: ClaudeUsageSession[]
   dailyAggregates: ClaudeUsageDailyAggregate[]
 }> {
-  return scanClaudeUsageOnWorker(
-    (body) =>
-      getSharedClient().scan(
-        body.providerId === 'claude'
-          ? { ...body, profileDirs: claudeProfileTranscriptDirs() }
-          : body
-      ),
-    worktrees,
-    sourceCache
+  return withRollups(
+    'claude',
+    scanClaudeUsageOnWorker(
+      (body) =>
+        getSharedClient().scan(
+          body.providerId === 'claude'
+            ? { ...body, profileDirs: claudeProfileTranscriptDirs() }
+            : body
+        ),
+      worktrees,
+      sourceCache
+    )
   )
 }
 
@@ -69,7 +99,10 @@ export function scanCodexUsageFilesViaWorker(
   sessions: CodexUsageSession[]
   dailyAggregates: CodexUsageDailyAggregate[]
 }> {
-  return scanCodexUsageOnWorker((body) => getSharedClient().scan(body), worktrees, sourceCache)
+  return withRollups(
+    'codex',
+    scanCodexUsageOnWorker((body) => getSharedClient().scan(body), worktrees, sourceCache)
+  )
 }
 
 export function scanOpenCodeUsageDatabasesViaWorker(

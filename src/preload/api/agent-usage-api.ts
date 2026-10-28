@@ -6,6 +6,10 @@ import type {
 } from '../../shared/opencode-usage-types'
 import type { MuseUsageBreakdownKind, MuseUsageSnapshot } from '../../shared/muse-usage-types'
 import type {
+  AccountUsageLedgerRange,
+  AccountUsageLedgerSnapshot
+} from '../../shared/account-usage-ledger-types'
+import type {
   CodexRateLimitResetResult,
   RateLimitRuntimeTarget,
   RateLimitState
@@ -46,6 +50,10 @@ export type CodexUsageApi = UsageProviderApi<CodexUsageSnapshot, CodexUsageBreak
 export type OpenCodeUsageApi = UsageProviderApi<OpenCodeUsageSnapshot, OpenCodeUsageBreakdownKind>
 
 export type MuseUsageApi = UsageProviderApi<MuseUsageSnapshot, MuseUsageBreakdownKind>
+
+export type AccountUsageApi = {
+  getSnapshot: (args: { range: AccountUsageLedgerRange }) => Promise<AccountUsageLedgerSnapshot>
+}
 
 export type RateLimitsApi = {
   get: () => Promise<RateLimitState>
