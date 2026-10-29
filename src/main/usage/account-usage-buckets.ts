@@ -1,4 +1,4 @@
-import type { AccountUsageBucket } from '../../shared/account-usage-ledger-types'
+import type { AccountUsageBucket, UsageSourceRollup } from '../../shared/account-usage-ledger-types'
 import type { ClaudeUsageDailyAggregate } from '../claude-usage/types'
 import type { CodexUsageDailyAggregate } from '../codex-usage/types'
 import type { OpenCodeUsageDailyAggregate } from '../opencode-usage/types'
@@ -49,5 +49,41 @@ export function openCodeAggregateBucket(row: OpenCodeUsageDailyAggregate): Accou
     activity: row.eventCount,
     credits: 0,
     costUsd: row.estimatedCostUsd
+  }
+}
+
+/** Average tokens per agent step across these logs, or null with too little to measure. */
+export function tokensPerStep(
+  rollups: readonly UsageSourceRollup[],
+  steps: number
+): {
+  tokens: number
+  split: Pick<
+    AccountUsageBucket,
+    'inputTokens' | 'outputTokens' | 'cacheTokens' | 'reasoningTokens'
+  >
+} | null {
+  const total = { inputTokens: 0, outputTokens: 0, cacheTokens: 0, reasoningTokens: 0 }
+  for (const rollup of rollups) {
+    for (const bucket of rollup.buckets) {
+      total.inputTokens += bucket.inputTokens
+      total.outputTokens += bucket.outputTokens
+      total.cacheTokens += bucket.cacheTokens
+      total.reasoningTokens += bucket.reasoningTokens
+    }
+  }
+  const tokens = total.inputTokens + total.outputTokens + total.cacheTokens
+  // Why a floor: a rate from a handful of steps would swing the whole IDE estimate.
+  if (steps < 100 || tokens <= 0) {
+    return null
+  }
+  return {
+    tokens: tokens / steps,
+    split: {
+      inputTokens: total.inputTokens / steps,
+      outputTokens: total.outputTokens / steps,
+      cacheTokens: total.cacheTokens / steps,
+      reasoningTokens: total.reasoningTokens / steps
+    }
   }
 }

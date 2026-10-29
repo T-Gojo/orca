@@ -133,3 +133,20 @@ export function collectAntigravityUsage(home = homedir()): UsageSourceRollup[] {
   }
   return rollups
 }
+
+/** Steps agy's CLI conversations took, from its summary table; the IDE reports the same unit. */
+export function readAntigravityCliStepCount(home = homedir()): number {
+  const path = join(home, '.gemini', 'antigravity-cli', 'conversation_summaries.db')
+  try {
+    const db = new Database(path, { readonly: true, fileMustExist: true })
+    try {
+      const row = db.prepare('SELECT SUM(step_count) AS steps FROM conversation_summaries').get()
+      const steps = row?.steps
+      return typeof steps === 'number' ? steps : typeof steps === 'bigint' ? Number(steps) : 0
+    } finally {
+      db.close()
+    }
+  } catch {
+    return 0
+  }
+}

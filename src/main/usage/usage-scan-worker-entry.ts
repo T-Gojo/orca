@@ -13,7 +13,12 @@ import {
   openCodeAggregateBucket
 } from './account-usage-buckets'
 import { collectKiroCliUsage } from '../kiro/kiro-cli-session-usage'
-import { collectAntigravityUsage } from '../antigravity/antigravity-session-usage'
+import {
+  collectAntigravityUsage,
+  readAntigravityCliStepCount
+} from '../antigravity/antigravity-session-usage'
+import { collectAntigravityIdeUsage } from '../antigravity/antigravity-ide-usage'
+import { tokensPerStep } from './account-usage-buckets'
 import { scanCodexUsageFiles } from '../codex-usage/scanner'
 import { scanOpenCodeUsageDatabases } from '../opencode-usage/scanner'
 import { scanMuseUsageFiles } from '../muse-usage/scanner'
@@ -81,10 +86,13 @@ async function runRequest(
   }
   if (request.operation === 'collectAccountSources') {
     // Why here: agy's SQLite logs and kiro-cli's JSON sessions are read off the main thread too.
+    const antigravity = collectAntigravityUsage()
+    const perStep = tokensPerStep(antigravity, readAntigravityCliStepCount())
     return {
       operation: 'collectAccountSources',
       kiro: collectKiroCliUsage(),
-      antigravity: collectAntigravityUsage()
+      // The IDE logs steps, not tokens; without CLI logs to measure a rate it is left out.
+      antigravity: perStep ? [...antigravity, ...collectAntigravityIdeUsage(perStep)] : antigravity
     }
   }
   return runScan(request, onFilesScanned)
