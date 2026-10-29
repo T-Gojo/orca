@@ -1690,7 +1690,7 @@
         "94a5afe910": "SSH Hosts",
         "40d80bad8a": "Beta",
         "de0c2907a1": "Remote Orca Servers",
-        "b351014180": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
+        "b351014180": "Orca stats plus token and plan usage for every agent and account you use.",
         "d72a58b5b9": "Stats & Usage",
         "dcd0d9b74f": "Keyboard shortcuts for common actions.",
         "94295ebfb3": "Shortcuts",
@@ -4758,7 +4758,7 @@
           "c760c481c5": "Usage Overview",
           "55c910f4f1": "- some model prices are unavailable",
           "enableMuse": "Enable Muse",
-          "noLocalUsageYet": "No local Claude, Codex, OpenCode, or Muse usage found yet. The overview will populate after the next agent session writes token logs."
+          "noLocalUsageYet": "No local agent usage found yet. The overview will populate after the next agent session writes its logs."
         },
         "share": {
           "card": {
@@ -4789,7 +4789,7 @@
             "0bba8ca244": "statistics",
             "0e2a0b6431": "usage",
             "372debfac0": "stats",
-            "26bb901fcd": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
+            "26bb901fcd": "Orca stats plus token and plan usage for every agent and account you use.",
             "cb2430ae6a": "Stats & Usage",
             "f8a1b2c3d4": "grok",
             "e7f0a1b2c3": "subscription",
@@ -4816,7 +4816,7 @@
               "69e2b50427": "Daily intensity",
               "3a795542fa": "Combined token mix",
               "e65084cb4b": "reasoning",
-              "3bc4a01b24": "Combined input, output, and cache tokens across enabled providers.",
+              "3bc4a01b24": "Combined input, output, and cache tokens across every tracked agent.",
               "4ff104da47": "Token mix",
               "0015facc1f": "Cache",
               "7f270458af": "Output",
@@ -4829,7 +4829,8 @@
               "statusScanning": "Scanning",
               "statusEnabled": "Enabled",
               "statusOff": "Off",
-              "recentCombinedActivity": "Recent combined Claude, Codex, OpenCode, and Muse token activity."
+              "recentCombinedActivity": "Recent combined token activity across every tracked agent.",
+              "estimatedTokens": "Estimated: this agent logs credits, not tokens, so Orca estimates tokens from context size and output length."
             }
           }
         },
@@ -4858,6 +4859,32 @@
           "emptyMessage": "No local Muse usage found yet for this scope.",
           "noCostNote": "Muse session logs record tokens but not cost, so no cost estimate is shown.",
           "recentSessionsDescription": "Most recent local Muse sessions in this scope."
+        },
+        "LedgerProviderUsagePane": {
+          "title": "{{value0}} usage",
+          "source": "Read from this agent’s local session logs.",
+          "credits": "Credits",
+          "sessions": "Sessions"
+        },
+        "UsageAccountsSection": {
+          "allTime": "All time",
+          "refresh": "Read every agent’s usage now",
+          "empty": "No usage recorded yet. Orca reads agent logs every few minutes; refresh to read them now.",
+          "unattributed": "Before account tracking",
+          "unknownAccount": "Saved account",
+          "credits": "{{value}} credits",
+          "tokenMix": "In {{in}} · Out {{out}} · Cache {{cache}}",
+          "activeDay": "1 active day",
+          "activeDays": "{{count}} active days",
+          "removed": "Removed",
+          "title": "Accounts",
+          "subtitle": "Usage per account across every agent, kept after an account is removed.",
+          "tokensHeading": "Usage"
+        },
+        "UsageAccountLimitsList": {
+          "heading": "Plan limits",
+          "refresh": "Refresh plan limits for every account",
+          "empty": "No signed-in agent reports plan limits yet."
         }
       },
       "sparse": {
@@ -8318,7 +8345,7 @@
           "9b02492d1f": "SSH Hosts",
           "7686cb5c36": "Connect this browser to a saved Orca server.",
           "bd0181eeca": "Remote Orca Servers",
-          "8acf3f22e0": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
+          "8acf3f22e0": "Orca stats plus token and plan usage for every agent and account you use.",
           "954a8f5aef": "Stats & Usage",
           "a737a4bb22": "Keyboard shortcuts for common actions.",
           "23bf7a1ad4": "Shortcuts",

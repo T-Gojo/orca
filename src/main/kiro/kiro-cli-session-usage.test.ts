@@ -53,4 +53,32 @@ describe('collectKiroCliUsage', () => {
       totalTokens: 0
     })
   })
+
+  it('estimates tokens from context growth and output length when kiro logs none', () => {
+    const home = writeSession([
+      {
+        end_timestamp: '2026-10-20T10:00:00Z',
+        model: 'm',
+        total_request_count: 2,
+        context_usage_percentage: 10,
+        assistant_response_length: 400
+      },
+      {
+        end_timestamp: '2026-10-20T11:00:00Z',
+        model: 'm',
+        total_request_count: 4,
+        final_context_usage_percentage: 20,
+        user_prompt_length: 40,
+        assistant_response_length: 800
+      }
+    ])
+    const [bucket] = collectKiroCliUsage(home)[0].buckets
+    // Turn 1: 2 requests at 100k, all new once; turn 2: 4 requests averaging 150k, 100k of it new.
+    expect(bucket).toMatchObject({
+      inputTokens: 200_010,
+      outputTokens: 300,
+      cacheTokens: 200_000 + 600_000 - 200_010,
+      estimated: true
+    })
+  })
 })

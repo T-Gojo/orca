@@ -91,5 +91,5 @@ export function registerUsageProviderHandlers(stores: UsageProviderStores): void
 
 function accountUsageSnapshot(range: AccountUsageLedgerRange) {
   const ledger = getAccountUsageLedger()
-  return ledger ? ledger.getSnapshot(range) : { range, rows: [], updatedAt: null }
+  return ledger ? ledger.getSnapshot(range) : { range, rows: [], daily: [], updatedAt: null }
 }

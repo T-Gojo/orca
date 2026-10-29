@@ -13,6 +13,7 @@ import {
 } from '../../shared/account-usage-ledger-types'
 import { durableWriteTempPath, writeFileDurable } from '../durable-file-write'
 import {
+  dailyAccountUsage,
   emptyAccountUsageLedger,
   recordSourceRollups,
   summarizeAccountUsageLedger,
@@ -124,7 +125,8 @@ export class AccountUsageLedger {
       updatedAt: this.state.updatedAt,
       rows: summarizeAccountUsageLedger(this.state, range, (provider, key) =>
         this.isSaved(provider, key)
-      )
+      ),
+      daily: dailyAccountUsage(this.state, range)
     }
   }
 }

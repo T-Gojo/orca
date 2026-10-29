@@ -181,6 +181,7 @@ describe('usage overview model', () => {
       codexTokens: 2_000,
       openCodeTokens: 0,
       museTokens: 0,
+      ledgerTokens: 0,
       intensity: 4
     })
     expect(overview.providers.find((provider) => provider.id === 'codex')).toMatchObject({
@@ -318,6 +319,7 @@ describe('usage overview model', () => {
           codexTokens: 2_000,
           openCodeTokens: 0,
           museTokens: 0,
+          ledgerTokens: 0,
           intensity: 4
         }
       ],
@@ -333,6 +335,7 @@ describe('usage overview model', () => {
         codexTokens: 0,
         openCodeTokens: 0,
         museTokens: 0,
+        ledgerTokens: 0,
         intensity: 0
       },
       {
@@ -342,6 +345,7 @@ describe('usage overview model', () => {
         codexTokens: 2_000,
         openCodeTokens: 0,
         museTokens: 0,
+        ledgerTokens: 0,
         intensity: 4
       },
       {
@@ -351,6 +355,7 @@ describe('usage overview model', () => {
         codexTokens: 0,
         openCodeTokens: 0,
         museTokens: 0,
+        ledgerTokens: 0,
         intensity: 0
       }
     ])

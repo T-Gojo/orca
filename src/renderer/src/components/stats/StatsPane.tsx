@@ -8,6 +8,8 @@ import { GrokUsagePane } from './GrokUsagePane'
 import { OpenCodeUsagePane } from './OpenCodeUsagePane'
 import { MuseUsagePane } from './MuseUsagePane'
 import { UsageOverviewPane } from './UsageOverviewPane'
+import { LedgerProviderUsagePane } from './LedgerProviderUsagePane'
+import { useAvailableUsageTabs } from './use-available-usage-tabs'
 import { Button } from '../ui/button'
 import {
   DropdownMenu,
@@ -53,7 +55,15 @@ function formatTrackingSince(timestamp: number | null): string {
   })
 }
 
-type UsageTab = 'overview' | 'claude' | 'codex' | 'opencode' | 'muse' | 'grok'
+type UsageTab =
+  | 'overview'
+  | 'claude'
+  | 'codex'
+  | 'opencode'
+  | 'muse'
+  | 'grok'
+  | 'kiro'
+  | 'antigravity'
 
 const USAGE_ANALYTICS_OPTIONS = [
   {
@@ -81,6 +91,18 @@ const USAGE_ANALYTICS_OPTIONS = [
     }
   },
   {
+    id: 'kiro',
+    get label() {
+      return translate('auto.lib.agent.catalog.e0247254f2', 'Kiro')
+    }
+  },
+  {
+    id: 'antigravity',
+    get label() {
+      return translate('auto.lib.agent.catalog.691dd11789', 'Antigravity')
+    }
+  },
+  {
     id: 'muse',
     get label() {
       return translate('auto.lib.agent.catalog.muse_label', 'Muse')
@@ -105,10 +127,13 @@ export function StatsPane(): React.JSX.Element {
   const summary = useAppStore((s) => s.statsSummary)
   const fetchStatsSummary = useAppStore((s) => s.fetchStatsSummary)
   const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
-  const [activeUsageTab, setActiveUsageTab] = useState<UsageTab>('overview')
+  const [selectedUsageTab, setActiveUsageTab] = useState<UsageTab>('overview')
+  const availableTabs = useAvailableUsageTabs()
+  const usageOptions = USAGE_ANALYTICS_OPTIONS.filter((option) => availableTabs.has(option.id))
+  // Why: a provider can drop out (disabled, signed out) while its page is open.
+  const activeUsageTab = availableTabs.has(selectedUsageTab) ? selectedUsageTab : 'overview'
   const activeUsageOption =
-    USAGE_ANALYTICS_OPTIONS.find((option) => option.id === activeUsageTab) ??
-    USAGE_ANALYTICS_OPTIONS[0]
+    usageOptions.find((option) => option.id === activeUsageTab) ?? USAGE_ANALYTICS_OPTIONS[0]
 
   useEffect(() => {
     recordFeatureInteraction('usage-tracking')
@@ -185,7 +210,7 @@ export function StatsPane(): React.JSX.Element {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              {USAGE_ANALYTICS_OPTIONS.map((option) => (
+              {usageOptions.map((option) => (
                 <DropdownMenuItem key={option.id} onSelect={() => setActiveUsageTab(option.id)}>
                   <span className="flex min-w-0 items-center gap-2">
                     <UsageAnalyticsOptionIcon tab={option.id} />
@@ -215,6 +240,8 @@ export function StatsPane(): React.JSX.Element {
             <OpenCodeUsagePane />
           ) : activeUsageTab === 'muse' ? (
             <MuseUsagePane />
+          ) : activeUsageTab === 'kiro' || activeUsageTab === 'antigravity' ? (
+            <LedgerProviderUsagePane provider={activeUsageTab} label={activeUsageOption.label} />
           ) : (
             <GrokUsagePane />
           )}

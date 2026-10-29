@@ -25,7 +25,8 @@ export function addBuckets(
     totalTokens: left.totalTokens + right.totalTokens,
     activity: left.activity + right.activity,
     credits: (left.credits ?? 0) + (right.credits ?? 0),
-    costUsd: addCost(left.costUsd, right.costUsd)
+    costUsd: addCost(left.costUsd, right.costUsd),
+    ...(left.estimated || right.estimated ? { estimated: true } : {})
   }
 }
 

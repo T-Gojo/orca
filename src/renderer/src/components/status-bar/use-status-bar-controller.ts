@@ -6,7 +6,8 @@ import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
 import { normalizeUsagePercentageDisplay } from '../../../../shared/usage-percentage-display'
 import { normalizeStatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
 import { isStatusBarItemAvailable } from './status-bar-agent-gating'
-import { getVisibleUsageProvider, isUsageEmptyState } from './status-bar-provider-visibility'
+import { isUsageEmptyState } from './status-bar-provider-visibility'
+import { visibleUnlessHidden } from './usage-provider-connection'
 import {
   getUsageProviderAccountsSectionId,
   usageRowSignInOpensSettings
@@ -131,16 +132,17 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     cursorAuthConfigured: rateLimits.cursorAuthConfigured,
     zcodePlanApiKeyConfigured: rateLimits.zcodePlanApiKeyConfigured
   }
-  const visibleClaude = getVisibleUsageProvider('claude', claude, usageSettings)
-  const visibleCodex = getVisibleUsageProvider('codex', codex, usageSettings)
-  const visibleGemini = getVisibleUsageProvider('gemini', gemini, usageSettings)
-  const visibleKimi = getVisibleUsageProvider('kimi', kimi, usageSettings)
-  const visibleAntigravity = getVisibleUsageProvider('antigravity', antigravity, usageSettings)
-  const visibleMiniMax = getVisibleUsageProvider('minimax', minimax, usageSettings)
-  const visibleGrok = getVisibleUsageProvider('grok', grok, usageSettings)
-  const visibleCursor = getVisibleUsageProvider('cursor', cursor, usageSettings)
-  const visibleZcode = getVisibleUsageProvider('zcode', zcode, usageSettings)
-  const visibleKiro = getVisibleUsageProvider('kiro', kiro, usageSettings)
+  const visible = visibleUnlessHidden(remoteOwned ? null : settings?.disabledTuiAgents)
+  const visibleClaude = visible('claude', claude, usageSettings)
+  const visibleCodex = visible('codex', codex, usageSettings)
+  const visibleGemini = visible('gemini', gemini, usageSettings)
+  const visibleKimi = visible('kimi', kimi, usageSettings)
+  const visibleAntigravity = visible('antigravity', antigravity, usageSettings)
+  const visibleMiniMax = visible('minimax', minimax, usageSettings)
+  const visibleGrok = visible('grok', grok, usageSettings)
+  const visibleCursor = visible('cursor', cursor, usageSettings)
+  const visibleZcode = visible('zcode', zcode, usageSettings)
+  const visibleKiro = visible('kiro', kiro, usageSettings)
   const showClaude =
     visibleClaude !== null &&
     statusBarItems.includes('claude') &&
@@ -177,7 +179,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   // Why: a Kiro IDE login is enough, so PATH detection of kiro-cli would hide a real meter.
   const showKiro = visibleKiro !== null && statusBarItems.includes('kiro')
   // OpenCode Go usage can use web credentials independently of CLI detection.
-  const visibleOpencodeGo = getVisibleUsageProvider('opencode-go', opencodeGo, usageSettings)
+  const visibleOpencodeGo = visible('opencode-go', opencodeGo, usageSettings)
   const showOpencodeGo = visibleOpencodeGo !== null && statusBarItems.includes('opencode-go')
   const showSsh = statusBarItems.includes('ssh')
   const showResourceUsage = statusBarItems.includes('resource-usage')

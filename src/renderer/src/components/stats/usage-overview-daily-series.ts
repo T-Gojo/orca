@@ -1,5 +1,14 @@
 import type { ClaudeUsageDailyPoint } from '../../../../shared/claude-usage-types'
-import type { UsageOverviewDailyPoint, UsageOverviewInput } from './usage-overview-types'
+import {
+  LEDGER_ONLY_PROVIDERS,
+  type LedgerOnlyProviderId,
+  type UsageOverviewDailyPoint,
+  type UsageOverviewInput
+} from './usage-overview-types'
+
+export function isLedgerOnlyProvider(provider: string): provider is LedgerOnlyProviderId {
+  return LEDGER_ONLY_PROVIDERS.some((entry) => entry === provider)
+}
 
 export function getClaudeDailyTotal(entry: ClaudeUsageDailyPoint): number {
   return entry.inputTokens + entry.outputTokens + entry.cacheReadTokens + entry.cacheWriteTokens
@@ -33,7 +42,8 @@ function emptyDailyTotals(day: string): Omit<UsageOverviewDailyPoint, 'intensity
     claudeTokens: 0,
     codexTokens: 0,
     openCodeTokens: 0,
-    museTokens: 0
+    museTokens: 0,
+    ledgerTokens: 0
   }
 }
 
@@ -66,6 +76,16 @@ export function buildDailyOverview(input: UsageOverviewInput): UsageOverviewDail
     const current = byDay.get(entry.day) ?? emptyDailyTotals(entry.day)
     current.totalTokens += entry.totalTokens
     current.museTokens += entry.totalTokens
+    byDay.set(entry.day, current)
+  }
+
+  for (const entry of input.ledger?.daily ?? []) {
+    if (!isLedgerOnlyProvider(entry.provider)) {
+      continue
+    }
+    const current = byDay.get(entry.day) ?? emptyDailyTotals(entry.day)
+    current.totalTokens += entry.totalTokens
+    current.ledgerTokens += entry.totalTokens
     byDay.set(entry.day, current)
   }
 

@@ -24,6 +24,13 @@ function translateActivityLabel(label: UsageProviderOverview['activityLabel']): 
   return translate('auto.components.stats.usage.overview.sections.d9a4b3e2f1c5', 'events')
 }
 
+export function estimatedTokensHint(): string {
+  return translate(
+    'auto.components.stats.usage.overview.sections.estimatedTokens',
+    'Estimated: this agent logs credits, not tokens, so Orca estimates tokens from context size and output length.'
+  )
+}
+
 function formatDayLabel(day: string): string {
   const parsed = new Date(`${day}T12:00:00`)
   if (Number.isNaN(parsed.getTime())) {
@@ -69,7 +76,7 @@ export function TokenMixBar({ overview }: { overview: UsageOverviewModel }): Rea
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.stats.usage.overview.sections.3bc4a01b24',
-              'Combined input, output, and cache tokens across enabled providers.'
+              'Combined input, output, and cache tokens across every tracked agent.'
             )}
           </p>
         </div>
@@ -145,7 +152,7 @@ export function DailyIntensityGrid({
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.stats.usage.overview.sections.recentCombinedActivity',
-              'Recent combined Claude, Codex, OpenCode, and Muse token activity.'
+              'Recent combined token activity across every tracked agent.'
             )}
           </p>
         </div>
@@ -234,7 +241,8 @@ export function ProviderUsageRow({
       </div>
 
       <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-        <span>
+        <span title={provider.estimated ? estimatedTokensHint() : undefined}>
+          {provider.estimated ? '≈' : ''}
           {formatUsageTokens(provider.totalTokens)}{' '}
           {translate('auto.components.stats.usage.overview.sections.6762f6a682', 'tokens')}
         </span>
@@ -249,7 +257,13 @@ export function ProviderUsageRow({
             }
           )}
         </span>
-        <span>{formatUsageCost(provider.estimatedCostUsd)}</span>
+        <span>
+          {provider.credits
+            ? translate('auto.components.stats.UsageAccountsSection.credits', '{{value}} credits', {
+                value: Math.round(provider.credits).toLocaleString()
+              })
+            : formatUsageCost(provider.estimatedCostUsd)}
+        </span>
       </div>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
         <div

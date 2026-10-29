@@ -1,4 +1,8 @@
 import type {
+  AccountUsageDailyPoint,
+  AccountUsageLedgerRow
+} from '../../../../shared/account-usage-ledger-types'
+import type {
   ClaudeUsageDailyPoint,
   ClaudeUsageScanState,
   ClaudeUsageSummary
@@ -19,7 +23,11 @@ import type {
   MuseUsageSummary
 } from '../../../../shared/muse-usage-types'
 
-export type UsageProviderId = 'claude' | 'codex' | 'opencode' | 'muse'
+export type UsageProviderId = 'claude' | 'codex' | 'opencode' | 'muse' | LedgerOnlyProviderId
+
+/** Agents with no token store of their own; their usage comes from the account ledger. */
+export const LEDGER_ONLY_PROVIDERS = ['kiro', 'antigravity'] as const
+export type LedgerOnlyProviderId = (typeof LEDGER_ONLY_PROVIDERS)[number]
 
 export type UsageProviderOverview = {
   id: UsageProviderId
@@ -43,6 +51,10 @@ export type UsageProviderOverview = {
   topModel: string | null
   topProject: string | null
   activeDays: number
+  /** Plan credits spent (Kiro); 0 elsewhere. */
+  credits?: number
+  /** Token counts are estimates (Kiro logs none). */
+  estimated?: boolean
 }
 
 export type UsageOverviewDailyPoint = {
@@ -52,6 +64,8 @@ export type UsageOverviewDailyPoint = {
   codexTokens: number
   openCodeTokens: number
   museTokens: number
+  /** Kiro, Antigravity and other agents read from the account ledger. */
+  ledgerTokens: number
   intensity: 0 | 1 | 2 | 3 | 4
 }
 
@@ -97,5 +111,9 @@ export type UsageOverviewInput = {
     scanState: MuseUsageScanState | null
     summary: MuseUsageSummary | null
     daily: MuseUsageDailyPoint[]
+  }
+  ledger?: {
+    rows: AccountUsageLedgerRow[]
+    daily: AccountUsageDailyPoint[]
   }
 }

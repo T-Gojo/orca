@@ -7,6 +7,7 @@ import {
   buildUsageRosterAccounts,
   type UsageRosterAccountSettings
 } from '../status-bar/usage-roster-accounts'
+import { isUsageProviderHidden } from '../status-bar/usage-provider-connection'
 
 export type AccountLimitRow = {
   provider: ProviderRateLimits['provider']
@@ -69,6 +70,17 @@ function activeLabel(
 
 /** Every provider's plan limits, one row per saved account, in one list. */
 export function buildAccountLimitRows(
+  settings: UsageRosterAccountSettings | null | undefined,
+  rateLimits: RateLimitState,
+  labels: { systemDefault: string; savedAccount: string },
+  disabledAgents?: Iterable<unknown> | null
+): AccountLimitRow[] {
+  return collectAccountLimitRows(settings, rateLimits, labels).filter(
+    (row) => !isUsageProviderHidden(row.provider, row.limits, disabledAgents)
+  )
+}
+
+function collectAccountLimitRows(
   settings: UsageRosterAccountSettings | null | undefined,
   rateLimits: RateLimitState,
   labels: { systemDefault: string; savedAccount: string }

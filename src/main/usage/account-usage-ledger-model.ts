@@ -1,5 +1,6 @@
 import type {
   AccountUsageBucket,
+  AccountUsageDailyPoint,
   AccountUsageLedgerRange,
   AccountUsageLedgerRow,
   AccountUsageProvider,
@@ -60,7 +61,10 @@ const COUNTED_FIELDS = [
 
 function growth(current: AccountUsageBucket, seen: AccountUsageBucket | undefined) {
   const delta: AccountUsageBucket = { ...current }
-  const highest: AccountUsageBucket = { ...current }
+  const highest: AccountUsageBucket = {
+    ...current,
+    estimated: current.estimated ?? seen?.estimated
+  }
   let grew = false
   for (const field of COUNTED_FIELDS) {
     const before = seen?.[field] ?? 0
@@ -175,7 +179,8 @@ export function summarizeAccountUsageLedger(
         estimatedCostUsd: null,
         activeDays: 0,
         lastActiveDay: null,
-        topModel: null
+        topModel: null,
+        estimated: false
       }
       const days = new Set<string>()
       const byModel = new Map<string, number>()
@@ -189,6 +194,7 @@ export function summarizeAccountUsageLedger(
         if (bucket.costUsd !== null) {
           row.estimatedCostUsd = (row.estimatedCostUsd ?? 0) + bucket.costUsd
         }
+        row.estimated ||= bucket.estimated === true
         days.add(bucket.day)
         if (!row.lastActiveDay || bucket.day > row.lastActiveDay) {
           row.lastActiveDay = bucket.day
@@ -206,4 +212,45 @@ export function summarizeAccountUsageLedger(
   return rows.sort(
     (left, right) => right.totalTokens - left.totalTokens || right.credits - left.credits
   )
+}
+
+/** Per agent per day, so charts can add agents Orca has no token store for. */
+export function dailyAccountUsage(
+  state: AccountUsageLedgerState,
+  range: AccountUsageLedgerRange
+): AccountUsageDailyPoint[] {
+  const cutoff = getUsageRangeCutoff(range)
+  const byKey = new Map<string, AccountUsageDailyPoint>()
+  for (const provider of ACCOUNT_USAGE_PROVIDERS) {
+    for (const account of Object.values(state.providers[provider]?.accounts ?? {})) {
+      for (const bucket of Object.values(account.buckets)) {
+        if (cutoff && bucket.day < cutoff) {
+          continue
+        }
+        const key = `${provider}::${bucket.day}`
+        const point = byKey.get(key) ?? {
+          day: bucket.day,
+          provider,
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheTokens: 0,
+          reasoningTokens: 0,
+          totalTokens: 0,
+          credits: 0,
+          activity: 0,
+          estimated: false
+        }
+        point.inputTokens += bucket.inputTokens
+        point.outputTokens += bucket.outputTokens
+        point.cacheTokens += bucket.cacheTokens
+        point.reasoningTokens += bucket.reasoningTokens
+        point.totalTokens += bucket.totalTokens
+        point.credits += bucket.credits ?? 0
+        point.activity += bucket.activity
+        point.estimated ||= bucket.estimated === true
+        byKey.set(key, point)
+      }
+    }
+  }
+  return [...byKey.values()].sort((left, right) => left.day.localeCompare(right.day))
 }

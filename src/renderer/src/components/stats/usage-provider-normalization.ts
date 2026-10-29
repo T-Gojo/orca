@@ -2,7 +2,11 @@ import type { CodexUsageSummary } from '../../../../shared/codex-usage-types'
 import type { OpenCodeUsageSummary } from '../../../../shared/opencode-usage-types'
 import type { MuseUsageSummary } from '../../../../shared/muse-usage-types'
 import { countActiveDays, getClaudeDailyTotal } from './usage-overview-daily-series'
-import type { UsageOverviewInput, UsageProviderOverview } from './usage-overview-types'
+import {
+  LEDGER_ONLY_PROVIDERS,
+  type UsageOverviewInput,
+  type UsageProviderOverview
+} from './usage-overview-types'
 import { translate } from '@/i18n/i18n'
 
 function getCodexNewInputTokens(summary: CodexUsageSummary | null): number {
@@ -148,4 +152,51 @@ export function createMuseProvider(input: UsageOverviewInput['muse']): UsageProv
     topProject: summary?.topProject ?? null,
     activeDays: countActiveDays(dailyActiveDays)
   }
+}
+
+/** Kiro and Antigravity totals from the account ledger, which reads their session logs. */
+export function createLedgerProviders(
+  ledger: UsageOverviewInput['ledger']
+): UsageProviderOverview[] {
+  return LEDGER_ONLY_PROVIDERS.flatMap((id) => {
+    const rows = ledger?.rows.filter((row) => row.provider === id) ?? []
+    if (rows.length === 0) {
+      return []
+    }
+    const days = (ledger?.daily ?? [])
+      .filter((entry) => entry.provider === id && (entry.totalTokens > 0 || entry.credits > 0))
+      .map((entry) => entry.day)
+    const sum = (pick: (row: (typeof rows)[number]) => number): number =>
+      rows.reduce((total, row) => total + pick(row), 0)
+    const top = [...rows].sort((left, right) => right.totalTokens - left.totalTokens)[0]
+    return [
+      {
+        id,
+        label:
+          id === 'kiro'
+            ? translate('auto.lib.agent.catalog.e0247254f2', 'Kiro')
+            : translate('auto.lib.agent.catalog.691dd11789', 'Antigravity'),
+        enabled: true,
+        isScanning: false,
+        hasData: true,
+        lastScanCompletedAt: null,
+        lastScanError: null,
+        sessions: sum((row) => row.sessions),
+        activityLabel: 'events',
+        activityCount: sum((row) => row.activity),
+        totalTokens: sum((row) => row.totalTokens),
+        newInputTokens: sum((row) => row.inputTokens),
+        outputTokens: sum((row) => row.outputTokens),
+        cacheTokens: sum((row) => row.cacheTokens),
+        reasoningTokens: sum((row) => row.reasoningTokens),
+        estimatedCostUsd: null,
+        hasPartialCost: false,
+        topModel: top?.topModel ?? null,
+        topProject: null,
+        activeDays: countActiveDays(days),
+        credits: sum((row) => row.credits),
+        estimated: rows.some((row) => row.estimated)
+      }
+    ]
+  })
 }

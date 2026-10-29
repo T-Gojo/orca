@@ -22,6 +22,8 @@ export type AccountUsageBucket = {
   /** Plan credits spent (Kiro); 0 for agents that bill in tokens. */
   credits: number
   costUsd: number | null
+  /** Token counts are Orca's estimate because the agent logs none (Kiro). */
+  estimated?: boolean
 }
 
 /** What one session (or other append-only log) has used so far. */
@@ -57,6 +59,22 @@ export type AccountUsageLedgerRow = {
   activeDays: number
   lastActiveDay: string | null
   topModel: string | null
+  /** Some of the token counts are estimates. */
+  estimated: boolean
+}
+
+/** One agent's usage on one day, summed over its accounts. */
+export type AccountUsageDailyPoint = {
+  day: string
+  provider: AccountUsageProvider
+  inputTokens: number
+  outputTokens: number
+  cacheTokens: number
+  reasoningTokens: number
+  totalTokens: number
+  credits: number
+  activity: number
+  estimated: boolean
 }
 
 export type AccountUsageLedgerRange = '7d' | '30d' | '90d' | 'all'
@@ -64,6 +82,7 @@ export type AccountUsageLedgerRange = '7d' | '30d' | '90d' | 'all'
 export type AccountUsageLedgerSnapshot = {
   range: AccountUsageLedgerRange
   rows: AccountUsageLedgerRow[]
+  daily: AccountUsageDailyPoint[]
   /** Unix ms of the last collection the ledger recorded, null before the first. */
   updatedAt: number | null
 }

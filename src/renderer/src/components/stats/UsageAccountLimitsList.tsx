@@ -67,6 +67,7 @@ function LimitRow({ row, now }: { row: AccountLimitRow; now: number }): React.JS
 /** Live plan limits for every agent and saved account, refreshed only on request. */
 export function UsageAccountLimitsList(): React.JSX.Element {
   const settings = useAppStore((state) => state.settings)
+  const disabledAgents = settings?.disabledTuiAgents
   const rateLimits = useAppStore((state) => state.rateLimits)
   const refreshRateLimits = useAppStore((state) => state.refreshRateLimits)
   const fetchInactiveClaude = useAppStore((state) => state.fetchInactiveClaudeAccountUsage)
@@ -74,14 +75,22 @@ export function UsageAccountLimitsList(): React.JSX.Element {
   const [refreshing, setRefreshing] = useState(false)
   const rows = useMemo(
     () =>
-      buildAccountLimitRows(settings, rateLimits, {
-        systemDefault: translate(
-          'auto.components.status.bar.StatusBar.c676918adc',
-          'System default'
-        ),
-        savedAccount: translate('auto.components.status.bar.savedAccounts.unnamed', 'Saved account')
-      }),
-    [settings, rateLimits]
+      buildAccountLimitRows(
+        settings,
+        rateLimits,
+        {
+          systemDefault: translate(
+            'auto.components.status.bar.StatusBar.c676918adc',
+            'System default'
+          ),
+          savedAccount: translate(
+            'auto.components.status.bar.savedAccounts.unnamed',
+            'Saved account'
+          )
+        },
+        disabledAgents
+      ),
+    [settings, rateLimits, disabledAgents]
   )
   const now = useResetCountdownClock(
     rows.map((row) => tightestSection(row)?.window.resetsAt ?? null)

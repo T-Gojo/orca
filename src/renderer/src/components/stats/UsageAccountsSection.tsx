@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
-import { useAppStore } from '../../store'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon, getAgentCatalog } from '@/lib/agent-catalog'
 import { Badge } from '../ui/badge'
@@ -9,8 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import type {
   AccountUsageLedgerRange,
-  AccountUsageLedgerRow,
-  AccountUsageLedgerSnapshot
+  AccountUsageLedgerRow
 } from '../../../../shared/account-usage-ledger-types'
 import {
   SYSTEM_DEFAULT_ACCOUNT_KEY,
@@ -18,6 +16,8 @@ import {
 } from '../../../../shared/account-usage-ledger-types'
 import { formatUsageCost, formatUsageTokens } from './usage-overview-model'
 import { UsageAccountLimitsList } from './UsageAccountLimitsList'
+import { useAccountUsageSnapshot } from './use-account-usage-snapshot'
+import { estimatedTokensHint } from './usage-overview-sections'
 
 const RANGES: readonly AccountUsageLedgerRange[] = ['7d', '30d', '90d', 'all']
 
@@ -58,7 +58,7 @@ function rowAmount(row: AccountUsageLedgerRow): number {
   return row.totalTokens > 0 ? row.totalTokens : row.credits
 }
 
-function AccountUsageRow({
+export function AccountUsageRow({
   row,
   largest
 }: {
@@ -80,7 +80,6 @@ function AccountUsageRow({
           }
         )
       : null,
-    row.credits > 0 && row.totalTokens > 0 ? formatCredits(row.credits) : null,
     row.sessions === 1
       ? translate('stats.usageBreakdown.sessions_one', '{{count}} session', { count: 1 })
       : translate('stats.usageBreakdown.sessions_other', '{{count}} sessions', {
@@ -109,11 +108,18 @@ function AccountUsageRow({
             {translate('auto.components.stats.UsageAccountsSection.removed', 'Removed')}
           </Badge>
         ) : null}
-        <span className="shrink-0 tabular-nums text-foreground">
-          {row.totalTokens > 0 ? formatUsageTokens(row.totalTokens) : formatCredits(row.credits)}
+        <span
+          className="shrink-0 tabular-nums text-foreground"
+          title={row.estimated ? estimatedTokensHint() : undefined}
+        >
+          {row.totalTokens > 0
+            ? `${row.estimated ? '≈' : ''}${formatUsageTokens(row.totalTokens)}`
+            : formatCredits(row.credits)}
         </span>
-        <span className="w-16 shrink-0 text-right tabular-nums text-muted-foreground">
-          {formatUsageCost(row.estimatedCostUsd)}
+        <span className="w-20 shrink-0 text-right tabular-nums text-muted-foreground">
+          {row.estimatedCostUsd === null && row.credits > 0
+            ? formatCredits(row.credits)
+            : formatUsageCost(row.estimatedCostUsd)}
         </span>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-muted">
@@ -131,44 +137,10 @@ function AccountUsageRow({
 
 /** Every account across agents: recorded usage history and live plan limits. */
 export function UsageAccountsSection(): React.JSX.Element {
-  const claudeScanCompletedAt = useAppStore(
-    (state) => state.claudeUsageScanState?.lastScanCompletedAt ?? null
-  )
-  const codexScanCompletedAt = useAppStore(
-    (state) => state.codexUsageScanState?.lastScanCompletedAt ?? null
-  )
   const [range, setRange] = useState<AccountUsageLedgerRange>('30d')
-  const [snapshot, setSnapshot] = useState<AccountUsageLedgerSnapshot | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  const { snapshot, refreshing, refresh } = useAccountUsageSnapshot(range)
 
-  useEffect(() => {
-    let cancelled = false
-    void window.api.accountUsage
-      .getSnapshot({ range })
-      .then((next) => {
-        if (!cancelled) {
-          setSnapshot(next)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [range, claudeScanCompletedAt, codexScanCompletedAt])
-
-  const refresh = (): void => {
-    if (refreshing) {
-      return
-    }
-    setRefreshing(true)
-    void window.api.accountUsage
-      .refresh({ range })
-      .then(setSnapshot)
-      .catch(() => {})
-      .finally(() => setRefreshing(false))
-  }
-
-  const rows = useMemo(() => (snapshot?.range === range ? snapshot.rows : []), [snapshot, range])
+  const rows = useMemo(() => snapshot?.rows ?? [], [snapshot])
   const totals = useMemo(
     () => ({
       tokens: rows.reduce((sum, row) => sum + row.totalTokens, 0),
