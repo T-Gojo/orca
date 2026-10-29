@@ -175,7 +175,8 @@ install_app() {
     exit 1
   fi
   # Why anchored: the terminal daemon names the app executable in its arguments and may keep running.
-  if pgrep -f "^$APP_PATH/Contents/MacOS/Orca( |\$)" >/dev/null; then
+  # Why -a: without it macOS pgrep skips ancestors, so a run from an Orca terminal missed Orca.
+  if pgrep -af "^$APP_PATH/Contents/MacOS/Orca( |\$)" >/dev/null; then
     echo "Orca is running. Quit it (Cmd+Q) and run this again." >&2
     exit 1
   fi
