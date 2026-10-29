@@ -156,6 +156,12 @@ build() {
     echo "Could not create the local signing identity in $SIGNING_KEYCHAIN" >&2
     exit 1
   fi
+  # Why first: --deep skips Contents/Resources, where the Computer Use helper that asks for
+  # Screen Recording lives; the outer seal must then cover the re-signed helper.
+  local helper
+  while IFS= read -r -d '' helper; do
+    codesign --force --deep --sign "$identity" --keychain "$SIGNING_KEYCHAIN" "$helper"
+  done < <(find "$(built_app)/Contents/Resources" -maxdepth 1 -name '*.app' -print0)
   codesign --force --deep --sign "$identity" --keychain "$SIGNING_KEYCHAIN" "$(built_app)"
   codesign --verify --deep --strict "$(built_app)"
   echo "Built $(built_app)"
