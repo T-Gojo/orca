@@ -81,12 +81,20 @@ function AccountUsageRow({
         )
       : null,
     row.credits > 0 && row.totalTokens > 0 ? formatCredits(row.credits) : null,
-    translate('auto.components.stats.UsageAccountsSection.sessions', '{{count}} sessions', {
-      count: row.sessions
-    }),
-    translate('auto.components.stats.UsageAccountsSection.activeDays', '{{count}} active days', {
-      count: row.activeDays
-    }),
+    row.sessions === 1
+      ? translate('stats.usageBreakdown.sessions_one', '{{count}} session', { count: 1 })
+      : translate('stats.usageBreakdown.sessions_other', '{{count}} sessions', {
+          count: row.sessions
+        }),
+    row.activeDays === 1
+      ? translate('auto.components.stats.UsageAccountsSection.activeDay', '1 active day')
+      : translate(
+          'auto.components.stats.UsageAccountsSection.activeDays',
+          '{{count}} active days',
+          {
+            count: row.activeDays
+          }
+        ),
     row.topModel
   ].filter((part): part is string => Boolean(part))
   return (
