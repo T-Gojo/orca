@@ -57,7 +57,7 @@ function AccountTokenRow({
           {accountName(row)}
         </span>
         {row.removed ? (
-          <Badge variant="outline" className="shrink-0 text-[10px]">
+          <Badge variant="outline" className="shrink-0">
             {translate('auto.components.stats.UsageAccountsSection.removed', 'Removed')}
           </Badge>
         ) : null}
@@ -158,7 +158,7 @@ export function UsageAccountsSection(): React.JSX.Element {
           }}
         >
           {RANGES.map((entry) => (
-            <ToggleGroupItem key={entry} value={entry} className="px-2 text-xs">
+            <ToggleGroupItem key={entry} value={entry}>
               {rangeLabel(entry)}
             </ToggleGroupItem>
           ))}

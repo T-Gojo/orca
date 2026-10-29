@@ -79,6 +79,8 @@ export function registerUsageProviderHandlers(stores: UsageProviderStores): void
   registerProviderHandlers('museUsage', stores.museUsage)
   ipcMain.handle('accountUsage:getSnapshot', (_event, args: { range: AccountUsageLedgerRange }) => {
     const ledger = getAccountUsageLedger()
-    return ledger ? ledger.getSnapshot(args.range) : { range: args.range, rows: [], updatedAt: null }
+    return ledger
+      ? ledger.getSnapshot(args.range)
+      : { range: args.range, rows: [], updatedAt: null }
   })
 }
