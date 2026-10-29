@@ -112,7 +112,10 @@ export function scanOpenCodeUsageDatabasesViaWorker(
   sessions: OpenCodeUsageSession[]
   dailyAggregates: OpenCodeUsageDailyAggregate[]
 }> {
-  return scanOpenCodeUsageOnWorker((body) => getSharedClient().scan(body), worktrees, sourceCache)
+  return withRollups(
+    'opencode',
+    scanOpenCodeUsageOnWorker((body) => getSharedClient().scan(body), worktrees, sourceCache)
+  )
 }
 
 export function scanMuseUsageFilesViaWorker(
@@ -123,6 +126,13 @@ export function scanMuseUsageFilesViaWorker(
   dailyAggregates: MuseUsageDailyAggregate[]
 }> {
   return scanMuseUsageOnWorker((body) => getSharedClient().scan(body), worktrees, sourceCache)
+}
+
+export function collectAccountSourcesViaWorker(): Promise<{
+  kiro: UsageSourceRollup[]
+  antigravity: UsageSourceRollup[]
+}> {
+  return getSharedClient().collectAccountSources()
 }
 
 /** Split source records on the worker; return only report JSON and whether migration occurred. */

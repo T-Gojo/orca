@@ -18,11 +18,13 @@ export function createUsageScanWorkerTransport(
     removeAllListeners: () => worker.removeAllListeners(),
     unref: () => worker.unref(),
     postMessage: (request: UsageScanWorkerRequest, transferList) => {
-      cachePaths.add(
-        request.operation === 'scan'
-          ? request.sourceCache.path
-          : usageSourceCachePath(request.cacheFile)
-      )
+      if (request.operation !== 'collectAccountSources') {
+        cachePaths.add(
+          request.operation === 'scan'
+            ? request.sourceCache.path
+            : usageSourceCachePath(request.cacheFile)
+        )
+      }
       worker.postMessage(request, transferList)
     },
     terminate: async () => {

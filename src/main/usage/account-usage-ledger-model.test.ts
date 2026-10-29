@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import type { AccountUsageBucket } from '../../shared/account-usage-ledger-types'
+import type { AccountUsageBucket, UsageSourceRollup } from '../../shared/account-usage-ledger-types'
 import {
   emptyAccountUsageLedger,
   recordSourceRollups,
   summarizeAccountUsageLedger,
+  type AccountUsageLedgerState,
   type ResolvedSourceAccount
 } from './account-usage-ledger-model'
 
-function bucket(day: string, totalTokens: number): AccountUsageBucket {
+function bucket(day: string, totalTokens: number, credits = 0): AccountUsageBucket {
   return {
     day,
     model: 'claude-sonnet-4',
@@ -17,82 +18,135 @@ function bucket(day: string, totalTokens: number): AccountUsageBucket {
     reasoningTokens: 0,
     totalTokens,
     activity: 1,
+    credits,
     costUsd: null
   }
 }
 
-const accountHome = '/data/claude-profiles/acct-1/home'
-const sharedHome = '/Users/me/.claude'
-
-function resolve(home: string): ResolvedSourceAccount {
-  return home === accountHome
-    ? { accountKey: 'acct-1', label: 'a@example.com', shared: false }
-    : { accountKey: 'system-default', label: null, shared: true }
+function source(id: string, ...buckets: AccountUsageBucket[]): UsageSourceRollup {
+  return { source: id, home: null, session: id, buckets }
 }
 
-function totals(state: ReturnType<typeof emptyAccountUsageLedger>, saved = new Set(['acct-1'])) {
+const guess = (accountKey: string) => (): ResolvedSourceAccount => ({
+  accountKey,
+  label: `${accountKey}@example.com`,
+  certain: false
+})
+
+function totals(state: AccountUsageLedgerState, saved = new Set(['a', 'b', 'unattributed'])) {
   return summarizeAccountUsageLedger(state, 'all', (_provider, key) => saved.has(key)).map(
-    (row) => [row.accountKey, row.totalTokens, row.removed]
+    (row) => [row.accountKey, row.totalTokens, row.credits, row.removed]
   )
 }
 
 describe('account usage ledger', () => {
-  it('keeps a removed account’s recorded tokens when its transcripts disappear', () => {
-    let state = recordSourceRollups(
+  it('files history found on the first collection as unattributed unless a session names its account', () => {
+    const state = recordSourceRollups(
       emptyAccountUsageLedger(),
       'claude',
-      [{ home: accountHome, buckets: [bucket('2026-10-01', 100)] }],
-      resolve,
+      [source('old', bucket('2026-10-01', 40)), source('live', bucket('2026-10-01', 10))],
+      (rollup) =>
+        rollup.session === 'live'
+          ? { accountKey: 'a', label: null, certain: true }
+          : { accountKey: 'a', label: null, certain: false },
       1
     )
-    state = recordSourceRollups(state, 'claude', [], resolve, 2)
-    expect(totals(state, new Set())).toEqual([['acct-1', 100, true]])
+    expect(totals(state)).toEqual([
+      ['unattributed', 40, 0, false],
+      ['a', 10, 0, false]
+    ])
   })
 
-  it('credits only growth, and does not recount a folder that comes back', () => {
+  it('keeps a removed account’s tokens when its logs disappear', () => {
     let state = recordSourceRollups(
       emptyAccountUsageLedger(),
-      'claude',
-      [{ home: accountHome, buckets: [bucket('2026-10-01', 100)] }],
-      resolve,
+      'kiro',
+      [source('seed', bucket('2026-10-01', 1))],
+      guess('a'),
       1
     )
     state = recordSourceRollups(
       state,
-      'claude',
-      [{ home: accountHome, buckets: [bucket('2026-10-01', 150)] }],
-      resolve,
+      'kiro',
+      [source('s1', bucket('2026-10-02', 0, 12))],
+      guess('a'),
       2
     )
-    state = recordSourceRollups(state, 'claude', [{ home: accountHome, buckets: [] }], resolve, 3)
-    state = recordSourceRollups(
-      state,
-      'claude',
-      [{ home: accountHome, buckets: [bucket('2026-10-01', 150)] }],
-      resolve,
-      4
-    )
-    expect(totals(state)).toEqual([['acct-1', 150, false]])
+    state = recordSourceRollups(state, 'kiro', [], guess('b'), 3)
+    expect(totals(state, new Set(['unattributed']))).toEqual([
+      ['unattributed', 1, 0, false],
+      ['a', 0, 12, true]
+    ])
   })
 
-  it('files history found in a shared folder on first sight as unattributed', () => {
+  it('credits growth once to the account that owned the session, even after a switch', () => {
+    let state = recordSourceRollups(
+      emptyAccountUsageLedger(),
+      'antigravity',
+      [source('seed')],
+      guess('a'),
+      1
+    )
+    state = recordSourceRollups(
+      state,
+      'antigravity',
+      [source('s1', bucket('2026-10-01', 100))],
+      guess('a'),
+      2
+    )
+    state = recordSourceRollups(
+      state,
+      'antigravity',
+      [source('s1', bucket('2026-10-01', 150))],
+      guess('b'),
+      3
+    )
+    state = recordSourceRollups(state, 'antigravity', [source('s1')], guess('b'), 4)
+    state = recordSourceRollups(
+      state,
+      'antigravity',
+      [source('s1', bucket('2026-10-01', 150))],
+      guess('b'),
+      5
+    )
+    state = recordSourceRollups(
+      state,
+      'antigravity',
+      [source('s2', bucket('2026-10-01', 30))],
+      guess('b'),
+      6
+    )
+    expect(totals(state)).toEqual([
+      ['a', 150, 0, false],
+      ['b', 30, 0, false]
+    ])
+  })
+
+  it('moves later growth to the account a session record names', () => {
     let state = recordSourceRollups(
       emptyAccountUsageLedger(),
       'claude',
-      [{ home: sharedHome, buckets: [bucket('2026-10-01', 40)] }],
-      resolve,
+      [source('seed')],
+      guess('a'),
       1
     )
     state = recordSourceRollups(
       state,
       'claude',
-      [{ home: sharedHome, buckets: [bucket('2026-10-01', 70)] }],
-      resolve,
+      [source('s1', bucket('2026-10-01', 20))],
+      guess('a'),
       2
     )
-    expect(totals(state, new Set(['unattributed', 'system-default']))).toEqual([
-      ['unattributed', 40, false],
-      ['system-default', 30, false]
+    state = recordSourceRollups(
+      state,
+      'claude',
+      [source('s1', bucket('2026-10-01', 50))],
+      () => ({ accountKey: 'b', label: null, certain: true }),
+      3
+    )
+    expect(totals(state)).toEqual([
+      ['b', 30, 0, false],
+      ['a', 20, 0, false]
     ])
   })
 })

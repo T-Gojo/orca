@@ -2,8 +2,18 @@ import { parentPort } from 'node:worker_threads'
 import { scanClaudeUsageFiles } from '../claude-usage/scanner'
 import { claudeTranscriptRoots } from '../claude-usage/transcript-file-discovery'
 import { getCodexSessionDirectories } from '../codex-usage/codex-session-file-discovery'
-import { rollupUsageBySourceHome } from './usage-source-rollups'
-import { claudeAggregateBucket, codexAggregateBucket } from './account-usage-buckets'
+import {
+  claudeSessionRollups,
+  codexFileRollups,
+  openCodeConnectorRollups
+} from './usage-source-rollups'
+import {
+  claudeAggregateBucket,
+  codexAggregateBucket,
+  openCodeAggregateBucket
+} from './account-usage-buckets'
+import { collectKiroCliUsage } from '../kiro/kiro-cli-session-usage'
+import { collectAntigravityUsage } from '../antigravity/antigravity-session-usage'
 import { scanCodexUsageFiles } from '../codex-usage/scanner'
 import { scanOpenCodeUsageDatabases } from '../opencode-usage/scanner'
 import { scanMuseUsageFiles } from '../muse-usage/scanner'
@@ -69,6 +79,14 @@ async function runRequest(
         : splitUsageCacheFile(request)))
     }
   }
+  if (request.operation === 'collectAccountSources') {
+    // Why here: agy's SQLite logs and kiro-cli's JSON sessions are read off the main thread too.
+    return {
+      operation: 'collectAccountSources',
+      kiro: collectKiroCliUsage(),
+      antigravity: collectAntigravityUsage()
+    }
+  }
   return runScan(request, onFilesScanned)
 }
 
@@ -97,7 +115,7 @@ async function runScan(
         providerId: 'claude',
         sessions: result.sessions,
         dailyAggregates: result.dailyAggregates,
-        sourceRollups: rollupUsageBySourceHome(
+        sourceRollups: claudeSessionRollups(
           result.processedFiles,
           claudeTranscriptRoots(request.profileDirs ?? []),
           claudeAggregateBucket
@@ -116,7 +134,7 @@ async function runScan(
         providerId: 'codex',
         sessions: result.sessions,
         dailyAggregates: result.dailyAggregates,
-        sourceRollups: rollupUsageBySourceHome(
+        sourceRollups: codexFileRollups(
           result.processedFiles,
           getCodexSessionDirectories(),
           codexAggregateBucket
@@ -136,7 +154,8 @@ async function runScan(
         operation: 'scan',
         providerId: 'opencode',
         sessions: result.sessions,
-        dailyAggregates: result.dailyAggregates
+        dailyAggregates: result.dailyAggregates,
+        sourceRollups: openCodeConnectorRollups(result.processedDatabases, openCodeAggregateBucket)
       }
     }
     case 'muse': {

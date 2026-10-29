@@ -6,6 +6,7 @@ import { openAccountSignInLink } from './account-sign-in-link-opener'
 import { listRecordedCodexPaneLanes } from '../codex/codex-pane-account-registry'
 import { forgetStaleCodexPanes, listStaleCodexPanes } from '../codex/codex-stale-pane-accounts'
 import type { GlobalSettings } from '../../shared/global-settings-types'
+import { beforeAccountSwitch } from '../usage/account-switch-usage-hook'
 
 export function registerCodexAccountHandlers(
   codexAccounts: CodexAccountService,
@@ -56,7 +57,8 @@ export function registerCodexAccountHandlers(
   )
   ipcMain.handle(
     'codexAccounts:select',
-    (_event, args: { accountId: string | null } & CodexAccountSelectionTarget) => {
+    async (_event, args: { accountId: string | null } & CodexAccountSelectionTarget) => {
+      await beforeAccountSwitch('codex')
       if (!args.runtime) {
         // Legacy renderers omit runtime; infer it from the account so valid WSL selection still works.
         return codexAccounts.selectAccount(args.accountId)

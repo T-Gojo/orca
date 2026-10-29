@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { translate } from '@/i18n/i18n'
+import { AgentIcon, getAgentCatalog } from '@/lib/agent-catalog'
 import { Badge } from '../ui/badge'
+import { Button } from '../ui/button'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
-import { ProviderIcon } from '../status-bar/tooltip'
-import { getProviderDisplayName } from '../status-bar/usage-error-copy'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import type {
   AccountUsageLedgerRange,
   AccountUsageLedgerRow,
@@ -25,6 +27,10 @@ function rangeLabel(range: AccountUsageLedgerRange): string {
     : range
 }
 
+function providerLabel(provider: AccountUsageLedgerRow['provider']): string {
+  return getAgentCatalog().find((entry) => entry.id === provider)?.label ?? provider
+}
+
 function accountName(row: AccountUsageLedgerRow): string {
   if (row.accountKey === UNATTRIBUTED_ACCOUNT_KEY) {
     return translate(
@@ -32,7 +38,7 @@ function accountName(row: AccountUsageLedgerRow): string {
       'Before account tracking'
     )
   }
-  if (row.accountKey === SYSTEM_DEFAULT_ACCOUNT_KEY) {
+  if (row.accountKey === SYSTEM_DEFAULT_ACCOUNT_KEY && !row.label) {
     return translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
   }
   return (
@@ -41,18 +47,52 @@ function accountName(row: AccountUsageLedgerRow): string {
   )
 }
 
-function AccountTokenRow({
+function formatCredits(value: number): string {
+  return translate('auto.components.stats.UsageAccountsSection.credits', '{{value}} credits', {
+    value: value >= 100 ? Math.round(value).toLocaleString() : value.toFixed(1)
+  })
+}
+
+/** Kiro bills in credits; the bar compares each row with the largest of its own unit. */
+function rowAmount(row: AccountUsageLedgerRow): number {
+  return row.totalTokens > 0 ? row.totalTokens : row.credits
+}
+
+function AccountUsageRow({
   row,
-  totalTokens
+  largest
 }: {
   row: AccountUsageLedgerRow
-  totalTokens: number
+  largest: { tokens: number; credits: number }
 }): React.JSX.Element {
-  const share = totalTokens > 0 ? row.totalTokens / totalTokens : 0
+  const scale = row.totalTokens > 0 ? largest.tokens : largest.credits
+  const share = scale > 0 ? rowAmount(row) / scale : 0
+  const details = [
+    providerLabel(row.provider),
+    row.totalTokens > 0
+      ? translate(
+          'auto.components.stats.UsageAccountsSection.tokenMix',
+          'In {{in}} · Out {{out}} · Cache {{cache}}',
+          {
+            in: formatUsageTokens(row.inputTokens),
+            out: formatUsageTokens(row.outputTokens),
+            cache: formatUsageTokens(row.cacheTokens)
+          }
+        )
+      : null,
+    row.credits > 0 && row.totalTokens > 0 ? formatCredits(row.credits) : null,
+    translate('auto.components.stats.UsageAccountsSection.sessions', '{{count}} sessions', {
+      count: row.sessions
+    }),
+    translate('auto.components.stats.UsageAccountsSection.activeDays', '{{count}} active days', {
+      count: row.activeDays
+    }),
+    row.topModel
+  ].filter((part): part is string => Boolean(part))
   return (
     <div className="space-y-1.5 py-2" data-testid="usage-account-token-row">
       <div className="flex min-w-0 items-center gap-2 text-sm">
-        <ProviderIcon provider={row.provider} />
+        <AgentIcon agent={row.provider} size={14} />
         <span className="min-w-0 flex-1 truncate text-foreground" title={accountName(row)}>
           {accountName(row)}
         </span>
@@ -62,7 +102,7 @@ function AccountTokenRow({
           </Badge>
         ) : null}
         <span className="shrink-0 tabular-nums text-foreground">
-          {formatUsageTokens(row.totalTokens)}
+          {row.totalTokens > 0 ? formatUsageTokens(row.totalTokens) : formatCredits(row.credits)}
         </span>
         <span className="w-16 shrink-0 text-right tabular-nums text-muted-foreground">
           {formatUsageCost(row.estimatedCostUsd)}
@@ -71,38 +111,17 @@ function AccountTokenRow({
       <div className="h-1 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-foreground/60"
-          style={{ width: `${share * 100}%` }}
+          style={{ width: `${Math.min(share, 1) * 100}%` }}
         />
       </div>
-      <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-        <span>{getProviderDisplayName(row.provider)}</span>
-        <span>
-          {translate(
-            'auto.components.stats.UsageAccountsSection.tokenMix',
-            'In {{in}} · Out {{out}} · Cache {{cache}}',
-            {
-              in: formatUsageTokens(row.inputTokens),
-              out: formatUsageTokens(row.outputTokens),
-              cache: formatUsageTokens(row.cacheTokens)
-            }
-          )}
-        </span>
-        <span>
-          {translate(
-            'auto.components.stats.UsageAccountsSection.activeDays',
-            '{{count}} active days',
-            {
-              count: row.activeDays
-            }
-          )}
-        </span>
-        {row.topModel ? <span className="truncate">{row.topModel}</span> : null}
+      <div className="truncate text-xs text-muted-foreground" title={details.join(' · ')}>
+        {details.join(' · ')}
       </div>
     </div>
   )
 }
 
-/** Every account across agents: recorded token history and live plan limits. */
+/** Every account across agents: recorded usage history and live plan limits. */
 export function UsageAccountsSection(): React.JSX.Element {
   const claudeScanCompletedAt = useAppStore(
     (state) => state.claudeUsageScanState?.lastScanCompletedAt ?? null
@@ -112,6 +131,7 @@ export function UsageAccountsSection(): React.JSX.Element {
   )
   const [range, setRange] = useState<AccountUsageLedgerRange>('30d')
   const [snapshot, setSnapshot] = useState<AccountUsageLedgerSnapshot | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -128,8 +148,31 @@ export function UsageAccountsSection(): React.JSX.Element {
     }
   }, [range, claudeScanCompletedAt, codexScanCompletedAt])
 
+  const refresh = (): void => {
+    if (refreshing) {
+      return
+    }
+    setRefreshing(true)
+    void window.api.accountUsage
+      .refresh({ range })
+      .then(setSnapshot)
+      .catch(() => {})
+      .finally(() => setRefreshing(false))
+  }
+
   const rows = useMemo(() => (snapshot?.range === range ? snapshot.rows : []), [snapshot, range])
-  const totalTokens = rows.reduce((sum, row) => sum + row.totalTokens, 0)
+  const totals = useMemo(
+    () => ({
+      tokens: rows.reduce((sum, row) => sum + row.totalTokens, 0),
+      credits: rows.reduce((sum, row) => sum + row.credits, 0),
+      cost: rows.reduce((sum, row) => sum + (row.estimatedCostUsd ?? 0), 0),
+      largest: {
+        tokens: Math.max(0, ...rows.map((row) => row.totalTokens)),
+        credits: Math.max(0, ...rows.map((row) => row.credits))
+      }
+    }),
+    [rows]
+  )
 
   return (
     <section className="space-y-3" data-testid="usage-accounts-section">
@@ -141,7 +184,7 @@ export function UsageAccountsSection(): React.JSX.Element {
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.stats.UsageAccountsSection.subtitle',
-              'Tokens each account used, kept after an account is removed.'
+              'Usage per account across every agent, kept after an account is removed.'
             )}
           </p>
         </div>
@@ -166,26 +209,53 @@ export function UsageAccountsSection(): React.JSX.Element {
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="rounded-lg border border-border/60 bg-card/30 px-4 py-2">
-          <div className="flex items-center justify-between py-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between gap-2 py-1 text-xs text-muted-foreground">
             <span>
-              {translate('auto.components.stats.UsageAccountsSection.tokensHeading', 'Token usage')}
+              {translate('auto.components.stats.UsageAccountsSection.tokensHeading', 'Usage')}
             </span>
-            <span className="tabular-nums">{formatUsageTokens(totalTokens)}</span>
+            <span className="ml-auto tabular-nums" data-testid="usage-accounts-total">
+              {[
+                formatUsageTokens(totals.tokens),
+                totals.credits > 0 ? formatCredits(totals.credits) : null,
+                totals.cost > 0 ? formatUsageCost(totals.cost) : null
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={refresh}
+                  disabled={refreshing}
+                  aria-label={translate(
+                    'auto.components.stats.UsageAccountsSection.refresh',
+                    'Read every agent’s usage now'
+                  )}
+                >
+                  <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={6}>
+                {translate('auto.components.stats.UsageOverviewPane.ca6bc5fded', 'Refresh')}
+              </TooltipContent>
+            </Tooltip>
           </div>
           {rows.length === 0 ? (
             <p className="py-3 text-sm text-muted-foreground">
               {translate(
                 'auto.components.stats.UsageAccountsSection.empty',
-                'No account usage recorded yet. Enable Claude or Codex tracking and refresh.'
+                'No usage recorded yet. Orca reads agent logs every few minutes; refresh to read them now.'
               )}
             </p>
           ) : (
             <div className="divide-y divide-border/60">
               {rows.map((row) => (
-                <AccountTokenRow
+                <AccountUsageRow
                   key={`${row.provider}:${row.accountKey}`}
                   row={row}
-                  totalTokens={totalTokens}
+                  largest={totals.largest}
                 />
               ))}
             </div>

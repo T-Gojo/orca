@@ -1,6 +1,7 @@
 import { defineMethod } from '../core'
 import { KiroAccountMutationParams } from '../../../../shared/rpc-contract/kiro-accounts-params'
 import { getKiroAccountService } from '../../../kiro/kiro-account-host'
+import { beforeAccountSwitch } from '../../../usage/account-switch-usage-hook'
 
 export const KIRO_ACCOUNT_METHODS = [
   defineMethod({
@@ -25,7 +26,10 @@ export const KIRO_ACCOUNT_METHODS = [
     name: 'accounts.kiroSelect',
     permission: 'accounts-admin',
     params: KiroAccountMutationParams,
-    handler: async ({ accountId }) => getKiroAccountService().selectAccount(accountId)
+    handler: async ({ accountId }) => {
+      await beforeAccountSwitch('kiro')
+      return getKiroAccountService().selectAccount(accountId)
+    }
   }),
   defineMethod({
     name: 'accounts.kiroRemove',

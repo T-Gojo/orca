@@ -18,6 +18,7 @@ import {
 import { bindStructuredAgentSessionStream } from './structured-agent-session-status-stream'
 import { structuredAgentHostLaunchSources } from '../../structured-agent-launch-support'
 import { stopStructuredAgentChats } from '../../structured-agent-chat-stop'
+import { beforeAccountSwitch } from '../../../usage/account-switch-usage-hook'
 
 const chatSignInHost = (runtime: OrcaRuntimeService) => ({
   launchSources: () => structuredAgentHostLaunchSources('antigravity', runtime),
@@ -49,8 +50,10 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     name: 'accounts.antigravitySelect',
     permission: 'accounts-admin',
     params: AntigravityAccountMutationParams,
-    handler: async ({ target, accountId }) =>
-      getAntigravityAccountService(target).selectAccount(accountId)
+    handler: async ({ target, accountId }) => {
+      await beforeAccountSwitch('antigravity')
+      return getAntigravityAccountService(target).selectAccount(accountId)
+    }
   }),
   defineMethod({
     name: 'accounts.antigravityRemove',

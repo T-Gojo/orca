@@ -5,31 +5,47 @@ import type {
   AccountUsageProvider,
   UsageSourceRollup
 } from '../../shared/account-usage-ledger-types'
-import { UNATTRIBUTED_ACCOUNT_KEY } from '../../shared/account-usage-ledger-types'
+import {
+  ACCOUNT_USAGE_PROVIDERS,
+  UNATTRIBUTED_ACCOUNT_KEY
+} from '../../shared/account-usage-ledger-types'
 import { addBuckets, bucketKey } from './usage-source-rollups'
 import { getUsageRangeCutoff } from './usage-calendar-range'
 
 type BucketMap = Record<string, AccountUsageBucket>
 
-export type AccountUsageLedgerState = {
-  version: 1
-  updatedAt: number | null
-  /** Highest totals seen per agent home folder; usage below them was already credited. */
-  observed: Partial<Record<AccountUsageProvider, Record<string, BucketMap>>>
-  accounts: Partial<
-    Record<AccountUsageProvider, Record<string, { label: string | null; buckets: BucketMap }>>
-  >
+type LedgerSource = {
+  /** Account the source's latest growth was credited to. */
+  owner: string
+  /** Highest totals seen; anything at or below them was already credited. */
+  seen: BucketMap
 }
 
+type LedgerAccount = { label: string | null; buckets: BucketMap; sources: string[] }
+
+type ProviderLedger = {
+  sources: Record<string, LedgerSource>
+  accounts: Record<string, LedgerAccount>
+}
+
+export type AccountUsageLedgerState = {
+  version: 2
+  updatedAt: number | null
+  providers: Partial<Record<AccountUsageProvider, ProviderLedger>>
+}
+
+/**
+ * Who used a source. `certain` answers come from the source itself (its folder or a live session
+ * record); the rest are a best guess, such as the account signed in when the source first appeared.
+ */
 export type ResolvedSourceAccount = {
   accountKey: string
   label: string | null
-  /** Several accounts write here over time, so history found on first sight has no owner. */
-  shared: boolean
+  certain: boolean
 }
 
 export function emptyAccountUsageLedger(): AccountUsageLedgerState {
-  return { version: 1, updatedAt: null, observed: {}, accounts: {} }
+  return { version: 2, updatedAt: null, providers: {} }
 }
 
 const COUNTED_FIELDS = [
@@ -38,16 +54,20 @@ const COUNTED_FIELDS = [
   'cacheTokens',
   'reasoningTokens',
   'totalTokens',
-  'activity'
+  'activity',
+  'credits'
 ] as const
 
 function growth(current: AccountUsageBucket, seen: AccountUsageBucket | undefined) {
   const delta: AccountUsageBucket = { ...current }
   const highest: AccountUsageBucket = { ...current }
+  let grew = false
   for (const field of COUNTED_FIELDS) {
     const before = seen?.[field] ?? 0
-    delta[field] = Math.max(current[field] - before, 0)
-    highest[field] = Math.max(current[field], before)
+    const now = current[field] ?? 0
+    delta[field] = Math.max(now - before, 0)
+    highest[field] = Math.max(now, before)
+    grew ||= delta[field] > 0
   }
   const beforeCost = seen?.costUsd ?? null
   delta.costUsd = current.costUsd === null ? null : Math.max(current.costUsd - (beforeCost ?? 0), 0)
@@ -55,48 +75,78 @@ function growth(current: AccountUsageBucket, seen: AccountUsageBucket | undefine
     current.costUsd === null && beforeCost === null
       ? null
       : Math.max(current.costUsd ?? 0, beforeCost ?? 0)
-  return { delta, highest, grew: delta.totalTokens > 0 || delta.activity > 0 }
+  return { delta, highest, grew }
+}
+
+function chooseOwner(
+  previous: LedgerSource | undefined,
+  resolved: ResolvedSourceAccount,
+  baseline: boolean
+): string {
+  if (resolved.certain) {
+    return resolved.accountKey
+  }
+  if (previous) {
+    // Why sticky: a guess made while the session ran beats a later guess about another account.
+    return previous.owner
+  }
+  return baseline ? UNATTRIBUTED_ACCOUNT_KEY : resolved.accountKey
 }
 
 /**
- * Credit only what each folder gained since the last scan. Why: deleted transcripts (a removed
- * account's folder) then leave already-recorded usage in place instead of shrinking it.
+ * Credit only what each source gained since the last collection. Why: deleted logs (a removed
+ * account's folder) then leave recorded usage in place instead of shrinking it.
  */
 export function recordSourceRollups(
   state: AccountUsageLedgerState,
   provider: AccountUsageProvider,
   rollups: readonly UsageSourceRollup[],
-  resolve: (home: string) => ResolvedSourceAccount,
+  resolve: (rollup: UsageSourceRollup) => ResolvedSourceAccount,
   now: number
 ): AccountUsageLedgerState {
-  const observed = { ...state.observed[provider] }
-  const accounts = { ...state.accounts[provider] }
+  const previous = state.providers[provider]
+  // The first collection meets history logged before Orca tracked who was signed in.
+  const baseline = !previous || Object.keys(previous.sources).length === 0
+  const sources = { ...previous?.sources }
+  const accounts = { ...previous?.accounts }
   for (const rollup of rollups) {
-    const firstSight = !(rollup.home in observed)
-    const owner = resolve(rollup.home)
-    const accountKey = firstSight && owner.shared ? UNATTRIBUTED_ACCOUNT_KEY : owner.accountKey
-    const seen = { ...observed[rollup.home] }
-    const account = accounts[accountKey] ?? { label: null, buckets: {} }
-    const buckets = { ...account.buckets }
+    const prior = sources[rollup.source]
+    const resolved = resolve(rollup)
+    const owner = chooseOwner(prior, resolved, baseline)
+    const seen = { ...prior?.seen }
+    const existing = accounts[owner]
+    const account: LedgerAccount = {
+      label: existing?.label ?? null,
+      buckets: { ...existing?.buckets },
+      sources: existing?.sources ?? []
+    }
+    let credited = false
     for (const bucket of rollup.buckets) {
       const key = bucketKey(bucket)
       const { delta, highest, grew } = growth(bucket, seen[key])
       seen[key] = highest
       if (grew) {
-        buckets[key] = buckets[key] ? addBuckets(buckets[key], delta) : delta
+        account.buckets[key] = account.buckets[key]
+          ? addBuckets(account.buckets[key], delta)
+          : delta
+        credited = true
       }
     }
-    observed[rollup.home] = seen
-    accounts[accountKey] = {
-      label: accountKey === UNATTRIBUTED_ACCOUNT_KEY ? null : (owner.label ?? account.label),
-      buckets
+    sources[rollup.source] = { owner, seen }
+    if (credited || existing) {
+      if (owner !== UNATTRIBUTED_ACCOUNT_KEY && owner === resolved.accountKey) {
+        account.label = resolved.label ?? account.label
+      }
+      if (credited && !account.sources.includes(rollup.source)) {
+        account.sources = [...account.sources, rollup.source]
+      }
+      accounts[owner] = account
     }
   }
   return {
     ...state,
     updatedAt: now,
-    observed: { ...state.observed, [provider]: observed },
-    accounts: { ...state.accounts, [provider]: accounts }
+    providers: { ...state.providers, [provider]: { sources, accounts } }
   }
 }
 
@@ -107,8 +157,8 @@ export function summarizeAccountUsageLedger(
 ): AccountUsageLedgerRow[] {
   const cutoff = getUsageRangeCutoff(range)
   const rows: AccountUsageLedgerRow[] = []
-  for (const provider of ['claude', 'codex'] as const) {
-    for (const [accountKey, account] of Object.entries(state.accounts[provider] ?? {})) {
+  for (const provider of ACCOUNT_USAGE_PROVIDERS) {
+    for (const [accountKey, account] of Object.entries(state.providers[provider]?.accounts ?? {})) {
       const row: AccountUsageLedgerRow = {
         provider,
         accountKey,
@@ -120,6 +170,8 @@ export function summarizeAccountUsageLedger(
         reasoningTokens: 0,
         totalTokens: 0,
         activity: 0,
+        credits: 0,
+        sessions: account.sources.length,
         estimatedCostUsd: null,
         activeDays: 0,
         lastActiveDay: null,
@@ -132,7 +184,7 @@ export function summarizeAccountUsageLedger(
           continue
         }
         for (const field of COUNTED_FIELDS) {
-          row[field] += bucket[field]
+          row[field] += bucket[field] ?? 0
         }
         if (bucket.costUsd !== null) {
           row.estimatedCostUsd = (row.estimatedCostUsd ?? 0) + bucket.costUsd
@@ -142,14 +194,16 @@ export function summarizeAccountUsageLedger(
           row.lastActiveDay = bucket.day
         }
         const model = bucket.model ?? 'unknown'
-        byModel.set(model, (byModel.get(model) ?? 0) + bucket.totalTokens)
+        byModel.set(model, (byModel.get(model) ?? 0) + bucket.totalTokens + bucket.credits)
       }
       row.activeDays = days.size
       row.topModel = [...byModel].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null
-      if (row.totalTokens > 0 || row.activity > 0) {
+      if (row.totalTokens > 0 || row.activity > 0 || row.credits > 0) {
         rows.push(row)
       }
     }
   }
-  return rows.sort((left, right) => right.totalTokens - left.totalTokens)
+  return rows.sort(
+    (left, right) => right.totalTokens - left.totalTokens || right.credits - left.credits
+  )
 }

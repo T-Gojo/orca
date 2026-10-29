@@ -46,6 +46,7 @@ export type UsageScanWorkerScanBody =
 export type UsageScanWorkerRequestBody =
   | UsageScanWorkerScanBody
   | ({ operation: 'splitCacheFile' } & UsageCacheSplitRequest)
+  | { operation: 'collectAccountSources' }
 
 export type UsageScanWorkerRequest = UsageScanWorkerRequestBody & { id: number }
 
@@ -71,6 +72,7 @@ export type UsageScanWorkerScanValue =
       providerId: 'opencode'
       sessions: OpenCodeUsageSession[]
       dailyAggregates: OpenCodeUsageDailyAggregate[]
+      sourceRollups?: UsageSourceRollup[]
     }
   | {
       operation: 'scan'
@@ -82,6 +84,11 @@ export type UsageScanWorkerScanValue =
 export type UsageScanWorkerValue =
   | UsageScanWorkerScanValue
   | ({ operation: 'splitCacheFile' } & UsageCacheSplitResult)
+  | {
+      operation: 'collectAccountSources'
+      kiro: UsageSourceRollup[]
+      antigravity: UsageSourceRollup[]
+    }
 
 export type UsageScanWorkerResponse =
   | { id: number; ok: true; value: UsageScanWorkerValue }

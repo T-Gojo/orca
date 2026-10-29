@@ -25,7 +25,7 @@ import { ClaudeUsageStore } from '../claude-usage/store'
 import { CodexUsageStore } from '../codex-usage/store'
 import { OpenCodeUsageStore } from '../opencode-usage/store'
 import { MuseUsageStore } from '../muse-usage/store'
-import { installAccountUsageLedger } from '../usage/account-usage-ledger'
+import { installAccountUsageLedger } from '../usage/account-usage-collection'
 import { installRepoMaintenanceIdleGate } from '../repo-maintenance-idle-gate'
 import { mainProcessState as state } from './main-process-state'
 
@@ -145,5 +145,9 @@ export function initializeMainProcessObservers(): void {
   state.codexUsage = new CodexUsageStore(store)
   state.openCodeUsage = new OpenCodeUsageStore(store)
   state.museUsage = new MuseUsageStore(store)
-  installAccountUsageLedger(() => store.getSettings())
+  installAccountUsageLedger(() => store.getSettings(), {
+    claude: state.claudeUsage,
+    codex: state.codexUsage,
+    opencode: state.openCodeUsage
+  })
 }

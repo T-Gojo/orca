@@ -53,6 +53,8 @@ export type MuseUsageApi = UsageProviderApi<MuseUsageSnapshot, MuseUsageBreakdow
 
 export type AccountUsageApi = {
   getSnapshot: (args: { range: AccountUsageLedgerRange }) => Promise<AccountUsageLedgerSnapshot>
+  /** Read every agent's logs now, then answer like getSnapshot. */
+  refresh: (args: { range: AccountUsageLedgerRange }) => Promise<AccountUsageLedgerSnapshot>
 }
 
 export type RateLimitsApi = {
