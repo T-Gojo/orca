@@ -1,16 +1,19 @@
+import { getStructuredAgentSessionTabsByPaneKey } from '@/components/native-chat/structured-agent-session-tabs'
+import {
+  selectVisibleAgentOrchestration,
+  type VisibleOrchestrationState
+} from '@/runtime/visible-agent-orchestration'
 import type { AppState } from '@/store'
-import { isExplicitAgentStatusFresh } from '@/lib/agent-status'
+import { isExplicitAgentStatusFresh } from '@/lib/pane-agent-evidence'
 import { migrationUnsupportedToAgentStatusEntry } from '../../../../shared/migration-unsupported-agent-entry'
 import {
   mergeAgentStatusOrchestration,
   parseAgentStatusPaneIdentity,
   resolveAgentStatusWorktreeId
-} from '../../../../shared/agent-status-worktree-attribution'
-import {
-  AGENT_STATUS_STALE_AFTER_MS,
-  type AgentStatusOrchestrationContext
-} from '../../../../shared/agent-status-types'
-import { agentVerdictDisplayMark } from '../../../../shared/agent-main-agent-verdict'
+} from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
+import { AGENT_STATUS_STALE_AFTER_MS } from '../../../../shared/agent-status/contracts/agent-status-freshness'
+import type { AgentStatusOrchestrationContext } from '../../../../shared/agent-status/contracts/agent-status-types'
+import { agentVerdictDisplayMark } from '../../../../shared/agent-status/lifecycle/agent-main-agent-verdict'
 import { applyAgentPaneActivityFlags } from '../../../../shared/worktree-status-rollup'
 
 export type WorktreeAgentActivitySummary = {
@@ -56,13 +59,16 @@ export type AgentActivityInput = Pick<
   | 'agentStatusByPaneKey'
   | 'migrationUnsupportedByPtyId'
   | 'retainedAgentsByPaneKey'
-> & {
-  tabsByWorktree: AgentActivityTabsByWorktree
-  runtimeAgentOrchestrationByPaneKey?: AppState['runtimeAgentOrchestrationByPaneKey']
-}
+> &
+  VisibleOrchestrationState & {
+    tabsByWorktree: AgentActivityTabsByWorktree
+    runtimeAgentOrchestrationByPaneKey?: AppState['runtimeAgentOrchestrationByPaneKey']
+  }
 
 type AgentActivityCache = {
   tabsByWorktree: AgentActivityTabsByWorktree
+  unifiedTabsByWorktree: AgentActivityInput['unifiedTabsByWorktree']
+  agentStatusByPaneKey: AgentActivityInput['agentStatusByPaneKey']
   agentStatusEpoch: number
   migrationUnsupportedByPtyId: AppState['migrationUnsupportedByPtyId']
   retainedAgentsByPaneKey: AppState['retainedAgentsByPaneKey']
@@ -82,10 +88,12 @@ export function selectWorktreeAgentActivitySummary(
 function getWorktreeAgentActivitySummaries(
   state: AgentActivityInput
 ): Map<string, WorktreeAgentActivitySummary> {
-  const runtimeAgentOrchestrationByPaneKey = state.runtimeAgentOrchestrationByPaneKey
+  const runtimeAgentOrchestrationByPaneKey = selectVisibleAgentOrchestration(state)
   if (
     agentActivityCache &&
     agentActivityCache.tabsByWorktree === state.tabsByWorktree &&
+    agentActivityCache.unifiedTabsByWorktree === state.unifiedTabsByWorktree &&
+    agentActivityCache.agentStatusByPaneKey === state.agentStatusByPaneKey &&
     agentActivityCache.agentStatusEpoch === state.agentStatusEpoch &&
     agentActivityCache.migrationUnsupportedByPtyId === state.migrationUnsupportedByPtyId &&
     agentActivityCache.retainedAgentsByPaneKey === state.retainedAgentsByPaneKey &&
@@ -114,7 +122,12 @@ function getWorktreeAgentActivitySummaries(
 
   const now = Date.now()
   for (const [paneKey, entry] of Object.entries(state.agentStatusByPaneKey)) {
-    const paneIdentity = parseAgentStatusPaneIdentity(paneKey)
+    const paneIdentity = parseAgentStatusPaneIdentity(
+      paneKey,
+      state.unifiedTabsByWorktree
+        ? getStructuredAgentSessionTabsByPaneKey(state.unifiedTabsByWorktree).get(paneKey)
+        : undefined
+    )
     if (!paneIdentity) {
       continue
     }
@@ -183,6 +196,8 @@ function getWorktreeAgentActivitySummaries(
 
   agentActivityCache = {
     tabsByWorktree: state.tabsByWorktree,
+    unifiedTabsByWorktree: state.unifiedTabsByWorktree,
+    agentStatusByPaneKey: state.agentStatusByPaneKey,
     agentStatusEpoch: state.agentStatusEpoch,
     migrationUnsupportedByPtyId: state.migrationUnsupportedByPtyId,
     retainedAgentsByPaneKey: state.retainedAgentsByPaneKey,

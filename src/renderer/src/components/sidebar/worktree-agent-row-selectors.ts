@@ -1,10 +1,11 @@
+import { getStructuredAgentSessionTabsByPaneKey } from '@/components/native-chat/structured-agent-session-tabs'
 import type { RetainedAgentEntry } from '@/store/slices/agent-status/agent-status-contract'
 import type { AppState } from '@/store/types'
 import type {
   AgentStatusEntry,
-  AgentStatusOrchestrationContext,
-  MigrationUnsupportedPtyEntry
-} from '../../../../shared/agent-status-types'
+  AgentStatusOrchestrationContext
+} from '../../../../shared/agent-status/contracts/agent-status-types'
+import type { MigrationUnsupportedPtyEntry } from '../../../../shared/agent-status/contracts/agent-status-ipc-payload'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import {
   type LiveEntriesByWorktreeCache,
@@ -129,6 +130,9 @@ function getLiveEntriesByWorktree(state: WorktreeAgentRowsState): Map<string, Ag
   }
 
   const tabIdToWorktreeId = getLiveTabIdToWorktreeId(tabsByWorktree, unifiedTabsByWorktree)
+  const represented = unifiedTabsByWorktree
+    ? getStructuredAgentSessionTabsByPaneKey(unifiedTabsByWorktree)
+    : undefined
   if (
     liveEntriesByWorktreeCache?.tabsByWorktree === tabsByWorktree &&
     liveEntriesByWorktreeCache.unifiedTabsByWorktree === unifiedTabsByWorktree
@@ -136,7 +140,8 @@ function getLiveEntriesByWorktree(state: WorktreeAgentRowsState): Map<string, Ag
     const patched = patchLiveEntriesByWorktree(
       liveEntriesByWorktreeCache,
       agentStatusByPaneKey,
-      tabIdToWorktreeId
+      tabIdToWorktreeId,
+      represented
     )
     if (patched) {
       liveEntriesByWorktreeCache = {
@@ -152,7 +157,7 @@ function getLiveEntriesByWorktree(state: WorktreeAgentRowsState): Map<string, Ag
   const previous = liveEntriesByWorktreeCache?.entriesByWorktree
   const entriesByWorktree = new Map<string, AgentStatusEntry[]>()
   for (const [paneKey, entry] of Object.entries(agentStatusByPaneKey)) {
-    const worktreeId = liveEntryWorktreeId(paneKey, entry, tabIdToWorktreeId)
+    const worktreeId = liveEntryWorktreeId(paneKey, entry, tabIdToWorktreeId, represented)
     if (!worktreeId) {
       continue
     }

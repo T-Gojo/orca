@@ -3,7 +3,7 @@ import {
   AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_REPLAY_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_RUNTIME_CAPABILITY
-} from '../../../src/shared/agent-launch-runtime-capability'
+} from '../../../src/shared/agent-launch/contracts/agent-launch-runtime-capability'
 import type { RpcClient } from '../transport/rpc-client'
 import { LogicalClientCutoverError } from '../transport/stable-logical-rpc-client'
 import { readNewWorktreeRuntimeCapabilities } from './worktree-create-capability'
@@ -56,6 +56,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
         ])
       )
     ).resolves.toEqual({
+      branchIntentV2: false,
+      branchIntentV2Request: false,
       tasksSupported: true,
       worktreeCreateIdempotency: { dedupeTtlMs: 20_000 },
       agentLaunch: false,
@@ -70,6 +72,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
         statusClient([{ capabilities: [AGENT_LAUNCH_RUNTIME_CAPABILITY] }])
       )
     ).resolves.toEqual({
+      branchIntentV2: false,
+      branchIntentV2Request: false,
       tasksSupported: false,
       worktreeCreateIdempotency: false,
       // Method support does not imply ledger support; older hosts may silently strip operationId.
@@ -91,6 +95,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
         ])
       )
     ).resolves.toEqual({
+      branchIntentV2: false,
+      branchIntentV2Request: false,
       tasksSupported: false,
       worktreeCreateIdempotency: false,
       agentLaunch: { replay: true },
@@ -123,6 +129,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
     await expect(
       readNewWorktreeRuntimeCapabilities(statusClient([['worktree.create-idempotency.v1']]))
     ).resolves.toEqual({
+      branchIntentV2: false,
+      branchIntentV2Request: false,
       tasksSupported: false,
       worktreeCreateIdempotency: { dedupeTtlMs: 60_000 },
       agentLaunch: false,
@@ -141,6 +149,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
         ])
       )
     ).resolves.toEqual({
+      branchIntentV2: false,
+      branchIntentV2Request: false,
       tasksSupported: false,
       worktreeCreateIdempotency: { dedupeTtlMs: 0 },
       agentLaunch: false,
@@ -166,6 +176,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
           ])
         )
       ).resolves.toEqual({
+        branchIntentV2: false,
+        branchIntentV2Request: false,
         tasksSupported: false,
         worktreeCreateIdempotency: { dedupeTtlMs: 0 },
         agentLaunch: false,
@@ -185,6 +197,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
         ])
       )
     ).resolves.toEqual({
+      branchIntentV2: false,
+      branchIntentV2Request: false,
       tasksSupported: false,
       worktreeCreateIdempotency: { dedupeTtlMs: 60_000 },
       agentLaunch: false,
@@ -205,6 +219,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
           ])
         )
       ).resolves.toEqual({
+        branchIntentV2: false,
+        branchIntentV2Request: false,
         tasksSupported: false,
         worktreeCreateIdempotency: { dedupeTtlMs: 0 },
         agentLaunch: false,
@@ -225,6 +241,8 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
         ])
       )
     ).resolves.toEqual({
+      branchIntentV2: false,
+      branchIntentV2Request: false,
       tasksSupported: false,
       worktreeCreateIdempotency: { dedupeTtlMs: 30_000 },
       agentLaunch: false,

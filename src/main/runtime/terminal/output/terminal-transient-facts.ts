@@ -6,9 +6,9 @@ import type {
 } from '../../../../shared/terminal-side-effect-facts'
 import {
   detectAgentStatusFromTitle,
-  isCursorNativeAgentTitle,
   normalizeTerminalTitle
-} from '../../../../shared/agent-detection'
+} from '../../../../shared/agent-status/title/agent-title-status'
+import { isCursorNativeAgentTitle } from '../../../../shared/agent-status/title/agent-title-core'
 import {
   getLeafDisplayRecord,
   getPtyDisplayRecord,
@@ -188,6 +188,11 @@ export abstract class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRunt
       }
     }
     return null
+  }
+
+  /** The same title for main's synthetic title producer, which must see its own frames. */
+  getTrackedPtyTitle(ptyId: string): string | null {
+    return this.getTrackedRawTitleForPty(ptyId)
   }
 
   protected isLiveCursorNativeTitle(rawTitle: string, meta?: TerminalTitleFactMeta): boolean {

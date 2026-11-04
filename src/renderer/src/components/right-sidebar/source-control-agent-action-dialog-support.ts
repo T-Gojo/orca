@@ -1,8 +1,8 @@
 import { useAppStore } from '@/store'
 import { ensureDetectedAgentsForWorktree } from '@/lib/agent-detection-target-inventory'
 import { getAgentCatalog } from '@/lib/agent-catalog'
-import { isTuiAgentEnabled } from '../../../../shared/tui-agent-selection'
-import type { TuiAgent } from '../../../../shared/tui-agent'
+import { isTuiAgentEnabled } from '../../../../shared/agent-launch/catalog/tui-agent-selection'
+import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import type { SourceControlAiWriteTarget } from '../../../../shared/source-control-ai-recipe-save'
 import { translate } from '@/i18n/i18n'
 import type { SourceControlAgentActionDeliveryPlanState } from './SourceControlAgentActionDialogForm'
@@ -120,13 +120,25 @@ export function buildSourceControlAgentStatusCopy(args: {
     detecting
   } = args
   if (selectedAgentUnavailable) {
-    return `${getAgentCatalog().find((entry) => entry.id === selectedAgent)?.label ?? selectedAgent} is not enabled or was not detected on this workspace host.`
+    return translate(
+      'auto.components.right.sidebar.SourceControlAgentActionDialog.agentNotEnabledOrDetected',
+      '{{agent}} is not enabled or was not detected on this workspace host.',
+      {
+        agent: getAgentCatalog().find((entry) => entry.id === selectedAgent)?.label ?? selectedAgent
+      }
+    )
   }
   if (connectionUnavailable) {
-    return 'Unable to resolve the workspace connection.'
+    return translate(
+      'auto.components.right.sidebar.SourceControlAgentActionDialog.workspaceConnectionUnresolved',
+      'Unable to resolve the workspace connection.'
+    )
   }
   if (!hasEnabledAgents && !detecting) {
-    return 'No enabled agents were detected on this workspace host.'
+    return translate(
+      'auto.components.right.sidebar.SourceControlAgentActionDialog.noEnabledAgentsDetected',
+      'No enabled agents were detected on this workspace host.'
+    )
   }
   return null
 }

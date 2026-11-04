@@ -4,7 +4,8 @@ import type { AppState } from '@/store/types'
 import { getIndexedAllWorktrees } from '@/store/worktree-repo-index'
 import {
   collectAgentPaneConversations,
-  resolvePaneAgentConversation
+  resolvePaneAgentConversation,
+  resolvePaneLastAgentConversation
 } from '@/lib/ai-vault-tab-title-requests'
 import {
   isAiVaultSessionResumableContent,
@@ -23,9 +24,9 @@ import {
   cliConversationRowsShareAgent,
   type CliConversationRowAgent
 } from '../../../../shared/structured-agent-cli-conversation-adoption'
-import { agentForksConversations } from '../../../../shared/agent-resume-argv'
+import { agentForksConversations } from '../../../../shared/agent-launch/startup/agent-resume-argv'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
-import type { AgentType } from '../../../../shared/agent-status-types'
+import type { AgentType } from '../../../../shared/agent-status/contracts/agent-status-types'
 import { resolveAiVaultSessionSurfaceSwitchTargets } from '../right-sidebar/ai-vault-session-surface-switch'
 import { resolveAiVaultHistoryRowResume } from '../right-sidebar/ai-vault-session-resume-in-chat-workspace'
 import { resolveAiVaultTargetWorkspacePath } from '../right-sidebar/ai-vault-session-launch-target'
@@ -43,7 +44,7 @@ import { getAiVaultResumeWorkspaceExecutionHostId } from '@/lib/ai-vault-resume-
 import { claimAiVaultForcedRescan } from '../right-sidebar/ai-vault-session-refresh'
 import { structuredAgentSessionLaunchFeasible } from '@/lib/agent-session-launch-plan'
 import { resolveHostCapabilities } from '@/lib/agent-launch-route-input'
-import { STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
+import { STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY } from '../../../../shared/agent-session/structured-agent-session-surface-capabilities'
 import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import { workspaceKindForWorktreeId } from '../../../../shared/workspace-launch-kind'
 
@@ -82,7 +83,7 @@ export function resolvePaneResumeInNewChatOffer(
   state: AppState,
   pane: { worktreeId: string; paneKey: string }
 ): PaneResumeInNewChatOffer {
-  const conversation = resolvePaneAgentConversation(state, pane, adoptsCliConversations)
+  const conversation = resolvePaneLastAgentConversation(state, pane, adoptsCliConversations)
   if (!conversation) {
     return null
   }

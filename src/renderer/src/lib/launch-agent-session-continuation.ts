@@ -10,9 +10,9 @@ import {
 } from './host-chat-program-acquisition'
 import { agentChoicePending } from './host-chat-program'
 import { worktreeLaunchWorkspace } from './agent-launch-route-input'
-import { isTuiAgentEnabled } from '../../../shared/tui-agent-selection'
+import { isTuiAgentEnabled } from '../../../shared/agent-launch/catalog/tui-agent-selection'
 import type { LaunchSource } from '../../../shared/telemetry-events'
-import type { TuiAgent } from '../../../shared/tui-agent'
+import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
 import {
   adoptAgentSessionLaunchVerdict,
   planAgentSessionLaunch
@@ -20,7 +20,6 @@ import {
 import type { AgentLaunchChoice } from '@/lib/agent-menu-selection'
 import type { AgentLaunchRoute } from '@/lib/agent-launch-routing'
 import { translate } from '@/i18n/i18n'
-import { markAgentTerminalTabAccountPinned } from '@/lib/agent-terminal-account-pins'
 import { resolveWorktreeDisplayName } from '@/lib/worktree-default-display-name'
 import { getResolvedExecutionHostIdForWorktree } from '@/lib/resolved-worktree-execution-host'
 import { workspaceNavigationToastAction } from '@/lib/workspace-navigation-toast-action'
@@ -36,6 +35,9 @@ type LaunchAgentSessionContinuationArgs = {
   signal?: AbortSignal
   /** A saved account for a local terminal hand-off; null is System default. */
   launchAccountId?: string | null
+  sessionOptions?: Readonly<Record<string, string>>
+  chatSessionOptions?: Readonly<Record<string, string>>
+  agentArgs?: string | null
 }
 
 /** Detected agents, then those that open as a chat on the workspace's host without their CLI. */
@@ -105,7 +107,10 @@ export async function launchAgentSessionContinuation({
   launchChoice,
   launchSource,
   signal,
-  launchAccountId
+  launchAccountId,
+  sessionOptions,
+  chatSessionOptions,
+  agentArgs
 }: LaunchAgentSessionContinuationArgs): Promise<boolean> {
   const label = getAgentLabel(agent)
   // Blind PTY writes do not prove prompt delivery; claiming success can hide a lost handoff (#22479).
@@ -113,6 +118,9 @@ export async function launchAgentSessionContinuation({
   const delivery = {
     agent,
     worktreeId,
+    ...(sessionOptions ? { sessionOptions: { ...sessionOptions } } : {}),
+    ...(chatSessionOptions !== undefined ? { chatSessionOptions: { ...chatSessionOptions } } : {}),
+    ...(agentArgs !== undefined ? { agentArgs } : {}),
     ...(groupId ? { groupId } : {}),
     prompt,
     promptDelivery: agent === 'claude' ? ('draft' as const) : ('submit-after-ready' as const),
@@ -146,6 +154,10 @@ export async function launchAgentSessionContinuation({
   }
   const request = {
     ...delivery,
+    ...(delivery.sessionOptions ? { launchOptions: delivery.sessionOptions } : {}),
+    ...(delivery.chatSessionOptions !== undefined
+      ? { chatLaunchOptions: delivery.chatSessionOptions }
+      : {}),
     requestId: newAgentLaunchRequestId(),
     workspace: worktreeLaunchWorkspace(worktreeId),
     tuiCustomization: { cwd: initialCwd }
@@ -171,9 +183,6 @@ export async function launchAgentSessionContinuation({
   if (!result) {
     notifyLaunchFailed(label)
     return false
-  }
-  if (launchAccountId !== undefined && result.surface.kind === 'local-terminal') {
-    markAgentTerminalTabAccountPinned(result.surface.tabId)
   }
 
   if (result.promptDeliveryResult) {

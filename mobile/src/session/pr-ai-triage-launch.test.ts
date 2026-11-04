@@ -5,9 +5,9 @@ import {
   getDefaultSourceControlAiSettings,
   resolveSourceControlActionRecipe
 } from '../../../src/shared/source-control-ai'
-import { buildAgentStartupPlan } from '../../../src/shared/tui-agent-startup'
-import { resolveAgentStartupPlanInputs } from '../../../src/shared/agent-startup-plan-inputs'
-import { toAgentLaunchPreferences } from '../../../src/shared/agent-launch-preferences'
+import { buildAgentStartupPlan } from '../../../src/shared/agent-launch/startup/tui-agent-startup'
+import { resolveAgentStartupPlanInputs } from '../../../src/shared/agent-launch/startup/agent-startup-plan-inputs'
+import { toAgentLaunchPreferences } from '../../../src/shared/agent-launch/choices/agent-launch-preferences'
 import { AgentLaunchReplay } from '../../../src/shared/rpc-contract/agent-launch-params'
 import { AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE } from './mobile-existing-agent-launch'
 import {
@@ -191,7 +191,7 @@ describe('launchAgentWithPrompt', () => {
     expect(launchParams(sendRequest)).toHaveProperty('agentArgs', '--model opus')
   })
 
-  it('keeps inherited phone options without raw conflicts when the workspace shell is unknown', async () => {
+  it('forwards the repository raw group when the workspace shell is unknown', async () => {
     const settings = {
       defaultTuiAgent: 'codex' as const,
       sourceControlAi: {
@@ -213,7 +213,7 @@ describe('launchAgentWithPrompt', () => {
     }
     expect(
       resolveSourceControlActionRecipe({ settings, repo, actionId: 'fixChecks' })
-    ).toMatchObject({ launchPreferencesYieldToAgentArgs: true })
+    ).not.toHaveProperty('launchPreferences')
     const { client, sendRequest } = hostClient({
       settings,
       repo,
@@ -224,8 +224,8 @@ describe('launchAgentWithPrompt', () => {
       kind: 'sent'
     })
     const params = AgentLaunchReplay.parse(launchParams(sendRequest))
-    expect(params).toMatchObject({ surface: 'terminal', chatOptions: { model: 'gpt-5.4' } })
-    expect(params).not.toHaveProperty('agentArgs')
+    expect(params).toMatchObject({ surface: 'terminal', agentArgs: '--model gpt-5.3-codex' })
+    expect(params).not.toHaveProperty('chatOptions')
     const preferences = toAgentLaunchPreferences(params.chatOptions, params.agent)
     const startup = buildAgentStartupPlan({
       ...resolveAgentStartupPlanInputs({
@@ -239,14 +239,14 @@ describe('launchAgentWithPrompt', () => {
       }),
       prompt: params.prompt?.text ?? ''
     })
-    expect(startup?.launchCommand).toContain('gpt-5.4')
-    expect(startup?.launchCommand).not.toContain('gpt-5.3-codex')
+    expect(startup?.launchCommand).toContain('gpt-5.3-codex')
+    expect(startup?.launchCommand).not.toContain('gpt-5.4')
 
     sendRequest.mockClear()
     await expect(run(client, capabilities)).resolves.toEqual({ kind: 'sent' })
     const olderHostParams = AgentLaunchReplay.parse(launchParams(sendRequest))
     expect(olderHostParams).not.toHaveProperty('surface')
-    expect(olderHostParams).not.toHaveProperty('agentArgs')
+    expect(olderHostParams.agentArgs).toBe('--model gpt-5.3-codex')
     expect(olderHostParams.chatOptions).toEqual(params.chatOptions)
   })
 

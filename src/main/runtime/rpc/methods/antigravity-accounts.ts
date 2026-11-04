@@ -21,7 +21,8 @@ import { stopStructuredAgentChats } from '../../structured-agent-chat-stop'
 import { beforeAccountSwitch } from '../../../usage/account-switch-usage-hook'
 
 const chatSignInHost = (runtime: OrcaRuntimeService) => ({
-  launchSources: () => structuredAgentHostLaunchSources('antigravity', runtime),
+  launchSources: (signal: AbortSignal) =>
+    structuredAgentHostLaunchSources('antigravity', runtime, signal),
   stopLiveChats: () => stopStructuredAgentChats('antigravity', 'Antigravity')
 })
 

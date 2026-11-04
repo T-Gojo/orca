@@ -11,7 +11,7 @@ import {
   SYSTEM_DEFAULT_ACCOUNT_KEY,
   UNATTRIBUTED_ACCOUNT_KEY
 } from '../../shared/account-usage-ledger-types'
-import { durableWriteTempPath, writeFileDurable } from '../durable-file-write'
+import { durableWriteTempPath, writeFileDurable } from '../filesystem/durable-file-write'
 import {
   dailyAccountUsage,
   emptyAccountUsageLedger,

@@ -1,5 +1,5 @@
 import { runProcess } from '@orca/process-host'
-import { resolveCommandOnLocalPath } from '../ipc/command-path-resolver'
+import { resolveCommandOnLocalPath } from '../ipc/command-path/command-path-resolver'
 import { hostShellEnvironment } from '../runtime/structured-agent-shell-environment'
 
 const WHOAMI_TIMEOUT_MS = 15_000

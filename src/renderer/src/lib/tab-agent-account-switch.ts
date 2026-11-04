@@ -3,7 +3,7 @@ import { translate } from '@/i18n/i18n'
 import type { AppState } from '@/store/types'
 import { useAppStore } from '@/store'
 import { isTerminalLeafId, makePaneKey } from '../../../shared/stable-pane-id'
-import { normalizeAgentProviderSession } from '../../../shared/agent-session-resume'
+import { normalizeAgentProviderSession } from '../../../shared/agent-session/lifecycle/agent-session-resume'
 import type { AccountRestartAgent } from '@/store/terminals/terminal-contracts'
 import { resolveAgentAccountRestartResumeStartup } from './agent-account-restart-startup'
 import {

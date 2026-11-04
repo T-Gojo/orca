@@ -1,4 +1,4 @@
-import { agentVerdictDisplayMark } from '../../../../shared/agent-main-agent-verdict'
+import { agentVerdictDisplayMark } from '../../../../shared/agent-status/lifecycle/agent-main-agent-verdict'
 import type { StructuredChatTabNames } from '@/runtime/structured-chat-tab-name'
 import type { AgentLaunchRouteView } from '@/lib/agent-launch-route-input'
 import type { AppState } from '@/store/types'
@@ -70,7 +70,14 @@ export type DashboardSnapshotState = Pick<
   Partial<
     DashboardCardTerminalInputState &
       DashboardLaunchDetectionState &
-      Pick<AppState, 'runtimeEnvironments' | 'sshTargetLabels' | 'unifiedTabsByWorktree'>
+      Pick<
+        AppState,
+        | 'runtimeEnvironments'
+        | 'sshTargetLabels'
+        | 'unifiedTabsByWorktree'
+        | 'activeWorktreeId'
+        | 'activeWorkspaceExecutionHostId'
+      >
   >
 
 export type DashboardSnapshotInput = DashboardSnapshotState & { chatNames: StructuredChatTabNames }

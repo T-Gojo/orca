@@ -1,5 +1,5 @@
-import type { WorkerThreadFactory } from '../lazy-worker-thread-host'
-import { WorkerThreadRequestQueue } from '../worker-thread-request-queue'
+import type { WorkerThreadFactory } from '../worker-threads/worker-thread-transport'
+import { WorkerThreadRequestQueue } from '../worker-threads/worker-thread-request-queue'
 import {
   cursorProfileReadFailure,
   parseCursorProfileReadResult,
@@ -29,6 +29,12 @@ import type {
   ForeignSqliteReaderRequest,
   ForeignSqliteReaderResponse
 } from './foreign-sqlite-reader-protocol'
+import {
+  openCodePromptFailureUnavailable,
+  parseOpenCodePromptFailureResult,
+  type OpenCodePromptFailureQuery,
+  type OpenCodePromptFailureResult
+} from './opencode-prompt-failure-result'
 
 // Foreign SQLite opens can block on WAL rebuilds; isolate each reader so slow databases cannot stall main or peers.
 
@@ -38,7 +44,8 @@ const READ_TIMEOUT_MS: Record<ForeignSqliteReaderKind, number> = {
   kiroCliToken: 10_000,
   kiroCliLogin: 10_000,
   kiroCliLoginWrite: 10_000,
-  openCodeBinderSessions: 60_000
+  openCodeBinderSessions: 60_000,
+  openCodePromptFailure: 2_000
 }
 // Keep workers alive across poll intervals to avoid spawning on every round.
 const DEFAULT_IDLE_TEARDOWN_MS: Record<ForeignSqliteReaderKind, number> = {
@@ -47,7 +54,8 @@ const DEFAULT_IDLE_TEARDOWN_MS: Record<ForeignSqliteReaderKind, number> = {
   kiroCliLogin: 30_000,
   kiroCliLoginWrite: 30_000,
   // The binder polls once per minute.
-  openCodeBinderSessions: 120_000
+  openCodeBinderSessions: 120_000,
+  openCodePromptFailure: 30_000
 }
 const MAX_CONSECUTIVE_DEATHS = 2
 const MAX_QUEUED_READS = 8
@@ -57,6 +65,7 @@ type LaneSettings = {
   log: (message: string) => void
   timeoutMs: number
   idleTeardownMs: number
+  deadlineIncludesQueue?: boolean
 }
 
 export class ForeignSqliteReaderLane<T> {
@@ -112,8 +121,11 @@ export class ForeignSqliteReaderLane<T> {
 
   private async dispatch(buildRequest: (id: number) => ForeignSqliteReaderRequest): Promise<T> {
     const { kind, settings } = this
+    const deadline = settings.deadlineIncludesQueue ? new AbortController() : undefined
+    const timer = deadline ? setTimeout(() => deadline.abort(), settings.timeoutMs) : undefined
+    timer?.unref()
     try {
-      const response = await this.queue.dispatch(buildRequest, settings.timeoutMs)
+      const response = await this.queue.dispatch(buildRequest, settings.timeoutMs, deadline?.signal)
       if (!response.ok) {
         settings.log(`Foreign SQLite reader ${kind} failed: ${response.error}`)
         return this.failure()
@@ -128,6 +140,8 @@ export class ForeignSqliteReaderLane<T> {
       // A failed worker read must never fall back to blocking the main thread.
       settings.log(`Foreign SQLite reader ${kind} did not answer: ${errorText(err)}`)
       return this.failure()
+    } finally {
+      clearTimeout(timer)
     }
   }
 }
@@ -139,6 +153,7 @@ export class ForeignSqliteReaderClient {
   private readonly kiroCliLoginWrite: ForeignSqliteReaderLane<KiroCliLoginWriteResult>
   private readonly openCodeBinderSessions: ForeignSqliteReaderLane<BinderSessionRow[]>
   private writeSequence = 0
+  private readonly openCodePromptFailure: ForeignSqliteReaderLane<OpenCodePromptFailureResult>
 
   constructor(options: {
     workerFactory: WorkerThreadFactory
@@ -181,6 +196,12 @@ export class ForeignSqliteReaderClient {
       parseOpenCodeBinderSessions,
       openCodeBinderSessionsFailure,
       settings('openCodeBinderSessions')
+    )
+    this.openCodePromptFailure = new ForeignSqliteReaderLane(
+      'openCodePromptFailure',
+      parseOpenCodePromptFailureResult,
+      openCodePromptFailureUnavailable,
+      { ...settings('openCodePromptFailure'), deadlineIncludesQueue: true }
     )
   }
 
@@ -233,6 +254,18 @@ export class ForeignSqliteReaderClient {
     this.kiroCliLogin.dispose()
     this.kiroCliLoginWrite.dispose()
     this.openCodeBinderSessions.dispose()
+    this.openCodePromptFailure.dispose()
+  }
+
+  readOpenCodePromptFailure(
+    query: OpenCodePromptFailureQuery
+  ): Promise<OpenCodePromptFailureResult> {
+    const key = JSON.stringify([query.dbPath, query.sessionId, query.startedAt, query.failedAt])
+    return this.openCodePromptFailure.read(key, (id) => ({
+      id,
+      kind: 'openCodePromptFailure',
+      ...query
+    }))
   }
 }
 

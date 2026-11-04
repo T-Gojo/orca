@@ -1,6 +1,7 @@
 // Keep this Electron-free so both worker and main-process clients can import it.
 
 import type { OpenCodeSessionCursor } from './opencode-binder-sessions-result'
+import type { OpenCodePromptFailureQuery } from './opencode-prompt-failure-result'
 
 type CursorProfileRequest = {
   id: number
@@ -35,12 +36,18 @@ type OpenCodeBinderSessionsRequest = {
   cursor: OpenCodeSessionCursor
 }
 
+type OpenCodePromptFailureRequest = OpenCodePromptFailureQuery & {
+  id: number
+  kind: 'openCodePromptFailure'
+}
+
 export type ForeignSqliteReaderRequest =
   | CursorProfileRequest
   | KiroCliTokenRequest
   | KiroCliLoginRequest
   | KiroCliLoginWriteRequest
   | OpenCodeBinderSessionsRequest
+  | OpenCodePromptFailureRequest
 
 export type ForeignSqliteReaderKind = ForeignSqliteReaderRequest['kind']
 

@@ -3,7 +3,7 @@ import {
   CODEX_TERMINAL_ACCOUNT_PIN_ENV,
   encodeTerminalAccountPin
 } from '../../../shared/agent-terminal-account-pin'
-import type { TuiAgent } from '../../../shared/tui-agent'
+import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
 
 // Why in memory: main keeps the pin itself in the pane's env; this only keeps account-switch
 // prompts from offering to move a terminal the user opened on purpose for another account.

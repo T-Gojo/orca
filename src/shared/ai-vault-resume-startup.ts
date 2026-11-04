@@ -11,21 +11,25 @@ import {
   isResumableTuiAgent,
   type AgentProviderSessionMetadata,
   type SleepingAgentLaunchConfig
-} from './agent-session-resume'
+} from './agent-session/lifecycle/agent-session-resume'
 import { normalizeAiVaultResumeFilePath } from './ai-vault-resume-path'
 import {
-  resolveTuiAgentLaunchArgs,
+  resolveTuiAgentLaunchRawArgs,
   resolveTuiAgentLaunchEnv,
   type AgentLaunchProfileSettings
-} from './tui-agent-launch-defaults'
-import { buildAgentResumeStartupPlan } from './tui-agent-startup'
+} from './agent-launch/choices/tui-agent-launch-defaults'
+import { buildAgentResumeStartupPlan } from './agent-launch/startup/tui-agent-resume-startup'
 import {
   quoteStartupArg,
   resolveStartupShell,
   tokenizeStartupCommand,
   type AgentStartupShell
-} from './tui-agent-startup-shell'
-import { getTuiAgentLaunchCommand, isTuiAgent, TUI_AGENT_CONFIG } from './tui-agent-config'
+} from './agent-launch/startup/tui-agent-startup-shell'
+import {
+  getTuiAgentLaunchCommand,
+  isTuiAgent,
+  TUI_AGENT_CONFIG
+} from './agent-launch/catalog/tui-agent-config'
 import { findOptionOccurrence } from './command-option-occurrence'
 import { assertOpenCodeCopyUsesLocalStore } from './opencode-launch-command'
 import { CLI_CONVERSATION_ADOPTING_AGENTS } from './structured-agent-cli-conversation-adoption'
@@ -57,6 +61,8 @@ export type AiVaultResumeLaunchSettings = Partial<Pick<GlobalSettings, 'agentCmd
 /** The platform and live shell a resume line is written for, and the Codex home it pins. */
 export type AiVaultResumeHostShell = {
   platform: NodeJS.Platform
+  /** OS that runs the agent when `platform` is only a quoting guess; null when unreported, absent when `platform`. */
+  agentHostPlatform?: NodeJS.Platform | null
   codexHome: string | null
   liveShell: AgentStartupShell | undefined
 }
@@ -134,8 +140,16 @@ export function buildAiVaultLocalResumeStartup(
       providerSession: localProviderSession,
       cmdOverrides: resumeCommandOverrides(args),
       platform,
+      agentHostPlatform: args.host.agentHostPlatform,
       shell: liveShell,
-      agentArgs: args.agentArgs ?? resolveTuiAgentLaunchArgs(session.agent, settings),
+      agentArgs:
+        args.agentArgs ??
+        resolveTuiAgentLaunchRawArgs(
+          session.agent,
+          settings,
+          undefined,
+          resolveStartupShell(platform, liveShell)
+        ),
       agentEnv: {
         ...resolveTuiAgentLaunchEnv(session.agent, settings, platform),
         ...managedDataAccountResumeEnv(session)
@@ -212,8 +226,14 @@ export function buildAiVaultForkStartup(
     providerSession,
     cmdOverrides: resumeCommandOverrides(args),
     platform,
+    agentHostPlatform: args.host.agentHostPlatform,
     shell: liveShell,
-    agentArgs: resolveTuiAgentLaunchArgs(session.agent, settings),
+    agentArgs: resolveTuiAgentLaunchRawArgs(
+      session.agent,
+      settings,
+      undefined,
+      resolveStartupShell(platform, liveShell)
+    ),
     agentEnv: resolveTuiAgentLaunchEnv(session.agent, settings, platform),
     resumeInLaunchCwd: true,
     fork: true
@@ -245,7 +265,12 @@ export function resolveAiVaultCopiedSessionAgentArgs(
   const { platform, liveShell } = args.host
   const shell = resolveStartupShell(platform, liveShell)
   const configuredArgs = isTuiAgent(session.agent)
-    ? resolveTuiAgentLaunchArgs(session.agent, settings)
+    ? resolveTuiAgentLaunchRawArgs(
+        session.agent,
+        settings,
+        undefined,
+        resolveStartupShell(platform, liveShell)
+      )
     : ''
   const configured = tokenizeStartupCommand(configuredArgs, shell)
   if (!configured.ok) {
@@ -292,7 +317,7 @@ export function assertAiVaultCopiedSessionStoreAllowed(args: AiVaultResumeStartu
       args.settings?.agentCmdOverrides?.[agent] ||
       getTuiAgentLaunchCommand(TUI_AGENT_CONFIG[agent], platform)
     const parsed = tokenizeStartupCommand(
-      `${command} ${resolveTuiAgentLaunchArgs(agent, args.settings)}`,
+      `${command} ${resolveTuiAgentLaunchRawArgs(agent, args.settings, undefined, resolveStartupShell(platform, liveShell))}`,
       resolveStartupShell(platform, liveShell)
     )
     if (!parsed.ok) {

@@ -1,6 +1,6 @@
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
-import type { TuiAgent } from '../../../../shared/tui-agent'
-import { isTuiAgentEnabled } from '../../../../shared/tui-agent-selection'
+import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
+import { isTuiAgentEnabled } from '../../../../shared/agent-launch/catalog/tui-agent-selection'
 import { getVisibleUsageProvider } from './status-bar-provider-visibility'
 
 type UsageProviderId = ProviderRateLimits['provider']

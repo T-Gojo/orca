@@ -11,10 +11,7 @@ import {
 export function useUsageRosterAccounts(
   remoteOwned: boolean,
   localRateLimits: RateLimitState
-): {
-  rosterAccounts: UsageRosterAccountsByProvider
-  refreshAccountUsage: () => Promise<void>
-} {
+): [rosterAccounts: UsageRosterAccountsByProvider, refreshAccountUsage: () => Promise<void>] {
   const settings = useAppStore((s) => s.settings)
   const fetchInactiveClaudeAccountUsage = useAppStore((s) => s.fetchInactiveClaudeAccountUsage)
   const fetchInactiveCodexAccountUsage = useAppStore((s) => s.fetchInactiveCodexAccountUsage)
@@ -33,5 +30,5 @@ export function useUsageRosterAccounts(
         localRateLimits,
         translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
       )
-  return { rosterAccounts, refreshAccountUsage }
+  return [rosterAccounts, refreshAccountUsage]
 }

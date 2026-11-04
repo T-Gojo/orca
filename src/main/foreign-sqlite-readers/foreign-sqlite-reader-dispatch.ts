@@ -6,6 +6,7 @@ import { readCursorProfile } from './readers/cursor-profile'
 import { readKiroCliToken } from './readers/kiro-cli-token'
 import { readKiroCliLogin, writeKiroCliLogin } from './readers/kiro-cli-login'
 import { readOpenCodeBinderSessions } from './readers/opencode-binder-sessions'
+import { readOpenCodePromptFailure } from './readers/opencode-prompt-failure'
 
 /** Structured-clone requests may carry unknown kinds despite the static type. */
 export function handleForeignSqliteReaderRequest(
@@ -29,6 +30,8 @@ export function handleForeignSqliteReaderRequest(
         }
       case 'openCodeBinderSessions':
         return { id, ok: true, value: readOpenCodeBinderSessions(request.dbPath, request.cursor) }
+      case 'openCodePromptFailure':
+        return { id, ok: true, value: readOpenCodePromptFailure(request) }
     }
     return unknownKind(id, kind)
   } catch (err) {

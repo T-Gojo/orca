@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useAppStore } from '../../store'
-import { isTuiAgentEnabled } from '../../../../shared/tui-agent-selection'
-import type { TuiAgent } from '../../../../shared/tui-agent'
+import { isTuiAgentEnabled } from '../../../../shared/agent-launch/catalog/tui-agent-selection'
+import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import { useAccountUsageSnapshot } from './use-account-usage-snapshot'
 
 type ScanState = { enabled: boolean } | null

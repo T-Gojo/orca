@@ -1,11 +1,16 @@
-import { listAgentLaunchAccounts } from '@/lib/agent-launch-accounts'
-import { ContinuationAccountSelect, accountKey } from './ContinuationAccountSelect'
+import { ContinuationAccountSelect, useContinuationAccount } from './ContinuationAccountSelect'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
+import { useAgentPickerDraftScope } from '../agent/AgentLaunchSetupButton'
 import { agentsOfferedForLaunch } from '@/lib/host-chat-program'
 import { worktreeLaunchWorkspace } from '@/lib/agent-launch-route-input'
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, MessageSquarePlus } from 'lucide-react'
-import AgentCombobox from '@/components/agent/AgentCombobox'
+import { AgentLaunchPicker } from '@/components/agent/AgentLaunchPicker'
+import {
+  agentPickerLaunchInputs,
+  type AgentPickerDraft,
+  type AgentPickerEntry
+} from '../../../../shared/agent-launch/picker/agent-launch-picker'
 import { useAgentMenuObservation } from '@/components/tab-bar/use-new-tab-agent-menu-rows'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import type { AgentLaunchSurface } from '@/lib/agent-session-launch-plan'
@@ -35,9 +40,12 @@ import {
 } from '@/lib/agent-session-continuation'
 import { launchAgentSessionContinuation } from '@/lib/launch-agent-session-continuation'
 import { useAppStore } from '@/store'
-import { isTuiAgentEnabled } from '../../../../shared/tui-agent-selection'
-import type { TuiAgent } from '../../../../shared/tui-agent'
-import { chooseInitialContinuationAgent } from './agent-session-continuation-selection'
+import { isTuiAgentEnabled } from '../../../../shared/agent-launch/catalog/tui-agent-selection'
+import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
+import {
+  chooseInitialContinuationAgent,
+  isContinuationAgentAllowed
+} from './agent-session-continuation-selection'
 
 type AgentSessionContinuationDialogProps = {
   open: boolean
@@ -64,23 +72,17 @@ export function AgentSessionContinuationDialog({
     request: AgentSessionContinuationRequest | null
     agent: TuiAgent
     surface?: AgentLaunchSurface
+    draft?: AgentPickerDraft
+    entry?: AgentPickerEntry
   } | null>(null)
   const detectionTarget = useAgentDetectionTargetForWorktree(request?.worktreeId ?? null)
   const [contextPick, setContextPick] = useState<{
     request: AgentSessionContinuationRequest | null
     mode: AgentSessionContinuationContextMode
   } | null>(null)
-  const [accountPick, setAccountPick] = useState<{
-    request: AgentSessionContinuationRequest | null
-    agent: TuiAgent
-    accountId: string | null
-  } | null>(null)
   if (!open) {
     if (pick) {
       setPick(null)
-    }
-    if (accountPick) {
-      setAccountPick(null)
     }
     if (contextPick) {
       setContextPick(null)
@@ -94,7 +96,8 @@ export function AgentSessionContinuationDialog({
   const observation = useAgentMenuObservation(
     workspace ? { workspace, launchCwd: request?.initialCwd } : null,
     open && Boolean(request),
-    detectionTarget
+    detectionTarget,
+    { wakeOnOpen: true }
   )
   const { detectedIds, detectionFailed } = observation.detection
   const detecting =
@@ -104,12 +107,42 @@ export function AgentSessionContinuationDialog({
     ? agentsOfferedForLaunch(useAppStore.getState(), workspace, detectedIds)
     : []
   const agents = getAgentCatalog().filter(
-    (agent) => offered.includes(agent.id) && isTuiAgentEnabled(agent.id, disabledAgents)
+    (agent) =>
+      isTuiAgentEnabled(agent.id, disabledAgents) &&
+      isContinuationAgentAllowed(agent.id, request?.source.sourceAgent, request?.avoidSourceAgent)
   )
-  const rows = observation.model.state === 'settled' ? observation.model.rows : []
+  const destinationModel =
+    observation.model.state === 'settled'
+      ? {
+          ...observation.model,
+          rows: observation.model.rows.filter((row) =>
+            agents.some((agent) => agent.id === row.agent)
+          )
+        }
+      : observation.model
+  const rows = destinationModel.state === 'settled' ? destinationModel.rows : []
   const pickable = agents
     .map((agent) => agent.id)
-    .filter((agent) => rows.some((row) => row.agent === agent && row.kind !== 'chat-unavailable'))
+    .filter(
+      (agent) =>
+        offered.includes(agent) &&
+        rows.some((row) => row.agent === agent && row.kind !== 'chat-unavailable')
+    )
+  // Why: the explanation must read the same host rows the picker shows, before the family filter.
+  const openableRows =
+    observation.model.state === 'settled'
+      ? observation.model.rows.filter((row) => row.kind !== 'chat-unavailable')
+      : []
+  const onlySourceFamilyOffered =
+    openableRows.length > 0 &&
+    openableRows.every(
+      (row) =>
+        !isContinuationAgentAllowed(
+          row.agent,
+          request?.source.sourceAgent,
+          request?.avoidSourceAgent
+        )
+    )
   const preparing = request === null
   const controlsDisabled = preparing || detecting || starting
   const hasFullContext = request ? hasFullAgentSessionContext(request.source) : false
@@ -120,36 +153,26 @@ export function AgentSessionContinuationDialog({
     return () => abort?.abort()
   }, [open, request])
 
+  const draftScope = useAgentPickerDraftScope(request)
   const currentPick = pick?.request === request && pickable.includes(pick.agent) ? pick : null
   const selectedAgent =
     currentPick?.agent ??
     chooseInitialContinuationAgent({
       availableAgents: pickable,
       automaticAgents: pickable.filter((agent) => detectedIds?.includes(agent)),
-      sourceAgent: request?.source.sourceAgent ?? null,
+      sourceAgent: request?.avoidSourceAgent ? null : (request?.source.sourceAgent ?? null),
       defaultAgent: settings?.defaultTuiAgent
     })
   const selection = observation.selectionFor(selectedAgent, currentPick?.surface)
-  // Why local terminals only: an account pin routes this machine's CLI; chats and remote hosts sign in their own way.
-  const accounts =
-    selectedAgent &&
-    selection.choice?.route === 'terminal-tui' &&
-    (selection.choice.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID
-      ? listAgentLaunchAccounts(
-          selectedAgent,
-          settings,
-          translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
-        )
-      : []
-  const pickedAccount =
-    accountPick?.request === request && accountPick.agent === selectedAgent && accounts.length > 0
-      ? accountPick
-      : null
-  const accountValue = accountKey(
-    pickedAccount
-      ? pickedAccount.accountId
-      : (accounts.find((account) => account.selected)?.id ?? null)
-  )
+  const account = useContinuationAccount({
+    open,
+    request,
+    agent: selectedAgent,
+    localTerminal:
+      selection.choice?.route === 'terminal-tui' &&
+      (selection.choice.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID,
+    settings
+  })
 
   useEffect(() => {
     if (!starting) {
@@ -177,9 +200,10 @@ export function AgentSessionContinuationDialog({
       groupId: request.groupId,
       initialCwd: request.initialCwd,
       launchChoice: selection.choice,
+      ...(currentPick?.draft ? agentPickerLaunchInputs(currentPick.draft, currentPick.entry) : {}),
       launchSource: request.launchSource,
       signal: abortRef.current?.signal,
-      ...(pickedAccount ? { launchAccountId: pickedAccount.accountId } : {})
+      ...account.launchInput
     })
     setStarting(false)
     if (launched) {
@@ -243,20 +267,17 @@ export function AgentSessionContinuationDialog({
             <label className="text-xs font-medium">
               {translate('components.agentSessionContinuation.agent', 'Agent')}
             </label>
-            <AgentCombobox
+            <AgentLaunchPicker
+              draftScope={draftScope}
               disabled={controlsDisabled}
-              agents={agents}
-              value={selectedAgent}
-              onValueChange={(agent) => setPick({ request, agent })}
-              surfaceRows={{
-                model: observation.model,
-                selection,
-                contextKey: observation.contextKey,
-                surface: currentPick?.surface,
-                onPick: (agent, surface) => setPick({ request, agent, surface })
-              }}
-              allowNarrowTrigger
-              triggerClassName="min-w-0 w-full"
+              model={destinationModel}
+              worktreeId={request?.worktreeId}
+              agent={selectedAgent}
+              cli={selection.cli}
+              value={currentPick?.draft}
+              onPick={(agent, draft, entry) =>
+                setPick({ request, agent, surface: draft?.surface, draft, entry })
+              }
             />
             <div className="min-h-4">
               {preparing ? (
@@ -280,22 +301,28 @@ export function AgentSessionContinuationDialog({
                     'Could not detect Agents on this workspace host.'
                   )}
                 </p>
-              ) : agents.length === 0 ? (
+              ) : destinationModel.state === 'settled' && rows.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground">
-                  {translate(
-                    'components.agentSessionContinuation.noAgents',
-                    'No enabled Agents were detected on this workspace host.'
-                  )}
+                  {onlySourceFamilyOffered && sourceAgentLabel
+                    ? translate(
+                        'components.agentSessionContinuation.onlySourceFamilyDetected',
+                        'Only Agents sharing the usage limit with {{agent}} are available on this workspace host. Enable or install a different Agent.',
+                        { agent: sourceAgentLabel }
+                      )
+                    : translate(
+                        'components.agentSessionContinuation.noAgents',
+                        'No enabled Agents were detected on this workspace host.'
+                      )}
                 </p>
               ) : null}
             </div>
           </div>
 
-          {accounts.length > 0 && selectedAgent ? (
+          {account.accounts.length > 0 ? (
             <ContinuationAccountSelect
-              accounts={accounts}
-              value={accountValue}
-              onPick={(accountId) => setAccountPick({ request, agent: selectedAgent, accountId })}
+              accounts={account.accounts}
+              value={account.value}
+              onPick={account.pick}
             />
           ) : null}
 

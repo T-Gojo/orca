@@ -1,12 +1,12 @@
 import { reserveNotificationCooldown } from '../../shared/notification-burst-cooldown'
-import type { AgentStatusState } from '../../shared/agent-status-types'
+import type { AgentStatusState } from '../../shared/agent-status/contracts/agent-status-types'
 import {
   agentSessionAttentionSubjectPrefix,
   attentionOriginWasRead,
   type StructuredAttentionOrigin,
   type StructuredAttentionRead,
   type StructuredAttentionState
-} from '../../shared/agent-session-attention'
+} from '../../shared/agent-session/agent-session-attention'
 import type {
   MobilePushTestResult,
   MobilePushRegisterInput,
@@ -188,6 +188,10 @@ export class RuntimeMobileNotificationController {
   }
 
   dismiss(notificationId: string): void {
+    // Reads rebuild ids for alerts that never went out (chat panes, silenced workers); each would cost a silent push.
+    if (this.dismissalStore && !this.dismissalStore.hasLiveDelivery(notificationId)) {
+      return
+    }
     this.dispatch({ type: 'dismiss', notificationId })
   }
 

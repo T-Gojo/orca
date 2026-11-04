@@ -1,8 +1,9 @@
+import { getStructuredAgentSessionTabsByPaneKey } from '@/components/native-chat/structured-agent-session-tabs'
 import type {
   AgentStatusEntry,
-  AgentStatusOrchestrationContext,
-  MigrationUnsupportedPtyEntry
-} from '../../../../shared/agent-status-types'
+  AgentStatusOrchestrationContext
+} from '../../../../shared/agent-status/contracts/agent-status-types'
+import type { MigrationUnsupportedPtyEntry } from '../../../../shared/agent-status/contracts/agent-status-ipc-payload'
 import type { TerminalLayoutSnapshot, TerminalTab } from '../../../../shared/terminal-tab-types'
 import { migrationUnsupportedToAgentStatusEntry } from '../../../../shared/migration-unsupported-agent-entry'
 import type { RetainedAgentEntry } from '@/store/slices/agent-status/agent-status-contract'
@@ -146,6 +147,9 @@ export function selectWorktreeAgentRowsCached(args: {
   const rows = applyAgentRowLineage(
     buildWorktreeAgentRows({
       tabs: tabs ?? [],
+      representedTabs: state.unifiedTabsByWorktree
+        ? getStructuredAgentSessionTabsByPaneKey(state.unifiedTabsByWorktree)
+        : undefined,
       entries,
       retained,
       runtimePaneTitlesByTabId: paneTitlesByTabId,

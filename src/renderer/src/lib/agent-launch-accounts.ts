@@ -1,5 +1,5 @@
 import type { GlobalSettings } from '../../../shared/global-settings-types'
-import type { TuiAgent } from '../../../shared/tui-agent'
+import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
 
 /** One account a new agent terminal can be opened on; `id: null` is the agent's own login. */
 export type AgentLaunchAccount = {

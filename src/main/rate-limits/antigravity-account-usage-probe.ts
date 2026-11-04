@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ProviderRateLimits } from '../../shared/rate-limit-types'
-import { writeCredentialFileAtomic } from '../integration-credential-file'
+import { writeCredentialFileAtomic } from '../credentials/integration-credential-file'
 import { hostShellEnvironment } from '../runtime/structured-agent-shell-environment'
 import { fetchAntigravityRateLimits } from './antigravity-usage-fetcher'
 

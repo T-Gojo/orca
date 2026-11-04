@@ -21,7 +21,7 @@ vi.mock('electron', () => ({
   ipcMain: { on: vi.fn(), removeListener: vi.fn(), handle: vi.fn(), removeHandler: vi.fn() },
   webContents: { fromId: vi.fn() }
 }))
-vi.mock('../browser/browser-session-registry', () => ({
+vi.mock('../browser/sessions/browser-session-registry', () => ({
   browserSessionRegistry: browserSessionRegistryMock
 }))
 
@@ -98,6 +98,7 @@ function createPairedRuntime() {
   internals.resolveGitWorktreeSelector = async () => ({ id: WT })
   internals.offscreenBrowserBackend = {
     closeTab: vi.fn(),
+    ownsTab: () => true,
     createTab: vi.fn(async (options: { browserPageId?: string }) => ({
       browserPageId: options.browserPageId ?? 'page-new'
     }))

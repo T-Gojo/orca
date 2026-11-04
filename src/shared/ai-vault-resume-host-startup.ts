@@ -11,7 +11,7 @@ import {
 } from './ai-vault-resume-startup'
 import { LOCAL_EXECUTION_HOST_ID } from './execution-host'
 import { managedDataAccountResumeEnv } from './managed-data-account-resume'
-import type { AgentStartupShell } from './tui-agent-startup-shell'
+import type { AgentStartupShell } from './agent-launch/startup/tui-agent-startup-shell'
 
 /** A remote session resumes on its own host's platform; a local one on the target workspace's.
  *  Local shell settings cannot describe remote Windows hosts, so those keep PowerShell-default quoting. */
@@ -20,15 +20,18 @@ export function resolveAiVaultResumeHostShell(args: {
     AiVaultResumeCommandSession,
     'codexHome' | 'executionHostId' | 'executionHostPlatform'
   >
-  workspacePlatform: NodeJS.Platform
+  /** null when the workspace's SSH or paired host has not reported its OS. */
+  workspacePlatform: NodeJS.Platform | null
   localLiveShell: (platform: NodeJS.Platform) => AgentStartupShell | undefined
 }): AiVaultResumeHostShell {
   const isLocalSession =
     !args.session.executionHostId || args.session.executionHostId === LOCAL_EXECUTION_HOST_ID
-  const platform =
+  const agentHostPlatform =
     !isLocalSession && args.session.executionHostPlatform
       ? args.session.executionHostPlatform
       : args.workspacePlatform
+  // Why linux when unknown: SSH and paired hosts are almost always POSIX, and earlier resumes quoted that way.
+  const platform = agentHostPlatform ?? 'linux'
   const liveShell: AgentStartupShell | undefined =
     platform === 'win32'
       ? isLocalSession
@@ -37,6 +40,8 @@ export function resolveAiVaultResumeHostShell(args: {
       : undefined
   return {
     platform,
+    // Why: an unknown host keeps OS-specific agent flags off; see withAgentTerminalInputArgs.
+    agentHostPlatform,
     codexHome: getAiVaultResumeCodexHome(args.session.codexHome, platform),
     liveShell
   }

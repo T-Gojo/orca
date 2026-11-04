@@ -18,6 +18,7 @@ import { useStatusBarDensity } from './status-bar-density'
 import { getUsageOwnerHostScope, useOwnerUsageRateLimits } from './use-owner-usage-rate-limits'
 import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
 import { useUsageRosterAccounts } from './use-usage-roster-accounts'
+import { translate } from '@/i18n/i18n'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
@@ -85,10 +86,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   }, [ensureDetectedAgents])
 
   const refreshDetectedAgents = useAppStore((s) => s.refreshDetectedAgents)
-  const { rosterAccounts, refreshAccountUsage } = useUsageRosterAccounts(
-    remoteOwned,
-    localRateLimits
-  )
+  const [roster, refreshAccountUsage] = useUsageRosterAccounts(remoteOwned, localRateLimits)
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) {
       return
@@ -98,7 +96,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
       // Why: re-run PATH detection so a freshly-installed/removed CLI's bar appears/hides without restarting Orca.
       await Promise.all([
         (refreshRemote ?? refreshRateLimits)(),
-        refreshDetectedAgents(),
+        refreshDetectedAgents(undefined, { wakeWslDistro: true }),
         refreshAccountUsage()
       ])
     } finally {
@@ -221,8 +219,11 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     kiro?.status === 'fetching'
 
   const floatingTerminalActionLabel = floatingTerminalOpen
-    ? 'Minimize Floating Workspace'
-    : 'Show Floating Workspace'
+    ? translate(
+        'auto.components.status.bar.floatingWorkspace.minimize',
+        'Minimize Floating Workspace'
+      )
+    : translate('auto.components.status.bar.floatingWorkspace.show', 'Show Floating Workspace')
   const showFloatingWorkspaceAttentionDot = !floatingTerminalOpen && hasFloatingUnread
 
   // Respect per-item visibility in the roster so its trigger cannot bypass hidden status items.
@@ -305,7 +306,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     petEnabled,
     recordFeatureInteraction,
     remoteOwner,
-    rosterAccounts,
+    rosterAccounts: roster,
     rosterProviders,
     segmentsIconOnly,
     segmentsRef,
