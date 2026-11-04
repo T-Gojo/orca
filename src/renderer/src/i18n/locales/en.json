@@ -5256,8 +5256,6 @@
           "424cd50412": "Enable Claude usage analytics",
           "8d18bbb771": "Refresh",
           "c5b9b344d0": "Refresh Claude usage",
-          "505be9aac4": "Range",
-          "f61cffb9c8": "Scope",
           "dd29209b21": "Filters",
           "e9bf9fce0e": "Claude usage options",
           "6afacbee37": "Claude Usage Tracking",
@@ -5306,8 +5304,6 @@
           "f7c1affbd5": "Enable Codex usage analytics",
           "3022cda443": "Refresh",
           "ec4d270e2c": "Refresh Codex usage",
-          "89162e019b": "Range",
-          "6d68e8399a": "Scope",
           "1af1a39b2f": "Filters",
           "70b5b8581f": "Codex usage options",
           "408210470c": "Codex Usage Tracking",
@@ -5347,8 +5343,6 @@
           "f04131b3be": "Enable OpenCode usage analytics",
           "603cd138dc": "Refresh",
           "bed558df0b": "Refresh OpenCode usage",
-          "b5ed5c9fd0": "Range",
-          "40d283c837": "Scope",
           "01583b30aa": "Filters",
           "230d6de108": "OpenCode usage options",
           "bea80ceae0": "OpenCode Usage Tracking",
@@ -5488,8 +5482,7 @@
               "turnCount_other": "{{formatted}} turns",
               "eventCount_one": "{{formatted}} event",
               "eventCount_other": "{{formatted}} events",
-              "sessionsAndActivity": "{{sessions}} - {{activity}}",
-              "tokenTotal": "{{tokens}} tokens"
+              "sessionsAndActivity": "{{sessions}} - {{activity}}"
             }
           }
         },
@@ -5529,7 +5522,6 @@
           "allTime": "All time",
           "refresh": "Read every agent’s usage now",
           "empty": "No usage recorded yet. Orca reads agent logs every few minutes; refresh to read them now.",
-          "unattributed": "Before account tracking",
           "unknownAccount": "Saved account",
           "credits": "{{value}} credits",
           "tokenMix": "In {{in}} · Out {{out}} · Cache {{cache}}",
@@ -5537,7 +5529,6 @@
           "activeDays": "{{count}} active days",
           "removed": "Removed",
           "title": "Accounts",
-          "subtitle": "Usage per account across every agent, kept after an account is removed.",
           "tokensHeading": "Usage"
         },
         "UsageAccountLimitsList": {
@@ -23374,6 +23365,24 @@
       "events_other": "{{count}} events",
       "sessions_other": "{{count}} sessions",
       "turns_other": "{{count}} turns"
+    },
+    "usageFilters": {
+      "range": "Range",
+      "allSessions": "All sessions",
+      "orcaWorkspaces": "Orca workspaces",
+      "sessionsLabel": "Sessions: {{value}}",
+      "allSessionsHint": "Every local session, from any app",
+      "orcaWorkspacesHint": "Only sessions in your Orca workspaces"
+    },
+    "usageAccounts": {
+      "earlierUsage": "Earlier usage",
+      "earlierUsageHint": "Logged before Orca recorded which account was signed in",
+      "accountCount_one": "{{count}} account",
+      "accountCount_other": "{{count}} accounts",
+      "subtitle": "Usage per account, kept after an account is removed · {{range}}"
+    },
+    "usageProviders": {
+      "toggle": "Show {{provider}} details"
     }
   },
   "github": {
@@ -23383,6 +23392,8 @@
     }
   },
   "agentPicker": {
+    "account": "Account",
+    "accountLabel": "{{agent}} account",
     "catalogUnsupported": "{{agent}} models are unavailable on this host. You can keep your current choices or use Arguments.",
     "catalogFailed": "Could not load {{agent}} models. Close and reopen the agent picker to try again.",
     "catalogSignIn": "Sign in to {{agent}} to load its models, then close and reopen the agent picker.",

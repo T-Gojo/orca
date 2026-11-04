@@ -32,6 +32,7 @@ sync() {
     echo "Merge conflicts with upstream. Resolve them, then run:"
     echo "  git add <files> && git commit && git push origin $FORK_BRANCH && pnpm install"
     echo "(rerere is on, so git will remember each resolution next time.)"
+    echo "See FORK.md for what the fork changes and how to keep it on top of upstream."
     exit 1
   fi
   git push origin "$FORK_BRANCH"

@@ -98,7 +98,11 @@ export function useTabAgentMenuLaunch({
         ...(draft ? agentPickerLaunchInputs(draft, pickerEntry) : {}),
         worktreeId,
         groupId,
-        ...(launchAccountId !== undefined ? { launchAccountId } : {}),
+        ...(launchAccountId !== undefined
+          ? { launchAccountId }
+          : draft?.launchAccountId !== undefined
+            ? { launchAccountId: draft.launchAccountId }
+            : {}),
         // A caller's prompt (notes) owns the launch; otherwise the picker panel's typed one.
         ...(prompt !== undefined ? { prompt } : draft?.prompt ? { prompt: draft.prompt } : {}),
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),

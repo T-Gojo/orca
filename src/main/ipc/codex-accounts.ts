@@ -52,9 +52,11 @@ export function registerCodexAccountHandlers(
         activateIfSelectionWasEmpty: args.activateIfSelectionWasEmpty === true
       })
   )
-  ipcMain.handle('codexAccounts:remove', (_event, args: { accountId: string }) =>
-    codexAccounts.removeAccount(args.accountId)
-  )
+  ipcMain.handle('codexAccounts:remove', async (_event, args: { accountId: string }) => {
+    // Removal deletes the account's rollouts; scan them first so their latest usage is kept.
+    await beforeAccountSwitch('codex')
+    return codexAccounts.removeAccount(args.accountId)
+  })
   ipcMain.handle(
     'codexAccounts:select',
     async (_event, args: { accountId: string | null } & CodexAccountSelectionTarget) => {

@@ -1,4 +1,6 @@
-import { AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { AlertCircle, ChevronRight } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { formatUsageCost, formatUsageTokens } from './usage-overview-model'
@@ -248,6 +250,8 @@ export function ProviderUsageRow({
   totalTokens: number
   onEnable: () => void
 }): React.JSX.Element {
+  // Fork: rows start minimized to one summary line; the chevron shows model and session detail.
+  const [open, setOpen] = useState(false)
   const share = totalTokens > 0 ? provider.totalTokens / totalTokens : 0
   const status = provider.enabled
     ? provider.isScanning
@@ -255,62 +259,75 @@ export function ProviderUsageRow({
       : translate('auto.components.stats.usage.overview.sections.statusEnabled', 'Enabled')
     : translate('auto.components.stats.usage.overview.sections.statusOff', 'Off')
   const statusVariant = provider.enabled ? 'secondary' : 'outline'
+  const amount = provider.credits
+    ? translate('auto.components.stats.UsageAccountsSection.credits', '{{value}} credits', {
+        value: Math.round(provider.credits).toLocaleString()
+      })
+    : formatUsageCost(provider.estimatedCostUsd)
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card/40 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2">
-            <h5 className="truncate text-sm font-semibold text-foreground">{provider.label}</h5>
-            <Badge variant={statusVariant}>{status}</Badge>
-          </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+    <div className="rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <div className="flex min-w-0 items-center gap-3">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              aria-label={translate('stats.usageProviders.toggle', 'Show {{provider}} details', {
+                provider: provider.label
+              })}
+            >
+              <ChevronRight
+                className={`size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none ${open ? 'rotate-90' : ''}`}
+              />
+              <span className="truncate text-sm font-semibold text-foreground">
+                {provider.label}
+              </span>
+              <Badge variant={statusVariant}>{status}</Badge>
+            </button>
+          </CollapsibleTrigger>
+          {!provider.enabled ? (
+            <Button variant="outline" size="xs" onClick={onEnable}>
+              {translate('auto.components.stats.usage.overview.sections.57d1448ef8', 'Enable')}
+            </Button>
+          ) : (
+            <>
+              <span
+                className="shrink-0 tabular-nums text-sm text-foreground"
+                title={provider.estimated ? estimatedTokensHint() : undefined}
+              >
+                {provider.estimated ? '≈' : ''}
+                {formatUsageTokens(provider.totalTokens)}
+              </span>
+              <span className="w-28 shrink-0 whitespace-nowrap text-right tabular-nums text-xs text-muted-foreground">
+                {amount}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-foreground/75"
+            style={{
+              width: `${Math.max(share * 100, provider.totalTokens > 0 ? 2 : 0)}%`
+            }}
+          />
+        </div>
+        <CollapsibleContent>
+          <p className="mt-2 truncate text-xs text-muted-foreground">
             {provider.topModel ??
               translate('auto.components.stats.usage.overview.sections.3de9bf87fc', 'No model yet')}
             {provider.topProject ? ` - ${provider.topProject}` : ''}
           </p>
-        </div>
-        {!provider.enabled ? (
-          <Button variant="outline" size="xs" onClick={onEnable}>
-            {translate('auto.components.stats.usage.overview.sections.57d1448ef8', 'Enable')}
-          </Button>
+          <p className="mt-1 text-xs text-muted-foreground">{providerSessionsSummary(provider)}</p>
+        </CollapsibleContent>
+        {provider.lastScanError ? (
+          <p className="mt-2 flex items-center gap-1 text-xs text-destructive">
+            <AlertCircle className="size-3" />
+            {provider.lastScanError}
+          </p>
         ) : null}
-      </div>
-
-      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-        <span title={provider.estimated ? estimatedTokensHint() : undefined}>
-          {provider.estimated ? '≈' : ''}
-          {translate(
-            'auto.components.stats.usage.overview.sections.tokenTotal',
-            '{{tokens}} tokens',
-            {
-              tokens: formatUsageTokens(provider.totalTokens)
-            }
-          )}
-        </span>
-        <span>{providerSessionsSummary(provider)}</span>
-        <span>
-          {provider.credits
-            ? translate('auto.components.stats.UsageAccountsSection.credits', '{{value}} credits', {
-                value: Math.round(provider.credits).toLocaleString()
-              })
-            : formatUsageCost(provider.estimatedCostUsd)}
-        </span>
-      </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-foreground/75"
-          style={{
-            width: `${Math.max(share * 100, provider.totalTokens > 0 ? 2 : 0)}%`
-          }}
-        />
-      </div>
-      {provider.lastScanError ? (
-        <p className="mt-2 flex items-center gap-1 text-xs text-destructive">
-          <AlertCircle className="size-3" />
-          {provider.lastScanError}
-        </p>
-      ) : null}
+      </Collapsible>
     </div>
   )
 }

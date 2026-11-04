@@ -6,12 +6,11 @@ import { ClaudeUsageLoadingState } from './ClaudeUsageLoadingState'
 import { CodexUsageDetails } from './CodexUsageDetails'
 import { ShareUsageButton } from './ShareUsageButton'
 import { StatCard } from './StatCard'
-import { UsageFilterRadioGroup, UsageTrackingPaneShell } from './UsageTrackingPaneShell'
+import { UsageTrackingPaneShell } from './UsageTrackingPaneShell'
 import { formatCost, formatTokens, formatUpdatedAt } from './usage-formatters'
 import { unpricedCostLabel } from './unpriced-cost-label'
 import { getIntlLocale, translate } from '@/i18n/i18n'
 
-const RANGE_OPTIONS: CodexUsageRange[] = ['7d', '30d', '90d', 'all']
 const SCOPE_OPTIONS: { value: CodexUsageScope; label: string }[] = [
   {
     value: 'orca',
@@ -53,8 +52,6 @@ export function CodexUsagePane(): React.JSX.Element {
   const fetchCodexUsage = useAppStore((state) => state.fetchCodexUsage)
   const setCodexUsageEnabled = useAppStore((state) => state.setCodexUsageEnabled)
   const refreshCodexUsage = useAppStore((state) => state.refreshCodexUsage)
-  const setCodexUsageScope = useAppStore((state) => state.setCodexUsageScope)
-  const setCodexUsageRange = useAppStore((state) => state.setCodexUsageRange)
   const recordFeatureInteraction = useAppStore((state) => state.recordFeatureInteraction)
 
   useEffect(() => {
@@ -132,22 +129,6 @@ export function CodexUsagePane(): React.JSX.Element {
         'Refresh Codex usage'
       )}
       refreshLabel={translate('auto.components.stats.CodexUsagePane.3022cda443', 'Refresh')}
-      filterSections={[
-        <UsageFilterRadioGroup
-          key="scope"
-          label={translate('auto.components.stats.CodexUsagePane.6d68e8399a', 'Scope')}
-          value={scope}
-          options={SCOPE_OPTIONS}
-          onValueChange={(value) => void setCodexUsageScope(value)}
-        />,
-        <UsageFilterRadioGroup
-          key="range"
-          label={translate('auto.components.stats.CodexUsagePane.89162e019b', 'Range')}
-          value={range}
-          options={RANGE_OPTIONS.map((value) => ({ value, label: RANGE_LABELS[value] }))}
-          onValueChange={(value) => void setCodexUsageRange(value)}
-        />
-      ]}
       selectionSummary={
         <>
           {SCOPE_OPTIONS.find((option) => option.value === scope)?.label} • {RANGE_LABELS[range]}

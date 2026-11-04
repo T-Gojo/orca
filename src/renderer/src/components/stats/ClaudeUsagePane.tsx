@@ -14,12 +14,11 @@ import { ClaudeUsageDetails } from './ClaudeUsageDetails'
 import { ClaudeUsageLoadingState } from './ClaudeUsageLoadingState'
 import { ShareUsageButton } from './ShareUsageButton'
 import { StatCard } from './StatCard'
-import { UsageFilterRadioGroup, UsageTrackingPaneShell } from './UsageTrackingPaneShell'
+import { UsageTrackingPaneShell } from './UsageTrackingPaneShell'
 import { formatCost, formatTokens, formatUpdatedAt } from './usage-formatters'
 import { unpricedCostLabel } from './unpriced-cost-label'
 import { getIntlLocale, translate } from '@/i18n/i18n'
 
-const RANGE_OPTIONS: ClaudeUsageRange[] = ['7d', '30d', '90d', 'all']
 const SCOPE_OPTIONS: { value: ClaudeUsageScope; label: string }[] = [
   {
     value: 'orca',
@@ -61,8 +60,6 @@ export function ClaudeUsagePane(): React.JSX.Element {
   const fetchClaudeUsage = useAppStore((state) => state.fetchClaudeUsage)
   const setClaudeUsageEnabled = useAppStore((state) => state.setClaudeUsageEnabled)
   const refreshClaudeUsage = useAppStore((state) => state.refreshClaudeUsage)
-  const setClaudeUsageScope = useAppStore((state) => state.setClaudeUsageScope)
-  const setClaudeUsageRange = useAppStore((state) => state.setClaudeUsageRange)
   const recordFeatureInteraction = useAppStore((state) => state.recordFeatureInteraction)
 
   useEffect(() => {
@@ -133,22 +130,6 @@ export function ClaudeUsagePane(): React.JSX.Element {
         'Refresh Claude usage'
       )}
       refreshLabel={translate('auto.components.stats.ClaudeUsagePane.8d18bbb771', 'Refresh')}
-      filterSections={[
-        <UsageFilterRadioGroup
-          key="scope"
-          label={translate('auto.components.stats.ClaudeUsagePane.f61cffb9c8', 'Scope')}
-          value={scope}
-          options={SCOPE_OPTIONS}
-          onValueChange={(value) => void setClaudeUsageScope(value)}
-        />,
-        <UsageFilterRadioGroup
-          key="range"
-          label={translate('auto.components.stats.ClaudeUsagePane.505be9aac4', 'Range')}
-          value={range}
-          options={RANGE_OPTIONS.map((value) => ({ value, label: RANGE_LABELS[value] }))}
-          onValueChange={(value) => void setClaudeUsageRange(value)}
-        />
-      ]}
       selectionSummary={
         <>
           {SCOPE_OPTIONS.find((option) => option.value === scope)?.label} • {RANGE_LABELS[range]}

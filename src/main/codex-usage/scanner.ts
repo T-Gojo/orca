@@ -41,6 +41,14 @@ export async function scanCodexUsageFiles(
   const legacySourceSkipBytesByPath = getLegacySourceSkipBytesByPath(files)
 
   const currentPaths = new Set(files)
+  // Why kept: an archived rollout or a removed account's home must not lower history.
+  const vanished = previousProcessedFiles.filter(
+    (file) =>
+      !currentPaths.has(file.path) &&
+      Array.isArray(file.ownedEventKeys) &&
+      Array.isArray(file.sessions) &&
+      Array.isArray(file.dailyAggregates)
+  )
   // Deleted owners release copied records; reparse only forks that deferred those claims.
   const lostOwnerPath = previousProcessedFiles.some(
     (file) =>
@@ -166,8 +174,16 @@ export async function scanCodexUsageFiles(
   const processedFiles: CodexUsagePersistedFile[] = []
   const sessionsById = new Map<string, CodexUsageSession>()
   const dailyByKey = new Map<string, CodexUsageDailyAggregate>()
-  for (const filePath of files) {
-    const processed = reusedByPath.get(filePath) ?? parsedByPath.get(filePath)
+  const kept = [
+    ...files.map((filePath) => reusedByPath.get(filePath) ?? parsedByPath.get(filePath)),
+    // A fork that reclaimed every event of a deleted rollout already counts it.
+    ...vanished.filter(
+      (file) =>
+        file.ownedEventKeys.length === 0 ||
+        file.ownedEventKeys.some((key) => !eventOwnerByKey.has(key))
+    )
+  ]
+  for (const processed of kept) {
     if (!processed) {
       continue
     }

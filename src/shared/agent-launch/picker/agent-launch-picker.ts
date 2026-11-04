@@ -63,6 +63,8 @@ export type AgentPickerDraft = {
   }
   /** The first prompt typed in the panel, set only on the launch: never part of a kept setup. */
   prompt?: string
+  /** The saved account the panel picked (null: the agent's own login), set only on the launch. */
+  launchAccountId?: string | null
 }
 
 export function agentPickerDraft(

@@ -101,7 +101,17 @@ it('retains the exact verified sidecar for unchanged frozen files without durabl
   expect(await readFile(sourcePath, 'utf8')).toBe(text)
 })
 
-it.each(['append', 'rewrite', 'new', 'delete', 'reorder', 'reclaim', 'deferred'] as const)(
+it('keeps a deleted transcript in the saved generation so its usage is not lost', async () => {
+  const previous = await readClaudeUsageSourceCache(ref())
+  freeze(previous.sources)
+  discovered.paths = [owner]
+
+  const result = await scanAndPersist(previous)
+
+  expect(result.processedFiles).toEqual(previous.sources)
+})
+
+it.each(['append', 'rewrite', 'new', 'reorder', 'reclaim', 'deferred'] as const)(
   'writes the new generation after %s without changing frozen previous files',
   async (change) => {
     const previous = await readClaudeUsageSourceCache(ref())
@@ -115,8 +125,6 @@ it.each(['append', 'rewrite', 'new', 'delete', 'reorder', 'reclaim', 'deferred']
       const added = join(directory, 'new.jsonl')
       await writeFile(added, contents(50, 'new'))
       discovered.paths.push(added)
-    } else if (change === 'delete') {
-      discovered.paths = [owner]
     } else if (change === 'reorder') {
       discovered.paths.reverse()
     } else if (change === 'reclaim') {

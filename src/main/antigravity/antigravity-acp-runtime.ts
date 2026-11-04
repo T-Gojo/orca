@@ -6,7 +6,8 @@ import { probeAntigravityAcpServer } from './antigravity-acp-runtime-probe'
 
 // 1.4.2 through 1.4.5 are reported to write skills/system/run-workflow/SKILL.md into the chat's
 // workspace when a session starts; check a newer release in an empty folder before moving this pin.
-const VERSION = '1.4.1'
+export const ANTIGRAVITY_ACP_VERSION = '1.4.1'
+const VERSION = ANTIGRAVITY_ACP_VERSION
 const RELEASES = 'https://dl.google.com/agy-extensions/releases'
 const COMMAND = 'agy_acp_server.par'
 // The server finds its harness beside itself.

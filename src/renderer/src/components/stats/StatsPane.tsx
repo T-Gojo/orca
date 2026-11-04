@@ -8,6 +8,7 @@ import { GrokUsagePane } from './GrokUsagePane'
 import { OpenCodeUsagePane } from './OpenCodeUsagePane'
 import { MuseUsagePane } from './MuseUsagePane'
 import { UsageOverviewPane } from './UsageOverviewPane'
+import { UsageFilterBar } from './UsageFilterBar'
 import { LedgerProviderUsagePane } from './LedgerProviderUsagePane'
 import { useAvailableUsageTabs } from './use-available-usage-tabs'
 import { Button } from '../ui/button'
@@ -184,48 +185,56 @@ export function StatsPane(): React.JSX.Element {
       ) : null}
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-foreground">
             {translate('auto.components.stats.StatsPane.c79f073d4c', 'Usage Analytics')}
           </h3>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-testid="usage-provider-select"
-                aria-label={translate(
-                  'auto.components.stats.StatsPane.42d3e0bdf7',
-                  'Usage analytics provider: {{value0}}',
-                  { value0: activeUsageOption.label }
-                )}
-                className="min-w-36 justify-between"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <UsageAnalyticsOptionIcon tab={activeUsageOption.id} />
-                  <span className="truncate">{activeUsageOption.label}</span>
-                </span>
-                <ChevronDown className="ml-1 size-3.5 text-muted-foreground" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              {usageOptions.map((option) => (
-                <DropdownMenuItem key={option.id} onSelect={() => setActiveUsageTab(option.id)}>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeUsageTab !== 'grok' ? (
+              // Kiro and Antigravity logs carry no workspace, so only the range applies to them.
+              <UsageFilterBar
+                showScope={activeUsageTab !== 'kiro' && activeUsageTab !== 'antigravity'}
+              />
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  data-testid="usage-provider-select"
+                  aria-label={translate(
+                    'auto.components.stats.StatsPane.42d3e0bdf7',
+                    'Usage analytics provider: {{value0}}',
+                    { value0: activeUsageOption.label }
+                  )}
+                  className="min-w-36 justify-between"
+                >
                   <span className="flex min-w-0 items-center gap-2">
-                    <UsageAnalyticsOptionIcon tab={option.id} />
-                    <span className="truncate">{option.label}</span>
+                    <UsageAnalyticsOptionIcon tab={activeUsageOption.id} />
+                    <span className="truncate">{activeUsageOption.label}</span>
                   </span>
-                  <Check
-                    className={`ml-auto size-3.5 ${
-                      activeUsageTab === option.id ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    aria-hidden
-                  />
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <ChevronDown className="ml-1 size-3.5 text-muted-foreground" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {usageOptions.map((option) => (
+                  <DropdownMenuItem key={option.id} onSelect={() => setActiveUsageTab(option.id)}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <UsageAnalyticsOptionIcon tab={option.id} />
+                      <span className="truncate">{option.label}</span>
+                    </span>
+                    <Check
+                      className={`ml-auto size-3.5 ${
+                        activeUsageTab === option.id ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      aria-hidden
+                    />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Mount only the active panel to avoid hidden layout/focus churn jittering the scroll-tracked settings page. */}

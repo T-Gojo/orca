@@ -2395,6 +2395,10 @@
     }
   },
   "stats": {
+    "usageAccounts": {
+      "accountCount_one": "{{count}} account",
+      "accountCount_other": "{{count}} accounts"
+    },
     "usageBreakdown": {
       "events_one": "{{count}} event",
       "events_other": "{{count}} events",

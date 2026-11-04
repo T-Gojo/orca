@@ -383,7 +383,8 @@ describe('listCodexSessionFiles', () => {
       result.dailyAggregates.reduce((total, aggregate) => total + aggregate.eventCount, 0)
     ).toBe(3)
 
-    // Removing bridge markers must restore full-history parsing, including the skipped prefix.
+    // Removing bridge markers must restore full-history parsing, including the skipped prefix;
+    // the deleted copy's own event (15 tokens) stays counted as history.
     rmSync(runtimeBridgeMarkerDir, { recursive: true, force: true })
     rmSync(runtimeSessionPath)
     writeFileSync(
@@ -395,10 +396,10 @@ describe('listCodexSessionFiles', () => {
 
     expect(
       afterBridge.dailyAggregates.reduce((total, aggregate) => total + aggregate.totalTokens, 0)
-    ).toBe(17)
+    ).toBe(32)
     expect(
       afterBridge.dailyAggregates.reduce((total, aggregate) => total + aggregate.eventCount, 0)
-    ).toBe(3)
+    ).toBe(5)
   })
 
   it('counts token events copied into forked rollout files exactly once', async () => {
@@ -596,6 +597,29 @@ describe('listCodexSessionFiles', () => {
     ).toBe(22)
     expect(second.processedFiles).toHaveLength(1)
     expect(second.processedFiles[0]?.ownedEventKeys).toHaveLength(3)
+  })
+
+  it("keeps a deleted rollout's usage as history", async () => {
+    const sessionsDir = join(userDataDir, 'codex-runtime-home', 'home', 'sessions')
+    mkdirSync(sessionsDir, { recursive: true })
+    const rolloutPath = join(sessionsDir, 'aaaa-rollout.jsonl')
+    writeFileSync(
+      rolloutPath,
+      [
+        `${JSON.stringify({
+          type: 'session_meta',
+          payload: { id: 'session-1', cwd: join(fakeHomeDir, 'repo') }
+        })}\n`,
+        usageRecord('2026-05-26T12:00:00.000Z', 10)
+      ].join('')
+    )
+    const first = await scanCodexUsageFiles([], [])
+    unlinkSync(rolloutPath)
+
+    const second = await scanCodexUsageFiles([], first.processedFiles)
+
+    expect(second.dailyAggregates).toEqual(first.dailyAggregates)
+    expect(second.processedFiles).toEqual(first.processedFiles)
   })
 
   it('keeps unrelated cached rollouts when a different owner file is deleted', async () => {

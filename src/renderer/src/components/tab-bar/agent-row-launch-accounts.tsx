@@ -11,30 +11,28 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 export type AgentRowLaunchAccounts = {
   accounts: AgentLaunchAccount[]
   heading?: string
-  launch: (
-    accountId: string | null,
-    runLaunch: (row: NewTabAgentMenuRow, launchAccountId?: string | null) => void
-  ) => void
+  /** Set for agents with one login: the launch switches that login first, then runs unpinned. */
+  switchTo?: (accountId: string | null) => Promise<boolean>
 }
 
-// Account pins and switches route this machine's CLI; a remote host keeps its own logins.
-function isLocalTerminalRow(row: NewTabAgentMenuRow): boolean {
+// Account pins and switches route this machine's logins; a remote host keeps its own.
+function isLocalLaunchRow(row: NewTabAgentMenuRow): boolean {
   return (
-    (row.kind === 'terminal' || row.kind === 'cli') &&
+    row.kind !== 'chat-unavailable' &&
     (row.executionHostId ?? LOCAL_EXECUTION_HOST_ID) === LOCAL_EXECUTION_HOST_ID
   )
 }
 
 /** Saved accounts a menu row can launch on, or null when the row launches without a choice. */
-function useAgentRowLaunchAccounts(
+export function useAgentRowLaunchAccounts(
   rows: readonly NewTabAgentMenuRow[]
 ): (row: NewTabAgentMenuRow) => AgentRowLaunchAccounts | null {
   const settings = useAppStore((s) => s.settings)
   const singleLoginAccounts = useSingleLoginLaunchAccounts(
-    rows.filter(isLocalTerminalRow).map((row) => row.agent)
+    rows.filter(isLocalLaunchRow).map((row) => row.agent)
   )
   return (row) => {
-    if (!isLocalTerminalRow(row)) {
+    if (!isLocalLaunchRow(row)) {
       return null
     }
     const singleLogin = singleLoginAccounts(row.agent)
@@ -47,21 +45,31 @@ function useAgentRowLaunchAccounts(
               'auto.components.tab.bar.QuickLaunchButton.switchAccountAndOpen',
               'Switch account and open'
             ),
-            launch: (accountId, runLaunch) =>
-              void singleLogin
-                .switchTo(singleLogin.accounts, accountId)
-                .then((switched) => switched && runLaunch(row))
+            switchTo: (accountId) => singleLogin.switchTo(singleLogin.accounts, accountId)
           }
+    }
+    // Why terminals only: a pin is applied through the terminal's environment, which chats do not use.
+    if (row.kind === 'chat') {
+      return null
     }
     const accounts = listAgentLaunchAccounts(
       row.agent,
       settings,
       translate('auto.components.status.bar.StatusBar.c676918adc', 'System default')
     )
-    return accounts.length === 0
-      ? null
-      : { accounts, launch: (accountId, runLaunch) => runLaunch(row, accountId) }
+    return accounts.length === 0 ? null : { accounts }
   }
+}
+
+/** Runs `launch` on the chosen account: a switched login, or a pin passed to the launch. */
+export function launchOnAccount<T>(
+  account: AgentRowLaunchAccounts,
+  accountId: string | null,
+  launch: (launchAccountId?: string | null) => T
+): T | Promise<T | false> {
+  return account.switchTo
+    ? account.switchTo(accountId).then((switched) => (switched ? launch() : false))
+    : launch(accountId)
 }
 
 type PickerLaunch = React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']
@@ -87,8 +95,8 @@ export function useAgentRowAccountLaunch(
         title={title}
         {...(account.heading ? { heading: account.heading } : {})}
         onLaunch={(accountId) =>
-          account.launch(accountId, (launchRow, launchAccountId) =>
-            runLaunch(launchRow, undefined, undefined, undefined, launchAccountId)
+          void launchOnAccount(account, accountId, (launchAccountId) =>
+            runLaunch(row, undefined, undefined, undefined, launchAccountId)
           )
         }
       >

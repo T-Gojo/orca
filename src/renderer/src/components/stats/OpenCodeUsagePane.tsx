@@ -8,11 +8,10 @@ import { useAppStore } from '../../store'
 import { ClaudeUsageLoadingState } from './ClaudeUsageLoadingState'
 import { OpenCodeUsageDetails } from './OpenCodeUsageDetails'
 import { StatCard } from './StatCard'
-import { UsageFilterRadioGroup, UsageTrackingPaneShell } from './UsageTrackingPaneShell'
+import { UsageTrackingPaneShell } from './UsageTrackingPaneShell'
 import { formatCost, formatTokens, formatUpdatedAt } from './usage-formatters'
 import { getIntlLocale, translate } from '@/i18n/i18n'
 
-const RANGE_OPTIONS: OpenCodeUsageRange[] = ['7d', '30d', '90d', 'all']
 const SCOPE_OPTIONS: { value: OpenCodeUsageScope; label: string }[] = [
   {
     value: 'orca',
@@ -57,8 +56,6 @@ export function OpenCodeUsagePane(): React.JSX.Element {
   const fetchOpenCodeUsage = useAppStore((state) => state.fetchOpenCodeUsage)
   const setOpenCodeUsageEnabled = useAppStore((state) => state.setOpenCodeUsageEnabled)
   const refreshOpenCodeUsage = useAppStore((state) => state.refreshOpenCodeUsage)
-  const setOpenCodeUsageScope = useAppStore((state) => state.setOpenCodeUsageScope)
-  const setOpenCodeUsageRange = useAppStore((state) => state.setOpenCodeUsageRange)
   const recordFeatureInteraction = useAppStore((state) => state.recordFeatureInteraction)
 
   useEffect(() => {
@@ -135,22 +132,6 @@ export function OpenCodeUsagePane(): React.JSX.Element {
         'Refresh OpenCode usage'
       )}
       refreshLabel={translate('auto.components.stats.OpenCodeUsagePane.603cd138dc', 'Refresh')}
-      filterSections={[
-        <UsageFilterRadioGroup
-          key="scope"
-          label={translate('auto.components.stats.OpenCodeUsagePane.40d283c837', 'Scope')}
-          value={scope}
-          options={SCOPE_OPTIONS}
-          onValueChange={(value) => void setOpenCodeUsageScope(value)}
-        />,
-        <UsageFilterRadioGroup
-          key="range"
-          label={translate('auto.components.stats.OpenCodeUsagePane.b5ed5c9fd0', 'Range')}
-          value={range}
-          options={RANGE_OPTIONS.map((value) => ({ value, label: RANGE_LABELS[value] }))}
-          onValueChange={(value) => void setOpenCodeUsageRange(value)}
-        />
-      ]}
       selectionSummary={
         <>
           {SCOPE_OPTIONS.find((option) => option.value === scope)?.label} • {RANGE_LABELS[range]}

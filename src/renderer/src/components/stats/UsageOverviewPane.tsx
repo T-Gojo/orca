@@ -304,7 +304,7 @@ export function UsageOverviewPane(): React.JSX.Element {
             )}
           </Badge>
         </div>
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
           {overview.providers.map((provider) => (
             <ProviderUsageRow
               key={provider.id}

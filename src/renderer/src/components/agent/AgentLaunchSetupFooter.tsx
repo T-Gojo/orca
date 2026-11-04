@@ -6,6 +6,7 @@ import { translate } from '@/i18n/i18n'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import type { NativeChatComposerHandle } from '../native-chat/NativeChatComposer'
 import { AgentLaunchPromptComposer } from './AgentLaunchPromptComposer'
+import { useAgentLaunchAccountChoice } from './AgentLaunchAccountChoice'
 import {
   agentPickerButtonOrder,
   type AgentPickerEntry,
@@ -102,9 +103,15 @@ export function AgentLaunchSetupFooter({
   entry: AgentPickerEntry
   ref?: Ref<AgentLaunchSetupFooterHandle>
   disabled?: boolean
-  onLaunch: (surface: AgentPickerSurface, prompt?: string) => boolean | void | Promise<boolean>
+  onLaunch: (
+    surface: AgentPickerSurface,
+    prompt?: string,
+    /** The saved account picked in the panel; absent when none was picked. */
+    launchAccountId?: string | null
+  ) => boolean | void | Promise<boolean>
 }): React.JSX.Element {
   const composer = useRef<NativeChatComposerHandle>(null)
+  const account = useAgentLaunchAccountChoice(entry, disabled)
   // Enter launches the default way; a Launch button names its own before it submits the prompt.
   const surface = useRef(entry.defaultSurface)
   const launch = (next: AgentPickerSurface): void => {
@@ -115,6 +122,7 @@ export function AgentLaunchSetupFooter({
   useImperativeHandle(ref, () => ({ launch }))
   return (
     <>
+      {account.row ? <div className="px-3 pt-1">{account.row}</div> : null}
       <div
         className="px-3 pt-1.5 pb-2"
         onKeyDownCapture={(event) => {
@@ -127,7 +135,11 @@ export function AgentLaunchSetupFooter({
           entry={entry}
           composerRef={composer}
           disabled={disabled}
-          onLaunch={(prompt) => onLaunch(surface.current, prompt)}
+          onLaunch={(prompt) =>
+            account.launch(surface.current, (launchAccountId) =>
+              onLaunch(surface.current, prompt, launchAccountId)
+            )
+          }
         />
       </div>
       <div className="flex items-center justify-end gap-2 border-t border-border px-2.5 py-2">

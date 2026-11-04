@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { CalendarDays, Coins, RefreshCw, Sparkles, Activity } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '../ui/button'
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { StatCard } from './StatCard'
-import type { AccountUsageLedgerRange } from '../../../../shared/account-usage-ledger-types'
+import { useUsageFilters } from './use-usage-filters'
 import { buildDailyOverview, getRecentUsageDays } from './usage-overview-daily-series'
 import { formatUsageTokens } from './usage-overview-model'
 import { DailyIntensityGrid, estimatedTokensHint } from './usage-overview-sections'
@@ -13,7 +12,6 @@ import type { LedgerOnlyProviderId } from './usage-overview-types'
 import { AccountUsageRow } from './UsageAccountsSection'
 import { useAccountUsageSnapshot } from './use-account-usage-snapshot'
 
-const RANGES: readonly AccountUsageLedgerRange[] = ['7d', '30d', '90d', 'all']
 const RECENT_DAY_COUNT = 42
 
 /** One agent read from its session logs (Kiro, Antigravity), split by account. */
@@ -24,7 +22,7 @@ export function LedgerProviderUsagePane({
   provider: LedgerOnlyProviderId
   label: string
 }): React.JSX.Element {
-  const [range, setRange] = useState<AccountUsageLedgerRange>('30d')
+  const { range } = useUsageFilters()
   const { snapshot, refreshing, refresh } = useAccountUsageSnapshot(range)
   const rows = useMemo(
     () => snapshot?.rows.filter((row) => row.provider === provider) ?? [],
@@ -81,26 +79,6 @@ export function LedgerProviderUsagePane({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ToggleGroup
-              type="single"
-              size="sm"
-              variant="outline"
-              value={range}
-              onValueChange={(value) => {
-                const next = RANGES.find((entry) => entry === value)
-                if (next) {
-                  setRange(next)
-                }
-              }}
-            >
-              {RANGES.map((entry) => (
-                <ToggleGroupItem key={entry} value={entry}>
-                  {entry === 'all'
-                    ? translate('auto.components.stats.UsageAccountsSection.allTime', 'All time')
-                    : entry}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
