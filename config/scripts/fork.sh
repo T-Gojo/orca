@@ -173,22 +173,21 @@ install_app() {
     echo "Orca is running. Quit it (Cmd+Q) and run this again." >&2
     exit 1
   fi
-  mkdir -p "$BACKUP_DIR"
+  # Why .noindex: Spotlight skips it, so the saved official app is not listed beside the real one.
+  local official_backup="$BACKUP_DIR/backups.noindex/Orca-official.app"
   if [[ -d "$APP_PATH" ]] &&
     ! defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString | grep -q -- '-custom\.'; then
-    # Why separate: later installs replace Orca-previous.app, but the official build is the way back.
-    rm -rf "$BACKUP_DIR/Orca-official.app"
-    ditto "$APP_PATH" "$BACKUP_DIR/Orca-official.app"
-    echo "Official app saved to $BACKUP_DIR/Orca-official.app"
+    mkdir -p "$(dirname "$official_backup")"
+    rm -rf "$official_backup"
+    ditto "$APP_PATH" "$official_backup"
+    echo "Official app saved to $official_backup"
   fi
-  if [[ -d "$APP_PATH" ]]; then
-    rm -rf "$BACKUP_DIR/Orca-previous.app"
-    mv "$APP_PATH" "$BACKUP_DIR/Orca-previous.app"
-    echo "Previous app saved to $BACKUP_DIR/Orca-previous.app"
-  fi
+  rm -rf "$APP_PATH"
   ditto "$app" "$APP_PATH"
-  # Why: a pinned Dock tile keeps following the bundle moved into the backup folder, so clicks
-  # on it stop activating the new app until LaunchServices and the Dock pick up the new bundle.
+  # The build is only a staging copy; left in dist/ it shows up as a second Orca in Spotlight.
+  rm -rf "$app"
+  # Why: a pinned Dock tile keeps following the replaced bundle, so clicks on it stop activating
+  # the new app until LaunchServices and the Dock pick up the new bundle.
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH"
   killall Dock 2>/dev/null || true
   echo "Installed $(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString) to $APP_PATH"
