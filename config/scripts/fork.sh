@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Personal-fork workflow. `main` mirrors stablyai/orca; custom work lives on `custom`.
+# Personal-fork workflow. All work lives on `main`, which merges stablyai/orca (`upstream`) in.
 #
-#   config/scripts/fork.sh sync   # pull upstream into main, merge main into custom, push both, reinstall deps
+#   config/scripts/fork.sh sync   # merge upstream into main, push main, reinstall deps
 #   config/scripts/fork.sh dev      # run the custom build side by side with the installed Orca.app
 #   config/scripts/fork.sh build    # package Orca.app (macOS) from the current checkout into dist/
 #   config/scripts/fork.sh install  # replace /Applications/Orca.app with that build (quit Orca first)
 set -euo pipefail
 
-CUSTOM_BRANCH="${ORCA_FORK_BRANCH:-custom}"
+FORK_BRANCH="${ORCA_FORK_BRANCH:-main}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
@@ -26,22 +26,15 @@ sync() {
   fi
 
   git fetch upstream
-  if [[ "$(git branch --show-current)" == main ]]; then
-    git merge --ff-only upstream/main
-  else
-    git fetch . upstream/main:main
-  fi
-  git push origin main
-
-  git switch "$CUSTOM_BRANCH"
-  if ! git merge --no-edit main; then
+  git switch "$FORK_BRANCH"
+  if ! git merge --no-edit upstream/main; then
     echo
     echo "Merge conflicts with upstream. Resolve them, then run:"
-    echo "  git add <files> && git commit && git push origin $CUSTOM_BRANCH && pnpm install"
+    echo "  git add <files> && git commit && git push origin $FORK_BRANCH && pnpm install"
     echo "(rerere is on, so git will remember each resolution next time.)"
     exit 1
   fi
-  git push origin "$CUSTOM_BRANCH"
+  git push origin "$FORK_BRANCH"
   pnpm install
 }
 
