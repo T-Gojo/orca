@@ -290,7 +290,9 @@ describe('protected Antigravity account snapshots', () => {
     await restarted.prepareForLaunch()
     expect(store.read().accounts[0].credentials).toBe(refreshedWithoutIdToken(3))
     h.setNative(refreshedWithoutIdToken(4, 'refresh-other-grant'))
-    await expect(restarted.prepareForLaunch()).rejects.toThrow('native Antigravity account changed')
+    // An unsaved login (another grant) is followed, not refused: the selection clears.
+    await restarted.prepareForLaunch()
+    expect(store.read().selectedAccountId).toBeNull()
     expect(h.backend.write).not.toHaveBeenCalled()
   })
 

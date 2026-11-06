@@ -749,6 +749,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.antigravityChatSignInComplete': AntigravityChatSignInCompleteParams,
   'accounts.antigravityChatSignInStart': null,
   'accounts.antigravityChatSignInSubscribe': null,
+  'accounts.antigravityImportBridgeHub': AntigravityAccountTargetParams,
   'accounts.antigravityList': AntigravityAccountTargetParams,
   'accounts.antigravityRemove': AntigravityAccountMutationParams,
   'accounts.antigravitySelect': AntigravityAccountMutationParams,

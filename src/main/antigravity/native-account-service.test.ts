@@ -37,18 +37,22 @@ describe('Antigravity native account identity and selection', () => {
     expect(h.getNative()).toBe(credential('b', 2))
   })
 
-  it('persists selection and verifies it across service restart before launch', async () => {
+  it('follows agy when another tool switches its login before a launch', async () => {
     const h = harness()
-    const id = (await h.service.addCurrentAccount()).activeAccountId!
-    await h.service.selectAccount(id)
+    const a = (await h.service.addCurrentAccount()).activeAccountId!
+    h.setNative(credential('b'))
+    const b = (await h.service.addCurrentAccount()).activeAccountId!
+    await h.service.selectAccount(a)
     const restarted = new AntigravityAccountService(h.store, h.backend)
     await restarted.prepareForLaunch()
-    h.setNative(credential('another'))
-    const state = await restarted.listAccounts()
-    expect(state.selectedAccountId).toBe(id)
-    expect(state.activeAccountId).toBeNull()
-    await expect(restarted.prepareForLaunch()).rejects.toThrow('native Antigravity account changed')
-    expect(h.backend.write).not.toHaveBeenCalled()
+    h.setNative(credential('b'))
+    await restarted.prepareForLaunch()
+    expect(h.getVault().selectedAccountId).toBe(b)
+    h.setNative(credential('unsaved'))
+    await restarted.prepareForLaunch()
+    expect(h.getVault().selectedAccountId).toBeNull()
+    h.setNative(null)
+    await expect(restarted.prepareForLaunch()).resolves.toBeUndefined()
   })
 
   it('protects the current and selected account against deletion, including after external sign-out', async () => {

@@ -51,6 +51,15 @@ of that login for each account and swaps it in to switch accounts.
 - **Files:** `src/main/rate-limits/antigravity-account-usage-probe.ts`, `src/main/rate-limits/saved-account-usage.ts`,
   `src/renderer/src/lib/antigravity-launch-accounts.ts`, `src/renderer/src/lib/single-login-launch-accounts.ts`.
 
+- **Bridge Hub import:** Settings → Accounts → Antigravity → **Import from Bridge Hub** saves the agy accounts that
+  Bridge Hub (`openai-base-bridge`) keeps in `~/Library/Application Support/openai-base-windsurf-bridge/auth/antigravity-cli-accounts.json`.
+  Already-saved accounts (same refresh token or email) are skipped. Files: `src/main/antigravity/bridge-hub-antigravity-accounts.ts` (+ test),
+  `importLogins` in `native-account-service.ts`, and `accounts.antigravityImportBridgeHub`, which stays **last** in
+  `ANTIGRAVITY_ACCOUNT_METHODS`. The chat sign-in tests pick methods by index.
+- **Launches follow agy:** Bridge Hub and `agy /logout` switch agy's single login behind Orca's back. Before a launch,
+  `prepareForLaunch` now moves Orca's selection to the saved account agy is signed in to (or clears it for an unsaved
+  login) instead of refusing with "The native Antigravity account changed".
+
 ### 3. Account choice when launching agents
 
 - **New-tab "+" menu (new picker):** the agent setup panel has an **Account** row, rendered by the launch footer.

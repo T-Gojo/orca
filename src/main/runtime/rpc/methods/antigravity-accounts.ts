@@ -8,6 +8,7 @@ import {
   AntigravityChatSignInFlowParams
 } from '../../../../shared/rpc-contract/antigravity-accounts-params'
 import { getAntigravityAccountService } from '../../../antigravity/native-account-host'
+import { readBridgeHubAntigravityLogins } from '../../../antigravity/bridge-hub-antigravity-accounts'
 import {
   cancelAntigravityChatSignIn,
   completeAntigravityChatSignIn,
@@ -100,5 +101,22 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     params: AntigravityChatSignInCompleteParams,
     handler: async ({ flowId, callbackUrl }, ctx) =>
       completeAntigravityChatSignIn(signInOwner(ctx), flowId, callbackUrl)
+  }),
+  // Fork: kept last so the upstream methods keep their positions in this list.
+  defineMethod({
+    name: 'accounts.antigravityImportBridgeHub',
+    permission: 'accounts-admin',
+    params: AntigravityAccountTargetParams,
+    handler: async (target) => {
+      // Fork: Bridge Hub lives on this Mac, so only the host's own agy can take its logins.
+      if (target.runtime !== 'host') {
+        throw new Error('Bridge Hub accounts can only be imported for this computer’s agy.')
+      }
+      const logins = readBridgeHubAntigravityLogins()
+      if (logins.length === 0) {
+        throw new Error('No Bridge Hub Antigravity accounts were found on this computer.')
+      }
+      return getAntigravityAccountService(target).importLogins(logins)
+    }
   })
 ] as const

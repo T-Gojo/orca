@@ -31,6 +31,16 @@ export async function callAntigravityAccounts(
   )
 }
 
+/** Fork: saves Bridge Hub's agy accounts on this computer as Antigravity accounts. */
+export function importBridgeHubAntigravityAccounts(
+  owner: RuntimeClientTarget,
+  target: AntigravityAccountTarget
+): Promise<{ state: AntigravityAccountState; imported: number; skipped: number }> {
+  return callRuntimeRpc(owner, 'accounts.antigravityImportBridgeHub', target, {
+    timeoutMs: 60_000
+  })
+}
+
 async function assertChatSignInHost(owner: RuntimeClientTarget): Promise<void> {
   if (owner.kind === 'environment') {
     await assertRuntimeEnvironmentCapability(

@@ -83,6 +83,57 @@ export class AntigravityAccountService {
     })
   }
 
+  /**
+   * Fork: saves logins another tool kept for agy (Bridge Hub) as accounts here. Accounts already
+   * saved, by refresh token or email, are left as they are.
+   */
+  importLogins(
+    logins: readonly { email: string | null; contents: string }[]
+  ): Promise<{ state: AntigravityAccountState; imported: number; skipped: number }> {
+    return this.serialize(async () => {
+      const { current } = await this.reconcile()
+      const parseCredential = this.backend.parse ?? parseAntigravityNativeCredential
+      const latest = this.store.read()
+      let imported = 0
+      for (const login of logins) {
+        const credential = parseCredential(login.contents)
+        const email = login.email?.toLowerCase() ?? null
+        if (
+          latest.accounts.some(
+            (entry) =>
+              this.matches(entry, credential) ||
+              (email !== null && entry.email?.toLowerCase() === email)
+          )
+        ) {
+          continue
+        }
+        // A stale access token cannot be identified; the subject is then learned on first use.
+        const identity =
+          credential.identity ??
+          (await this.lookupIdentity(credential.accessToken).catch(() => null))
+        const timestamp = this.now()
+        latest.accounts.push({
+          id: randomUUID(),
+          email: identity?.email ?? login.email,
+          subject: identity?.subject ?? null,
+          authMethod: credential.authMethod,
+          credentials: login.contents,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        })
+        imported++
+      }
+      if (imported > 0) {
+        this.store.write(latest)
+      }
+      return {
+        state: this.state({ vault: latest, current }),
+        imported,
+        skipped: logins.length - imported
+      }
+    })
+  }
+
   selectAccount(id: string): Promise<AntigravityAccountState> {
     return this.serialize(async () => {
       const { vault, current } = await this.reconcile(id)
@@ -173,11 +224,18 @@ export class AntigravityAccountService {
         return
       }
       const selected = vault.accounts.find((account) => account.id === vault.selectedAccountId)
-      if (!selected || !current || !this.matches(selected, current)) {
-        throw new Error(
-          'The native Antigravity account changed. Select the account again in Accounts before launching agy.'
-        )
+      if (!current) {
+        throw new Error('agy is signed out. Select an Antigravity account in Accounts first.')
       }
+      if (selected && this.matches(selected, current)) {
+        return
+      }
+      // Fork: other tools (Bridge Hub rotation, agy /logout) switch agy's single login; follow it
+      // instead of refusing to launch. An unsaved login just clears the selection.
+      const latest = this.store.read()
+      latest.selectedAccountId =
+        latest.accounts.find((account) => this.matches(account, current))?.id ?? null
+      this.store.write(latest)
     })
   }
 

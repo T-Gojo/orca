@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon } from '@/lib/agent-catalog'
-import { callAntigravityAccounts } from '@/runtime/runtime-antigravity-accounts-client'
+import {
+  callAntigravityAccounts,
+  importBridgeHubAntigravityAccounts
+} from '@/runtime/runtime-antigravity-accounts-client'
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { useManagedRuntimeInstall } from '@/runtime/use-managed-runtime-install'
 import type { RuntimeClientTarget } from '../../../../../../shared/runtime-client-target'
@@ -36,6 +39,7 @@ export function AntigravityAccountsSection({
   const [state, setState] = useState<AntigravityAccountState | null>(null)
   const [usage, setUsage] = useState<ProviderRateLimits | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const pending = useRef(false)
   const mounted = useRef(true)
@@ -144,6 +148,42 @@ export function AntigravityAccountsSection({
     }
   }
 
+  // Fork: Bridge Hub keeps agy logins on this computer; they become saved accounts here.
+  const bridgeHubImport = owner.kind === 'local' && target.runtime === 'host'
+  async function importBridgeHub() {
+    if (pending.current) {
+      return
+    }
+    pending.current = true
+    setBusy(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const result = await importBridgeHubAntigravityAccounts(owner, target)
+      if (mounted.current) {
+        setState(result.state)
+        setNotice(
+          translate(
+            'accounts.antigravity.bridgeHubImported',
+            'Imported {{imported}} accounts from Bridge Hub; {{skipped}} were already saved.',
+            { imported: result.imported, skipped: result.skipped }
+          )
+        )
+      }
+    } catch (cause) {
+      if (mounted.current) {
+        setError(
+          cause instanceof Error ? cause.message : 'Bridge Hub accounts could not be imported.'
+        )
+      }
+    } finally {
+      pending.current = false
+      if (mounted.current) {
+        setBusy(false)
+      }
+    }
+  }
+
   return (
     <section id="accounts-antigravity" className="space-y-4 scroll-mt-6">
       <div className="space-y-1">
@@ -172,6 +212,7 @@ export function AntigravityAccountsSection({
           {translate('accounts.antigravity.docs', 'Sign-in instructions')}
         </a>
       </p>
+      {notice && <p className="text-xs text-muted-foreground">{notice}</p>}
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {error}
@@ -214,6 +255,16 @@ export function AntigravityAccountsSection({
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void run('List')}>
               {translate('accounts.antigravity.refresh', 'Refresh accounts')}
             </Button>
+            {bridgeHubImport ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => void importBridgeHub()}
+              >
+                {translate('accounts.antigravity.bridgeHubImport', 'Import from Bridge Hub')}
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="sm"
