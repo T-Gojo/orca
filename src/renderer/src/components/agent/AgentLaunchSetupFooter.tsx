@@ -8,6 +8,7 @@ import { useTranslate, type Translate } from '@/i18n/use-translate'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import type { NativeChatComposerHandle } from '../native-chat/composer/native-chat-composer-types'
 import { AgentLaunchPromptComposer } from './AgentLaunchPromptComposer'
+import { useAgentLaunchAccountChoice } from './AgentLaunchAccountChoice'
 import {
   agentPickerButtonOrder,
   type AgentPickerEntry,
@@ -114,9 +115,15 @@ export function AgentLaunchSetupFooter({
   ref?: Ref<AgentLaunchSetupFooterHandle>
   disabled?: boolean
   terminalBlocked?: boolean
-  onLaunch: (surface: AgentPickerSurface, prompt?: string) => boolean | void | Promise<boolean>
+  onLaunch: (
+    surface: AgentPickerSurface,
+    prompt?: string,
+    /** The saved account picked in the panel; absent when none was picked. */
+    launchAccountId?: string | null
+  ) => boolean | void | Promise<boolean>
 }): React.JSX.Element {
   const composer = useRef<NativeChatComposerHandle>(null)
+  const account = useAgentLaunchAccountChoice(entry, disabled)
   // Enter launches the default way; a Launch button names its own before it submits the prompt.
   const surface = useRef(entry.defaultSurface)
   const launch = (next: AgentPickerSurface): void => {
@@ -130,6 +137,7 @@ export function AgentLaunchSetupFooter({
   useImperativeHandle(ref, () => ({ launch }))
   return (
     <>
+      {account.row ? <div className="px-3 pt-1">{account.row}</div> : null}
       <div
         className="px-3 pt-1.5 pb-2"
         onKeyDownCapture={(event) => {
@@ -145,7 +153,9 @@ export function AgentLaunchSetupFooter({
           onLaunch={(prompt) =>
             surface.current === 'terminal' && terminalBlocked
               ? false
-              : onLaunch(surface.current, prompt)
+              : account.launch(surface.current, (launchAccountId) =>
+                  onLaunch(surface.current, prompt, launchAccountId)
+                )
           }
         />
       </div>

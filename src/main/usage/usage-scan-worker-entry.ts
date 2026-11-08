@@ -1,5 +1,24 @@
 import { parentPort } from 'node:worker_threads'
 import { scanClaudeUsageFiles } from '../claude-usage/scanner'
+import { claudeTranscriptRoots } from '../claude-usage/transcript-file-discovery'
+import { getCodexSessionDirectories } from '../codex-usage/codex-session-file-discovery'
+import {
+  claudeSessionRollups,
+  codexFileRollups,
+  openCodeConnectorRollups
+} from './usage-source-rollups'
+import {
+  claudeAggregateBucket,
+  codexAggregateBucket,
+  openCodeAggregateBucket
+} from './account-usage-buckets'
+import { collectKiroCliUsage } from '../kiro/kiro-cli-session-usage'
+import {
+  collectAntigravityUsage,
+  readAntigravityCliStepCount
+} from '../antigravity/antigravity-session-usage'
+import { collectAntigravityIdeUsage } from '../antigravity/antigravity-ide-usage'
+import { tokensPerStep } from './account-usage-buckets'
 import { scanCodexUsageFiles } from '../codex-usage/scanner'
 import { scanOpenCodeUsageDatabases } from '../opencode-usage/scanner'
 import { scanMuseUsageFiles } from '../muse-usage/scanner'
@@ -65,6 +84,17 @@ async function runRequest(
         : splitUsageCacheFile(request)))
     }
   }
+  if (request.operation === 'collectAccountSources') {
+    // Why here: agy's SQLite logs and kiro-cli's JSON sessions are read off the main thread too.
+    const antigravity = collectAntigravityUsage()
+    const perStep = tokensPerStep(antigravity, readAntigravityCliStepCount())
+    return {
+      operation: 'collectAccountSources',
+      kiro: collectKiroCliUsage(),
+      // The IDE logs steps, not tokens; without CLI logs to measure a rate it is left out.
+      antigravity: perStep ? [...antigravity, ...collectAntigravityIdeUsage(perStep)] : antigravity
+    }
+  }
   return runScan(request, onFilesScanned)
 }
 
@@ -92,7 +122,12 @@ async function runScan(
         operation: 'scan',
         providerId: 'claude',
         sessions: result.sessions,
-        dailyAggregates: result.dailyAggregates
+        dailyAggregates: result.dailyAggregates,
+        sourceRollups: claudeSessionRollups(
+          result.processedFiles,
+          claudeTranscriptRoots(request.profileDirs ?? []),
+          claudeAggregateBucket
+        )
       }
     }
     case 'codex': {
@@ -106,7 +141,12 @@ async function runScan(
         operation: 'scan',
         providerId: 'codex',
         sessions: result.sessions,
-        dailyAggregates: result.dailyAggregates
+        dailyAggregates: result.dailyAggregates,
+        sourceRollups: codexFileRollups(
+          result.processedFiles,
+          getCodexSessionDirectories(),
+          codexAggregateBucket
+        )
       }
     }
     case 'opencode': {
@@ -122,7 +162,8 @@ async function runScan(
         operation: 'scan',
         providerId: 'opencode',
         sessions: result.sessions,
-        dailyAggregates: result.dailyAggregates
+        dailyAggregates: result.dailyAggregates,
+        sourceRollups: openCodeConnectorRollups(result.processedDatabases, openCodeAggregateBucket)
       }
     }
     case 'muse': {

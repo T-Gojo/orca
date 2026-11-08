@@ -22,6 +22,7 @@ import {
   getAccountsCursorSearchEntries,
   getAccountsGrokSearchEntries,
   getAccountsAntigravitySearchEntries,
+  getAccountsKiroSearchEntries,
   getAccountsLocationSearchEntries,
   getAccountsMiniMaxSearchEntries,
   getAccountsOpencodeSearchEntries,
@@ -40,6 +41,7 @@ import {
 } from '../../provider-accounts/provider-account-visibility'
 import { GrokAccountsSection } from './providers/GrokAccountsSection'
 import { AntigravityAccountsSection } from './providers/AntigravityAccountsSection'
+import { KiroAccountsSection } from './providers/KiroAccountsSection'
 import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
 import { runtimeTargetEnvironmentId } from '@/runtime/rpc/targets/runtime-client-target'
 import { CursorAccountsSection } from './providers/CursorAccountsSection'
@@ -354,6 +356,17 @@ export function AccountsPane({
         target={{ runtime: accountRuntime.runtime, wslDistro: accountRuntime.wslDistro }}
         label={accountRuntimeSentenceLabel}
         ownerPlatform={accountOwnerPlatform}
+      />
+    ) : null,
+    matchesSettingsSearch(searchQuery, getAccountsKiroSearchEntries()) ? (
+      <KiroAccountsSection
+        key={`kiro:${accountOwnerKey}`}
+        owner={accountOwner}
+        label={
+          isRemoteAccountScope
+            ? accountRuntimeSentenceLabel
+            : t('accounts.kiro.thisComputer', 'this computer')
+        }
       />
     ) : null,
     matchesSettingsSearch(searchQuery, getAccountsOpencodeSearchEntries())

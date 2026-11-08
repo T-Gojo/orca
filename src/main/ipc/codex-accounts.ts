@@ -9,6 +9,7 @@ import {
   listStaleCodexPanes
 } from '../codex/configuration/homes/codex-stale-pane-accounts'
 import type { GlobalSettings } from '../../shared/global-settings-types'
+import { beforeAccountSwitch } from '../usage/account-switch-usage-hook'
 
 export function registerCodexAccountHandlers(
   codexAccounts: CodexAccountService,
@@ -54,12 +55,15 @@ export function registerCodexAccountHandlers(
         activateIfSelectionWasEmpty: args.activateIfSelectionWasEmpty === true
       })
   )
-  ipcMain.handle('codexAccounts:remove', (_event, args: { accountId: string }) =>
-    codexAccounts.removeAccount(args.accountId)
-  )
+  ipcMain.handle('codexAccounts:remove', async (_event, args: { accountId: string }) => {
+    // Removal deletes the account's rollouts; scan them first so their latest usage is kept.
+    await beforeAccountSwitch('codex')
+    return codexAccounts.removeAccount(args.accountId)
+  })
   ipcMain.handle(
     'codexAccounts:select',
-    (_event, args: { accountId: string | null } & CodexAccountSelectionTarget) => {
+    async (_event, args: { accountId: string | null } & CodexAccountSelectionTarget) => {
+      await beforeAccountSwitch('codex')
       if (!args.runtime) {
         // Legacy renderers omit runtime; infer it from the account so valid WSL selection still works.
         return codexAccounts.selectAccount(args.accountId)

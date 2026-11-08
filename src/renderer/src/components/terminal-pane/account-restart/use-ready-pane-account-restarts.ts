@@ -46,7 +46,7 @@ export function useReadyPaneAccountRestarts({
         continue
       }
       const agent = consumePendingPaneAccountRestart(ptyId)
-      const startup = agent ? buildAccountRestartStartup(agent, pane.leafId) : null
+      const startup = agent ? buildAccountRestartStartup(agent, pane.leafId, ptyId) : null
       if (agent && startup) {
         // Why: one Claude switch restarts many panes at once; none was the one the user clicked.
         handleRestartPane(pane.id, startup, { focus: agent === 'codex' })

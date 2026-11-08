@@ -9,6 +9,26 @@ type CursorProfileRequest = {
   dbPath: string
 }
 
+type KiroCliTokenRequest = {
+  id: number
+  kind: 'kiroCliToken'
+  dbPath: string
+}
+
+type KiroCliLoginRequest = {
+  id: number
+  kind: 'kiroCliLogin'
+  dbPath: string
+}
+
+type KiroCliLoginWriteRequest = {
+  id: number
+  kind: 'kiroCliLoginWrite'
+  dbPath: string
+  contents: string | null
+  expected: string | null
+}
+
 type OpenCodeBinderSessionsRequest = {
   id: number
   kind: 'openCodeBinderSessions'
@@ -23,6 +43,9 @@ type OpenCodePromptFailureRequest = OpenCodePromptFailureQuery & {
 
 export type ForeignSqliteReaderRequest =
   | CursorProfileRequest
+  | KiroCliTokenRequest
+  | KiroCliLoginRequest
+  | KiroCliLoginWriteRequest
   | OpenCodeBinderSessionsRequest
   | OpenCodePromptFailureRequest
 

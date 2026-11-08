@@ -27,6 +27,9 @@ import {
   DEFAULT_POLL_MS
 } from './service-types'
 import { readGrokAuthSession } from '../grok-auth'
+import { join } from 'node:path'
+import { getAppEnvironment } from '../../../shared/app-environment'
+import { SavedAccountUsageTracker, type SavedAccountsReader } from '../saved-account-usage'
 
 export abstract class RateLimitServiceState {
   protected state: InternalRateLimitState = {
@@ -40,7 +43,8 @@ export abstract class RateLimitServiceState {
     grok: null,
     cursor: null,
     zcode: null,
-    muse: null
+    muse: null,
+    kiro: null
   }
   protected grokAuthConfigured = readGrokAuthSession().status === 'ok'
   // Async Keychain/desktop DB probing belongs in fetch cycles, never synchronous construction.
@@ -48,6 +52,8 @@ export abstract class RateLimitServiceState {
   protected openCodeGoApiKeyConfigured = false
   protected pollInterval: number = DEFAULT_POLL_MS
   protected timer: ReturnType<typeof setInterval> | null = null
+  // Why: when set, only explicit user actions (refresh button, account changes) fetch usage.
+  protected manualRefreshOnly = false
   protected deferredStartupRefreshTimer: ReturnType<typeof setTimeout> | null = null
   // Coalesce focus/show/restore bursts into provider-throttled retries.
   protected lastActiveFailureRetryAtByProvider: Record<ActiveRateLimitProvider, number> = {
@@ -61,7 +67,8 @@ export abstract class RateLimitServiceState {
     antigravity: 0,
     cursor: 0,
     zcode: 0,
-    muse: 0
+    muse: 0,
+    kiro: 0
   }
   // Failures increase activation backoff; success/unavailable resets it.
   protected activeFailureStreakByProvider: Record<ActiveRateLimitProvider, number> = {
@@ -75,7 +82,8 @@ export abstract class RateLimitServiceState {
     antigravity: 0,
     cursor: 0,
     zcode: 0,
-    muse: 0
+    muse: 0,
+    kiro: 0
   }
   protected mainWindow: BrowserWindow | null = null
   /** Paired clients streaming usage (accounts.subscribe); headless hosts have no window to watch. */
@@ -123,6 +131,14 @@ export abstract class RateLimitServiceState {
   protected antigravityAccountUsageRecorder: AntigravityAccountUsageRecorder | null = null
   protected antigravityAccounts: AntigravityAccountUsage[] = []
   protected museUsageEnabledResolver: MuseUsageEnabledResolver | null = null
+  protected antigravityAccountsReader: SavedAccountsReader | null = null
+  protected antigravityAccountUsage = new SavedAccountUsageTracker('antigravity', () =>
+    join(getAppEnvironment().getPath('userData'), 'antigravity-accounts', 'usage-cache.json')
+  )
+  protected kiroAccountsReader: SavedAccountsReader | null = null
+  protected kiroAccountUsage = new SavedAccountUsageTracker('kiro', () =>
+    join(getAppEnvironment().getPath('userData'), 'kiro-accounts', 'usage-cache.json')
+  )
   protected inactiveClaudeAccountsResolver: (() => InactiveClaudeAccountInfo[]) | null = null
   protected inactiveCodexAccountsResolver: (() => InactiveCodexAccountInfo[]) | null = null
   protected networkProxySettingsResolver: (() => NetworkProxySettings) | null = null

@@ -12,6 +12,8 @@ export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
   selectedExecutionHostId?: AgentSessionLaunchRequest['selectedExecutionHostId']
   agent: TuiAgent
   worktreeId: string
+  /** A saved account for this local terminal (null: System default) instead of the selection. */
+  launchAccountId?: string | null
   /** Workspace owner captured by the action, independent of selection after an await. */
   workspaceExecutionHostId?: ExecutionHostId
   /** Captured at a new-chat action before the host can delay route selection. */

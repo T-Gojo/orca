@@ -16,6 +16,7 @@ import { antigravityBrowserHelperWorks } from './antigravity-browser-helper'
 import { AcpLaunchGate } from '../acp/acp-launch-gate'
 import { ANTIGRAVITY_ACP_HOME } from '../../shared/antigravity-session-origin'
 import { ANTIGRAVITY_CHAT_HOME_FOLDER } from './antigravity-chat-home'
+import { seedAntigravityChatLogin } from './antigravity-chat-seeded-login'
 
 type SignInOwner = Pick<AcpAgentConnection, 'close' | 'onExit' | 'exited'>
 const retained = new ProviderAcquisitionStarts<SignInOwner>()
@@ -110,5 +111,8 @@ export const antigravityChatAccount = {
         { cause }
       )
     }
+    await seedAntigravityChatLogin(home).catch((error: unknown) => {
+      console.warn('[antigravity] Could not sign the chat in with the agy account:', error)
+    })
   }
 }

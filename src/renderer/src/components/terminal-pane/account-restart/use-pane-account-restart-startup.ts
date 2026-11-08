@@ -9,8 +9,9 @@ export function usePaneAccountRestartStartup({
   worktreeId
 }: Pick<TerminalPaneCloseController, 'tabId' | 'worktreeId'>) {
   const buildAccountRestartStartup = useCallback(
-    (agent: AccountRestartAgent, leafId: string) =>
+    (agent: AccountRestartAgent, leafId: string, ptyId: string) =>
       buildPaneAccountRestartStartup(agent, {
+        ptyId,
         tabId,
         worktreeId,
         leafId,

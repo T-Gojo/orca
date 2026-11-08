@@ -8,6 +8,11 @@ import { useAppStore } from '@/store/index'
 import { toast } from 'sonner'
 import { invalidTerminalArgsMessage } from '../../../workspace/creation/work-item/launch-work-item-direct-messages'
 import {
+  agentWithAccountPin,
+  markLaunchTabAccountPinned,
+  pinnedStartupEnv
+} from '@/lib/agent-terminal-account-pins'
+import {
   agentLaunchCheckSettingsMessage,
   notifyAgentLaunchFailure
 } from '@/lib/agent-launch-failure'
@@ -225,7 +230,7 @@ function openAgentInNewTab(
     newTabPromptLaunchesThroughHost({ promptDelivery, pastesPrompt: true, isRemote })
   ) {
     const launched = launchNewTabPromptThroughHost({
-      agent,
+      ...agentWithAccountPin(agent, args.launchAccountId),
       worktreeId,
       ...(groupId ? { groupId } : {}),
       prompt: trimmedPrompt,
@@ -242,6 +247,7 @@ function openAgentInNewTab(
       ...(onPromptDelivered ? { onPromptDelivered } : {}),
       ...(onPromptDeliveryUnconfirmed ? { onPromptDeliveryUnconfirmed } : {})
     })
+    markLaunchTabAccountPinned(launched.tabId, args.launchAccountId)
     return {
       surface: { kind: 'local-terminal', tabId: launched.tabId },
       startupPlan,
@@ -258,7 +264,7 @@ function openAgentInNewTab(
     pendingStartup: {
       ...(trustWorktreeId ? { trustWorktreeId } : {}),
       command: startupPlan.launchCommand,
-      ...(startupPlan.env ? { env: startupPlan.env } : {}),
+      ...pinnedStartupEnv(startupPlan.env, agent, isRemote ? undefined : args.launchAccountId),
       launchConfig: startupPlan.launchConfig,
       launchAgent: agent,
       ...(agentArgs !== undefined ? { agentArgsOverride: agentArgs } : {}),
@@ -275,6 +281,7 @@ function openAgentInNewTab(
       }
     }
   })
+  markLaunchTabAccountPinned(tab.id, isRemote ? undefined : args.launchAccountId)
   // Safe for native-prefill agents: delivery skips paste when their draft already arrived at launch.
   if (hasPrompt && promptDelivery === 'draft' && pasteDraftAfterLaunch === null) {
     // Native argv prefill skips the paste callback, so seed the chat composer here.

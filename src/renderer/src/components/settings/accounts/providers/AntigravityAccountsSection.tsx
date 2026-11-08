@@ -4,6 +4,7 @@ import { translate } from '@/i18n/i18n'
 import { useTranslate, type Translate } from '@/i18n/use-translate'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { callAntigravityAccounts } from '@/runtime/provider-accounts/sign-in/runtime-antigravity-accounts-client'
+import { useBridgeHubAntigravityImport } from './use-bridge-hub-antigravity-import'
 import { callRuntimeRpc } from '@/runtime/rpc/calls/runtime-rpc-call'
 import { useManagedRuntimeInstall } from '@/runtime/hosts/installation/use-managed-runtime-install'
 import type { RuntimeClientTarget } from '../../../../../../shared/runtime-client-target'
@@ -180,6 +181,17 @@ export function AntigravityAccountsSection({
     }
   }
 
+  const bridgeHub = useBridgeHubAntigravityImport({
+    owner,
+    target,
+    pending,
+    mounted,
+    setBusy,
+    setError,
+    setState,
+    t
+  })
+
   return (
     <div id="accounts-antigravity" className="scroll-mt-6">
       <SettingsGroup
@@ -206,6 +218,7 @@ export function AntigravityAccountsSection({
               {t('accounts.antigravity.docs', 'Sign-in instructions')}
             </a>
           </p>
+          {bridgeHub.notice && <p className="text-xs text-muted-foreground">{bridgeHub.notice}</p>}
           {error && (
             <p role="alert" className="text-xs text-destructive">
               {error}
@@ -253,6 +266,16 @@ export function AntigravityAccountsSection({
                 >
                   {t('accounts.antigravity.refresh', 'Refresh accounts')}
                 </Button>
+                {bridgeHub.available ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => void bridgeHub.importAccounts()}
+                  >
+                    {t('accounts.antigravity.bridgeHubImport', 'Import from Bridge Hub')}
+                  </Button>
+                ) : null}
                 <Button
                   variant="ghost"
                   size="sm"

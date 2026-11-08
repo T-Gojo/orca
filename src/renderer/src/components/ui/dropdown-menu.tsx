@@ -238,6 +238,8 @@ const dropdownMenuSubTriggerVariants = cva(
       variant: {
         default:
           'focus:bg-black/8 dark:focus:bg-white/14 data-[state=open]:bg-black/8 dark:data-[state=open]:bg-white/14 data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
+        launch:
+          'rounded-[7px] px-2 py-1 text-[12px] leading-4 font-medium focus:bg-black/8 dark:focus:bg-white/14 data-[state=open]:bg-black/8 dark:data-[state=open]:bg-white/14 data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
         'launch-row':
           'gap-0 rounded-[7px] p-0 text-xs leading-5 font-medium focus:bg-accent focus:text-accent-foreground focus-within:bg-accent focus-within:text-accent-foreground data-[search-default]:bg-accent data-[search-default]:text-accent-foreground has-[[data-context-menu-open]]:bg-accent has-[[data-context-menu-open]]:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-40'
       }
@@ -257,7 +259,8 @@ function DropdownMenuSubTrigger({
   inset?: boolean
   // Why: collision-flipped submenus open leftward, where a right-pointing chevron misleads.
   hideChevron?: boolean
-  variant?: 'default' | 'launch-row'
+  // Why launch: an agent row that opens an account submenu must match the launch rows beside it.
+  variant?: 'default' | 'launch' | 'launch-row'
 }) {
   return (
     <DropdownMenuPrimitive.SubTrigger

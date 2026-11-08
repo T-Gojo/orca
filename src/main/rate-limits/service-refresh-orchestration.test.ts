@@ -35,6 +35,17 @@ vi.mock('./opencode-go-usage-source-selection', () => ({
 vi.mock('./zcode-usage-fetcher', () => ({
   fetchZcodeRateLimits: vi.fn()
 }))
+vi.mock('./kiro-usage-fetcher', () => ({
+  fetchKiroRateLimits: async () => ({
+    provider: 'kiro',
+    session: null,
+    weekly: null,
+    // ast-grep-ignore: test-no-wall-clock -- a fresh unavailable Kiro snapshot keeps activation debounce tests on their own providers
+    updatedAt: Date.now(),
+    error: null,
+    status: 'unavailable'
+  })
+}))
 
 vi.mock('./muse-usage-fetcher', () => ({
   fetchMuseRateLimits: vi.fn()

@@ -4,58 +4,36 @@ import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { SettingsSegmentedControl } from '@/components/settings/form-controls/SettingsFormControls'
 import { useResetCountdownClock } from '@/hooks/useResetCountdownClock'
 import { useTranslate, type Translate } from '@/i18n/use-translate'
-import {
-  formatRateLimitWindowChipLabel,
-  formatWindowLabel
-} from '../../../../shared/rate-limit-window-label'
 import { CURSOR_MODELS_BUCKET_NAME } from '../../../../shared/cursor-usage-buckets'
-import type { ProviderRateLimits, RateLimitWindow } from '../../../../shared/rate-limit-types'
+import type { SavedAccountUsage, ProviderRateLimits } from '../../../../shared/rate-limit-types'
 import {
   clampUsedPercent,
-  getDisplayedUsagePercentage,
   type UsagePercentageDisplay
 } from '../../../../shared/usage-percentage-display'
-import { barColor, formatResetCountdown, getWindowSections, ProviderIcon } from './tooltip'
+import { ProviderIcon } from './tooltip'
 import { getProviderDisplayName } from '../../../../shared/usage-provider-windows'
-import { formatPlanLabel, usageTextColorClass } from './usage-roster-formatting'
+import { formatPlanLabel } from './usage-roster-formatting'
 import { getUsageRosterRowState, type UsageRosterRowState } from './usage-roster-row-state'
 import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
+import {
+  shortLabel,
+  soonestResetLabel,
+  UsageMetric,
+  usedSections,
+  type UsageSection
+} from './usage-roster-metrics'
+import { UsageAccountBlock } from './UsageRosterAccountBlock'
+import { SavedAccountUsageRows } from './SavedAccountUsageRows'
+import type { UsageRosterAccount, UsageRosterAccountsByProvider } from './usage-roster-accounts'
 
 type ProviderId = ProviderRateLimits['provider']
-export type UsageSection = { label: string; window: RateLimitWindow }
-
-// Drop null and missing windows from partial/rehydrated snapshots before reading percentages.
-function usedSections(p: ProviderRateLimits, t?: Translate): UsageSection[] {
-  return getWindowSections(p, t).filter(
-    (s): s is UsageSection => s.window !== null && s.window !== undefined
-  )
-}
+export type { UsageSection }
+const NO_ROSTER_ACCOUNTS: UsageRosterAccountsByProvider = {}
 
 function providerMaxUsed(sections: UsageSection[]): number {
   return sections.length > 0
     ? Math.max(...sections.map((s) => clampUsedPercent(s.window.usedPercent)))
     : 0
-}
-
-// Buckets (Gemini Flash/Pro) keep their model name; windows use their duration.
-function shortLabel(
-  p: ProviderRateLimits,
-  section: UsageSection,
-  useRemainingDuration = false
-): string {
-  if (p.buckets?.some((b) => b.name === section.label)) {
-    return section.label
-  }
-  // Distinguish Fable from the other weekly window instead of rendering two wk labels.
-  if (section.window === p.fableWeekly) {
-    return 'Fable'
-  }
-  if (p.provider === 'zcode' && section.window === p.monthly) {
-    return section.label
-  }
-  return useRemainingDuration
-    ? formatRateLimitWindowChipLabel(section.window)
-    : formatWindowLabel(section.window.windowMinutes)
 }
 
 export function getTightestUsageSection(p: ProviderRateLimits, t?: Translate): UsageSection | null {
@@ -84,53 +62,15 @@ export function getUsageHeadlineSection(p: ProviderRateLimits, t?: Translate): U
   return getTightestUsageSection(p, t)
 }
 
-function soonestResetLabel(sections: UsageSection[], now: number): string | null {
-  const resets = sections
-    .map((s) => s.window.resetsAt)
-    .filter((r): r is number => typeof r === 'number' && Number.isFinite(r))
-  if (resets.length === 0) {
-    return null
-  }
-  return formatResetCountdown(Math.min(...resets) - now)
-}
-
-function UsageMetric({
-  section,
-  label,
-  display,
-  showBar = true
-}: {
-  section: UsageSection
-  label: string
-  display: UsagePercentageDisplay
-  showBar?: boolean
-}): React.JSX.Element {
-  const used = clampUsedPercent(section.window.usedPercent)
-  const shown = getDisplayedUsagePercentage(section.window.usedPercent, display)
-
-  return (
-    <span data-usage-window={section.label} className="flex shrink-0 items-center gap-1.5">
-      <span className="text-[10px] text-muted-foreground">{label}</span>
-      {showBar ? (
-        <span data-usage-bar className="h-[5px] w-7 overflow-hidden rounded-full bg-muted">
-          <span
-            className={`block h-full rounded-full ${barColor(used)}`}
-            style={{ width: `${shown}%` }}
-          />
-        </span>
-      ) : null}
-      <span className={`tabular-nums text-[11px] ${usageTextColorClass(used)}`}>{shown}%</span>
-    </span>
-  )
-}
-
 export function UsageRow({
   p,
   display,
   state,
   showSignInAction,
   now,
-  mode = 'verbose'
+  mode = 'verbose',
+  accounts,
+  headerOnly = false
 }: {
   p: ProviderRateLimits
   display: UsagePercentageDisplay
@@ -138,13 +78,18 @@ export function UsageRow({
   showSignInAction: boolean
   now: number
   mode?: StatusBarUsageMode
+  accounts?: UsageRosterAccount[]
+  /** The provider's own lines are shown elsewhere (Antigravity's per-account rows). */
+  headerOnly?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
   const sections = usedSections(p, t)
   const hasUsage = sections.length > 0
   const name = getProviderDisplayName(p.provider)
   const plan = formatPlanLabel(p.planType)
-  const reset = hasUsage ? soonestResetLabel(sections, now) : null
+  const showAccounts = mode === 'verbose' && (accounts?.length ?? 0) > 0
+  // Why: each account block carries its own reset, so the header would only repeat the active one.
+  const reset = hasUsage && !showAccounts ? soonestResetLabel(sections, now) : null
   const tightest = mode === 'compact' ? getUsageHeadlineSection(p, t) : null
 
   return (
@@ -184,7 +129,13 @@ export function UsageRow({
       {state.detail ? (
         <span className="pl-[30px] text-[11px] text-muted-foreground">{state.detail}</span>
       ) : null}
-      {hasUsage && mode === 'verbose' ? (
+      {accounts && showAccounts ? (
+        <div data-usage-accounts className="ml-[30px] flex flex-col">
+          {accounts.map((account) => (
+            <UsageAccountBlock key={account.key} account={account} display={display} now={now} />
+          ))}
+        </div>
+      ) : hasUsage && mode === 'verbose' && !headerOnly ? (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-[30px]">
           {sections.map((section) => (
             <UsageMetric
@@ -213,7 +164,10 @@ export function UsageRosterPanel({
   canSignIn,
   onManageAccounts,
   onUsageDetails,
-  renderRow
+  renderRow,
+  accountsByProvider = NO_ROSTER_ACCOUNTS,
+  antigravityAccounts,
+  kiroAccounts
 }: {
   providers: ProviderRateLimits[]
   display: UsagePercentageDisplay
@@ -228,13 +182,22 @@ export function UsageRosterPanel({
   onUsageDetails: () => void
   // Return null to use the default row instead of a host-supplied detail/account wrapper.
   renderRow?: (p: ProviderRateLimits, row: React.ReactNode) => React.ReactNode
+  /** Claude/Codex saved accounts, listed under the provider in the Detailed view. */
+  accountsByProvider?: UsageRosterAccountsByProvider
+  /** Saved Antigravity accounts; each opens its own usage beside the panel. */
+  antigravityAccounts?: SavedAccountUsage[]
+  /** Saved Kiro accounts, listed the same way. */
+  kiroAccounts?: SavedAccountUsage[]
 }): React.JSX.Element {
   const t = useTranslate()
   // Why: one boundary-scheduled clock keeps every open row current without per-provider timers.
   const now = useResetCountdownClock(
-    providers.flatMap((provider) =>
-      usedSections(provider, t).map((section) => section.window.resetsAt)
-    )
+    [
+      ...providers,
+      ...Object.values(accountsByProvider).flatMap((accounts) =>
+        accounts.flatMap((account) => (account.limits ? [account.limits] : []))
+      )
+    ].flatMap((provider) => usedSections(provider, t).map((section) => section.window.resetsAt))
   )
   const sorted = [...providers].sort(
     (a, b) => providerMaxUsed(usedSections(b, t)) - providerMaxUsed(usedSections(a, t))
@@ -297,6 +260,14 @@ export function UsageRosterPanel({
       {sorted.map((p) => {
         const state = getUsageRosterRowState(p, usedSections(p, t).length > 0, t)
         const showSignInAction = state.kind === 'sign-in' && canSignIn(p.provider)
+        const savedAccounts =
+          p.provider === 'antigravity'
+            ? antigravityAccounts
+            : p.provider === 'kiro'
+              ? kiroAccounts
+              : undefined
+        const accountRows =
+          statusBarUsageMode === 'verbose' && savedAccounts?.length ? savedAccounts : null
         const rowNode = (
           <UsageRow
             p={p}
@@ -305,6 +276,12 @@ export function UsageRosterPanel({
             showSignInAction={showSignInAction}
             now={now}
             mode={statusBarUsageMode}
+            accounts={
+              p.provider === 'claude' || p.provider === 'codex'
+                ? accountsByProvider[p.provider]
+                : undefined
+            }
+            headerOnly={accountRows !== null}
           />
         )
         if (showSignInAction) {
@@ -318,18 +295,21 @@ export function UsageRosterPanel({
             </DropdownMenuItem>
           )
         }
-        const custom = renderRow?.(p, rowNode)
-        if (custom) {
-          return <React.Fragment key={p.provider}>{custom}</React.Fragment>
-        }
-        return (
+        const row = renderRow?.(p, rowNode) ?? (
           <DropdownMenuItem
-            key={p.provider}
             onSelect={() => onOpenProvider(p.provider)}
             className="w-full cursor-pointer rounded-none px-3.5 py-2.5"
           >
             {rowNode}
           </DropdownMenuItem>
+        )
+        return (
+          <React.Fragment key={p.provider}>
+            {row}
+            {accountRows ? (
+              <SavedAccountUsageRows accounts={accountRows} display={display} />
+            ) : null}
+          </React.Fragment>
         )
       })}
       <div className="border-t border-border/70" />

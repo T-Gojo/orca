@@ -37,6 +37,7 @@ import {
   usageChipShowsPercentage
 } from './usage-unit-label'
 import { useStatusBarController } from './use-status-bar-controller'
+import { useAppStore } from '../../store'
 import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
 import { StatusBarVisibilityMenu } from './StatusBarVisibilityMenu'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
@@ -67,6 +68,8 @@ export function StatusBarSurface({
   // Memoized labels still need to follow language changes.
   useTranslation()
   const controller = useStatusBarController(floatingTerminalOpen)
+  const localAntigravityAccounts = useAppStore((s) => s.rateLimits.antigravityAccounts)
+  const localKiroAccounts = useAppStore((s) => s.rateLimits.kiroAccounts)
   if (!controller) {
     return null
   }
@@ -92,6 +95,7 @@ export function StatusBarSurface({
     overflowing,
     petEnabled,
     remoteOwner,
+    rosterAccounts,
     rosterProviders,
     segmentsIconOnly,
     segmentsRef,
@@ -219,6 +223,9 @@ export function StatusBarSurface({
                     canSignIn={canSignInFromUsageRow}
                     onManageAccounts={handleManageAccounts}
                     onUsageDetails={handleUsageDetails}
+                    accountsByProvider={rosterAccounts}
+                    antigravityAccounts={remoteOwner ? undefined : localAntigravityAccounts}
+                    kiroAccounts={remoteOwner ? undefined : localKiroAccounts}
                     renderRow={(p, rowNode) => {
                       // Why: a placeholder has nothing to drill into; its row opens the host's accounts.
                       if (isOwnerNotSetUpPlaceholder(p)) {

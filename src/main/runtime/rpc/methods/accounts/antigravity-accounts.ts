@@ -9,6 +9,7 @@ import {
 } from '../../../../../shared/rpc-contract/antigravity-accounts-params'
 import { AntigravityChatAuthConfigSchema } from '../../../../../shared/antigravity-chat-auth-config'
 import { getAntigravityAccountService } from '../../../../antigravity/native-account-host'
+import { readBridgeHubAntigravityLogins } from '../../../../antigravity/bridge-hub-antigravity-accounts'
 import {
   cancelAntigravityChatSignIn,
   completeAntigravityChatSignIn,
@@ -19,6 +20,7 @@ import {
 import { bindStructuredAgentSessionStream } from '../structured-sessions/subscriptions/structured-agent-session-status-stream'
 import { structuredAgentHostLaunchSources } from '../../../agent-session/launch/structured-agent-launch-support'
 import { stopStructuredAgentChats } from '../../../agent-session/lifecycle/structured-agent-chat-stop'
+import { beforeAccountSwitch } from '../../../../usage/account-switch-usage-hook'
 
 import {
   readAntigravityChatAuthConfig,
@@ -56,8 +58,10 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     name: 'accounts.antigravitySelect',
     permission: 'accounts-admin',
     params: AntigravityAccountMutationParams,
-    handler: async ({ target, accountId }) =>
-      (await getAntigravityAccountService(target)).selectAccount(accountId)
+    handler: async ({ target, accountId }) => {
+      await beforeAccountSwitch('antigravity')
+      return (await getAntigravityAccountService(target)).selectAccount(accountId)
+    }
   }),
   defineMethod({
     name: 'accounts.antigravityRemove',
@@ -120,5 +124,22 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
         config,
         chatSignInHost(ctx.runtime).stopLiveChats
       )
+  }),
+  // Fork: kept last so the upstream methods keep their positions in this list.
+  defineMethod({
+    name: 'accounts.antigravityImportBridgeHub',
+    permission: 'accounts-admin',
+    params: AntigravityAccountTargetParams,
+    handler: async (target) => {
+      // Fork: Bridge Hub lives on this Mac, so only the host's own agy can take its logins.
+      if (target.runtime !== 'host') {
+        throw new Error('Bridge Hub accounts can only be imported for this computer’s agy.')
+      }
+      const logins = readBridgeHubAntigravityLogins()
+      if (logins.length === 0) {
+        throw new Error('No Bridge Hub Antigravity accounts were found on this computer.')
+      }
+      return (await getAntigravityAccountService(target)).importLogins(logins)
+    }
   })
 ] as const

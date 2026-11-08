@@ -61,7 +61,8 @@ type UsageTrackingPaneShellProps = {
       filtersLabel: ReactNode
       refreshAriaLabel: string
       refreshLabel: ReactNode
-      filterSections: readonly ReactElement[]
+      /** Optional: the shared usage filter bar above every pane holds Range and Sessions. */
+      filterSections?: readonly ReactElement[]
       selectionSummary: ReactNode
       emptyMessage: ReactNode
       onRefresh: () => void | Promise<void>
@@ -98,30 +99,32 @@ export function UsageTrackingPaneShell(props: UsageTrackingPaneShellProps): Reac
         </div>
         <div className="flex shrink-0 items-center gap-2 self-start">
           {props.headerAction}
-          <DropdownMenu>
-            <TooltipProvider delayDuration={250}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-xs" aria-label={props.optionsLabel}>
-                      <SlidersHorizontal className="size-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={6}>
-                  {props.filtersLabel}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <DropdownMenuContent align="end" className="w-60">
-              {props.filterSections.map((section, index) => (
-                <Fragment key={section.key}>
-                  {index > 0 && <DropdownMenuSeparator />}
-                  {section}
-                </Fragment>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {props.filterSections?.length ? (
+            <DropdownMenu>
+              <TooltipProvider delayDuration={250}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-xs" aria-label={props.optionsLabel}>
+                        <SlidersHorizontal className="size-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={6}>
+                    {props.filtersLabel}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <DropdownMenuContent align="end" className="w-60">
+                {(props.filterSections ?? []).map((section, index) => (
+                  <Fragment key={section.key}>
+                    {index > 0 && <DropdownMenuSeparator />}
+                    {section}
+                  </Fragment>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
           <TooltipProvider delayDuration={250}>
             <Tooltip>
               <TooltipTrigger asChild>

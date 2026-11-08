@@ -1,4 +1,6 @@
 import { ipcMain } from 'electron'
+import type { AccountUsageLedgerRange } from '../../shared/account-usage-ledger-types'
+import { collectAccountUsage, getAccountUsageLedger } from '../usage/account-usage-collection'
 import type { ClaudeUsageStore } from '../claude-usage/store'
 import type { CodexUsageStore } from '../codex-usage/store'
 import type { OpenCodeUsageStore } from '../opencode-usage/store'
@@ -75,4 +77,19 @@ export function registerUsageProviderHandlers(stores: UsageProviderStores): void
   registerProviderHandlers('codexUsage', stores.codexUsage)
   registerProviderHandlers('openCodeUsage', stores.openCodeUsage)
   registerProviderHandlers('museUsage', stores.museUsage)
+  ipcMain.handle('accountUsage:getSnapshot', (_event, args: { range: AccountUsageLedgerRange }) =>
+    accountUsageSnapshot(args.range)
+  )
+  ipcMain.handle(
+    'accountUsage:refresh',
+    async (_event, args: { range: AccountUsageLedgerRange }) => {
+      await collectAccountUsage({ force: true })
+      return accountUsageSnapshot(args.range)
+    }
+  )
+}
+
+function accountUsageSnapshot(range: AccountUsageLedgerRange) {
+  const ledger = getAccountUsageLedger()
+  return ledger ? ledger.getSnapshot(range) : { range, rows: [], daily: [], updatedAt: null }
 }

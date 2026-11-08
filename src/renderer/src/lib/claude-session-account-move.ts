@@ -31,6 +31,7 @@ import type {
 import type { TerminalTab } from '../../../shared/workspace-layout/terminal-tab-types'
 import { resolvePaneAgentSessionId } from '@/lib/agent-session/identity/pane-agent-session-id'
 import { resolveAgentAccountRestartResumeStartup } from './agent-account-restart-startup'
+import { isAgentTerminalTabAccountPinned } from './agent-terminal-account-pins'
 import { isSessionHeldByAnotherPane } from './claude-session-pane-holders'
 import {
   isClaudePaneOnAccount,
@@ -106,6 +107,10 @@ function* localClaudePanes(
   const isLaneInScope = getCodexAccountSwitchLaneMatcher({ owner, target })
   for (const [worktreeId, tabs] of Object.entries(state.tabsByWorktree)) {
     for (const tab of tabs) {
+      // A terminal opened for a specific account stays there when the selection moves.
+      if (isAgentTerminalTabAccountPinned(tab.id)) {
+        continue
+      }
       const boundPtyIds = state.ptyIdsByTabId[tab.id] ?? []
       const leaves = state.terminalLayoutsByTabId[tab.id]?.ptyIdsByLeafId ?? {}
       for (const [leafId, ptyId] of Object.entries(leaves)) {

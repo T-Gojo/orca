@@ -6,6 +6,19 @@ import {
   type CursorDesktopProfileReadResult
 } from './cursor-profile-result'
 import {
+  kiroCliTokenReadFailure,
+  parseKiroCliTokenReadResult,
+  type KiroCliTokenReadResult
+} from './kiro-cli-token-result'
+import {
+  kiroCliLoginReadFailure,
+  kiroCliLoginWriteFailure,
+  parseKiroCliLoginReadResult,
+  parseKiroCliLoginWriteResult,
+  type KiroCliLoginReadResult,
+  type KiroCliLoginWriteResult
+} from './kiro-cli-login-result'
+import {
   openCodeBinderSessionsFailure,
   parseOpenCodeBinderSessions,
   type BinderSessionRow,
@@ -28,12 +41,18 @@ import {
 const READ_TIMEOUT_MS: Record<ForeignSqliteReaderKind, number> = {
   // Allow margin beyond observed 4–6s WAL-index rebuilds.
   cursorProfile: 10_000,
+  kiroCliToken: 10_000,
+  kiroCliLogin: 10_000,
+  kiroCliLoginWrite: 10_000,
   openCodeBinderSessions: 60_000,
   openCodePromptFailure: 2_000
 }
 // Keep workers alive across poll intervals to avoid spawning on every round.
 const DEFAULT_IDLE_TEARDOWN_MS: Record<ForeignSqliteReaderKind, number> = {
   cursorProfile: 30_000,
+  kiroCliToken: 30_000,
+  kiroCliLogin: 30_000,
+  kiroCliLoginWrite: 30_000,
   // The binder polls once per minute.
   openCodeBinderSessions: 120_000,
   openCodePromptFailure: 30_000
@@ -129,7 +148,11 @@ export class ForeignSqliteReaderLane<T> {
 
 export class ForeignSqliteReaderClient {
   private readonly cursorProfile: ForeignSqliteReaderLane<CursorDesktopProfileReadResult>
+  private readonly kiroCliToken: ForeignSqliteReaderLane<KiroCliTokenReadResult>
+  private readonly kiroCliLogin: ForeignSqliteReaderLane<KiroCliLoginReadResult>
+  private readonly kiroCliLoginWrite: ForeignSqliteReaderLane<KiroCliLoginWriteResult>
   private readonly openCodeBinderSessions: ForeignSqliteReaderLane<BinderSessionRow[]>
+  private writeSequence = 0
   private readonly openCodePromptFailure: ForeignSqliteReaderLane<OpenCodePromptFailureResult>
 
   constructor(options: {
@@ -150,6 +173,24 @@ export class ForeignSqliteReaderClient {
       cursorProfileReadFailure,
       settings('cursorProfile')
     )
+    this.kiroCliToken = new ForeignSqliteReaderLane(
+      'kiroCliToken',
+      parseKiroCliTokenReadResult,
+      kiroCliTokenReadFailure,
+      settings('kiroCliToken')
+    )
+    this.kiroCliLogin = new ForeignSqliteReaderLane(
+      'kiroCliLogin',
+      parseKiroCliLoginReadResult,
+      kiroCliLoginReadFailure,
+      settings('kiroCliLogin')
+    )
+    this.kiroCliLoginWrite = new ForeignSqliteReaderLane(
+      'kiroCliLoginWrite',
+      parseKiroCliLoginWriteResult,
+      kiroCliLoginWriteFailure,
+      settings('kiroCliLoginWrite')
+    )
     this.openCodeBinderSessions = new ForeignSqliteReaderLane(
       'openCodeBinderSessions',
       parseOpenCodeBinderSessions,
@@ -166,6 +207,30 @@ export class ForeignSqliteReaderClient {
 
   readCursorProfile(dbPath: string): Promise<CursorDesktopProfileReadResult> {
     return this.cursorProfile.read(dbPath, (id) => ({ id, kind: 'cursorProfile', dbPath }))
+  }
+
+  readKiroCliToken(dbPath: string): Promise<KiroCliTokenReadResult> {
+    return this.kiroCliToken.read(dbPath, (id) => ({ id, kind: 'kiroCliToken', dbPath }))
+  }
+
+  readKiroCliLogin(dbPath: string): Promise<KiroCliLoginReadResult> {
+    return this.kiroCliLogin.read(dbPath, (id) => ({ id, kind: 'kiroCliLogin', dbPath }))
+  }
+
+  writeKiroCliLogin(
+    dbPath: string,
+    contents: string | null,
+    expected: string | null
+  ): Promise<KiroCliLoginWriteResult> {
+    // Why a fresh key: two writes must never share one in-flight result.
+    const key = `${dbPath}:${++this.writeSequence}`
+    return this.kiroCliLoginWrite.read(key, (id) => ({
+      id,
+      kind: 'kiroCliLoginWrite',
+      dbPath,
+      contents,
+      expected
+    }))
   }
 
   /** Return oldest-first sessions after cursor, or [] if the worker cannot answer. */
@@ -185,6 +250,9 @@ export class ForeignSqliteReaderClient {
 
   dispose(): void {
     this.cursorProfile.dispose()
+    this.kiroCliToken.dispose()
+    this.kiroCliLogin.dispose()
+    this.kiroCliLoginWrite.dispose()
     this.openCodeBinderSessions.dispose()
     this.openCodePromptFailure.dispose()
   }

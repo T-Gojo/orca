@@ -10,6 +10,8 @@ import { buildUsageOverview, formatUsageCost, formatUsageTokens } from './usage-
 import { DailyIntensityGrid, ProviderUsageRow, TokenMixBar } from './usage-overview-sections'
 import { getIntlLocale, translate } from '@/i18n/i18n'
 import { useIntlLocale, useTranslate, type Translate } from '@/i18n/use-translate'
+import { UsageAccountsSection } from './UsageAccountsSection'
+import { useAccountUsageSnapshot } from './use-account-usage-snapshot'
 
 const RECENT_DAY_COUNT = 42
 
@@ -61,6 +63,8 @@ export function UsageOverviewPane(): React.JSX.Element {
   const enableOpenCodeUsage = useAppStore((state) => state.enableOpenCodeUsage)
   const enableMuseUsage = useAppStore((state) => state.enableMuseUsage)
   const recordFeatureInteraction = useAppStore((state) => state.recordFeatureInteraction)
+  const claudeRange = useAppStore((state) => state.claudeUsageRange)
+  const ledger = useAccountUsageSnapshot(claudeRange)
 
   useEffect(() => {
     void fetchClaudeUsage()
@@ -91,7 +95,10 @@ export function UsageOverviewPane(): React.JSX.Element {
           scanState: museScanState,
           summary: museSummary,
           daily: museDaily
-        }
+        },
+        ...(ledger.snapshot
+          ? { ledger: { rows: ledger.snapshot.rows, daily: ledger.snapshot.daily } }
+          : {})
       }),
     [
       claudeDaily,
@@ -100,6 +107,7 @@ export function UsageOverviewPane(): React.JSX.Element {
       codexDaily,
       codexScanState,
       codexSummary,
+      ledger.snapshot,
       museDaily,
       museScanState,
       museSummary,
@@ -120,7 +128,7 @@ export function UsageOverviewPane(): React.JSX.Element {
       codexScanState?.enabled ? refreshCodexUsage() : Promise.resolve(),
       openCodeScanState?.enabled ? refreshOpenCodeUsage() : Promise.resolve(),
       museScanState?.enabled ? refreshMuseUsage() : Promise.resolve()
-    ])
+    ]).then(ledger.refresh)
   }
 
   return (
@@ -248,7 +256,7 @@ export function UsageOverviewPane(): React.JSX.Element {
               <div className="mt-4 rounded-lg border border-dashed border-border/60 bg-card/30 px-4 py-5 text-sm text-muted-foreground">
                 {t(
                   'auto.components.stats.UsageOverviewPane.noLocalUsageYet',
-                  'No local Claude, Codex, OpenCode, or Muse usage found yet. The overview will populate after the next agent session writes token logs.'
+                  'No local agent usage found yet. The overview will populate after the next agent session writes its logs.'
                 )}
               </div>
             ) : (
@@ -284,7 +292,7 @@ export function UsageOverviewPane(): React.JSX.Element {
             })}
           </Badge>
         </div>
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
           {overview.providers.map((provider) => (
             <ProviderUsageRow
               key={provider.id}
@@ -298,7 +306,7 @@ export function UsageOverviewPane(): React.JSX.Element {
                   void enableCodexUsage()
                 } else if (provider.id === 'opencode') {
                   void enableOpenCodeUsage()
-                } else {
+                } else if (provider.id === 'muse') {
                   void enableMuseUsage()
                 }
               }}
@@ -306,6 +314,8 @@ export function UsageOverviewPane(): React.JSX.Element {
           ))}
         </div>
       </section>
+
+      <UsageAccountsSection />
     </div>
   )
 }

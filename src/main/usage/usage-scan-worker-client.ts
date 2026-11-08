@@ -1,3 +1,4 @@
+import type { UsageSourceRollup } from '../../shared/account-usage-ledger-types'
 import { WorkerThreadRequestQueue } from '../worker-threads/worker-thread-request-queue'
 import type { WorkerThreadFactory } from '../worker-threads/worker-thread-transport'
 import type { ClaudeUsageDailyAggregate, ClaudeUsageSession } from '../claude-usage/types'
@@ -35,6 +36,7 @@ export class UsageScanWorkerUnavailableError extends Error {}
 type ProviderScanResult<TSession, TDaily> = {
   sessions: TSession[]
   dailyAggregates: TDaily[]
+  sourceRollups?: UsageSourceRollup[]
 }
 
 /** Unavailable, timed-out or crashed workers reject; stores retain their previous projection instead of parsing on main. */
@@ -61,6 +63,20 @@ export class UsageScanWorkerClient {
   /** sourceCache identifies provider records that stay on the worker. */
   scan(body: UsageScanWorkerScanBody): Promise<UsageScanWorkerValue> {
     return this.dispatch(body)
+  }
+
+  /** Session usage from agents Orca has no token store for (kiro-cli, agy). */
+  async collectAccountSources(): Promise<{
+    kiro: UsageSourceRollup[]
+    antigravity: UsageSourceRollup[]
+  }> {
+    const value = await this.dispatch({ operation: 'collectAccountSources' })
+    if (value.operation !== 'collectAccountSources') {
+      throw new Error(
+        `Usage scan worker answered ${value.operation}, expected collectAccountSources`
+      )
+    }
+    return { kiro: value.kiro, antigravity: value.antigravity }
   }
 
   /** Split a cache that still carries its per-source records, so main parses only the report. */
@@ -109,7 +125,11 @@ export async function scanClaudeUsageOnWorker(
   if (value.operation !== 'scan' || value.providerId !== 'claude') {
     throw wrongProvider('claude', value)
   }
-  return { sessions: value.sessions, dailyAggregates: value.dailyAggregates }
+  return {
+    sessions: value.sessions,
+    dailyAggregates: value.dailyAggregates,
+    ...(value.sourceRollups ? { sourceRollups: value.sourceRollups } : {})
+  }
 }
 
 export async function scanCodexUsageOnWorker(
@@ -121,7 +141,11 @@ export async function scanCodexUsageOnWorker(
   if (value.operation !== 'scan' || value.providerId !== 'codex') {
     throw wrongProvider('codex', value)
   }
-  return { sessions: value.sessions, dailyAggregates: value.dailyAggregates }
+  return {
+    sessions: value.sessions,
+    dailyAggregates: value.dailyAggregates,
+    ...(value.sourceRollups ? { sourceRollups: value.sourceRollups } : {})
+  }
 }
 
 export async function scanOpenCodeUsageOnWorker(
@@ -133,7 +157,11 @@ export async function scanOpenCodeUsageOnWorker(
   if (value.operation !== 'scan' || value.providerId !== 'opencode') {
     throw wrongProvider('opencode', value)
   }
-  return { sessions: value.sessions, dailyAggregates: value.dailyAggregates }
+  return {
+    sessions: value.sessions,
+    dailyAggregates: value.dailyAggregates,
+    ...(value.sourceRollups ? { sourceRollups: value.sourceRollups } : {})
+  }
 }
 
 export async function scanMuseUsageOnWorker(
