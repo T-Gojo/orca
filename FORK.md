@@ -54,8 +54,11 @@ of that login for each account and swaps it in to switch accounts.
 - **Bridge Hub import:** Settings → Accounts → Antigravity → **Import from Bridge Hub** saves the agy accounts that
   Bridge Hub (`openai-base-bridge`) keeps in `~/Library/Application Support/openai-base-windsurf-bridge/auth/antigravity-cli-accounts.json`.
   Already-saved accounts (same refresh token or email) are skipped. Files: `src/main/antigravity/bridge-hub-antigravity-accounts.ts` (+ test),
-  `importLogins` in `native-account-service.ts`, the button's hook `use-bridge-hub-antigravity-import.ts`, and `accounts.antigravityImportBridgeHub`, which stays **last** in
+  `importLogins` in `ForkAntigravityAccountService` (`native-account-fork-service.ts`), the button's hook `use-bridge-hub-antigravity-import.ts`, and `accounts.antigravityImportBridgeHub`, which stays **last** in
   `ANTIGRAVITY_ACCOUNT_METHODS`. The chat sign-in tests pick methods by index.
+- **Fork subclass:** the fork's Antigravity account methods (Bridge Hub import, saved-login reads, launch-follows-agy) live in
+  `ForkAntigravityAccountService`, which `native-account-host.ts` creates. Upstream's `native-account-service.ts` only
+  changes `private` to `protected` on the members it uses, so merges of that file stay small.
 - **Launches follow agy:** Bridge Hub and `agy /logout` switch agy's single login behind Orca's back. Before a launch,
   `prepareForLaunch` now moves Orca's selection to the saved account agy is signed in to (or clears it for an unsaved
   login) instead of refusing with "The native Antigravity account changed".

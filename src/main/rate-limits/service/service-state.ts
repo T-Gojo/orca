@@ -4,6 +4,7 @@ import type {
   AntigravityAccountUsage,
   InactiveAccountUsage,
   ProviderRateLimits,
+  RateLimitRuntimeTarget,
   RateLimitState
 } from '../../../shared/rate-limit-types'
 import type { AntigravityAccountUsageRecorder } from '../antigravity-account-usage'
@@ -30,6 +31,7 @@ import { readGrokAuthSession } from '../grok-auth'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../../shared/app-environment'
 import { SavedAccountUsageTracker, type SavedAccountsReader } from '../saved-account-usage'
+import { fetchKiroRateLimits } from '../kiro-usage-fetcher'
 
 export abstract class RateLimitServiceState {
   protected state: InternalRateLimitState = {
@@ -209,5 +211,28 @@ export abstract class RateLimitServiceState {
       return
     }
     this.mainWindow.webContents.send('rateLimits:update', state)
+  }
+
+  /** Fork: Kiro usage, credited to the saved account it came from (FORK.md §5). */
+  protected fetchKiroWithSavedAccounts(
+    signal: AbortSignal,
+    force: boolean
+  ): Promise<ProviderRateLimits> {
+    return this.kiroAccountUsage.track(
+      this.kiroAccountsReader,
+      () => fetchKiroRateLimits({ signal }),
+      force
+    )
+  }
+
+  /** Fork: also reads inactive saved Antigravity accounts. Why host only: the probe runs the host's agy. */
+  protected fetchAntigravityWithSavedAccounts(
+    target: RateLimitRuntimeTarget,
+    fetch: () => Promise<ProviderRateLimits>,
+    force: boolean
+  ): Promise<ProviderRateLimits> {
+    return target.runtime === 'host'
+      ? this.antigravityAccountUsage.track(this.antigravityAccountsReader, fetch, force)
+      : fetch()
   }
 }

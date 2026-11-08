@@ -1,3 +1,4 @@
+import { ForkAntigravityAccountService } from './native-account-fork-service'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
 import type { AntigravityAccountTarget } from '../../shared/antigravity-account-types'
@@ -6,16 +7,13 @@ import type { AntigravityNativeCredential } from './native-credential-codec'
 import { createAntigravityHostCredentialBackend } from './native-credential-backend'
 import { createAntigravityWslCredentialBackend } from './native-wsl-credentials'
 import { resolveWslDefaultDistro } from '../wsl/discovery/wsl-default-distro'
-import {
-  AntigravityAccountService,
-  type AntigravityCredentialBackend
-} from './native-account-service'
+import type { AntigravityCredentialBackend } from './native-account-service'
 import { isSameAntigravityLogin } from './native-account-usage-reading'
 import type { RateLimitRuntimeTarget } from '../../shared/rate-limit-types'
 import { ANTIGRAVITY_USAGE_HOST_TARGET } from '../rate-limits/antigravity-account-usage'
 
-let service: AntigravityAccountService | null = null
-const wslServices = new Map<string, AntigravityAccountService>()
+let service: ForkAntigravityAccountService | null = null
+const wslServices = new Map<string, ForkAntigravityAccountService>()
 let credentialChangeListener: () => void = () => {}
 
 export function setAntigravityNativeCredentialChangeListener(listener: () => void): void {
@@ -62,7 +60,8 @@ function createService(
   target: RateLimitRuntimeTarget = ANTIGRAVITY_USAGE_HOST_TARGET
 ) {
   const reporting = reportingCredentialChanges(backend)
-  return new AntigravityAccountService(
+  // Fork: the fork's subclass adds Bridge Hub import, saved-login reads and launch-follows-agy.
+  return new ForkAntigravityAccountService(
     createEncryptedAntigravityAccountStore(vaultPath, reporting.parse),
     reporting,
     undefined,
@@ -84,7 +83,7 @@ async function resolveWslAccountDistro(wslDistro: string | null | undefined): Pr
 
 export async function getAntigravityAccountService(
   target: AntigravityAccountTarget
-): Promise<AntigravityAccountService> {
+): Promise<ForkAntigravityAccountService> {
   if (target.runtime === 'wsl') {
     const distro = await resolveWslAccountDistro(target.wslDistro)
     const key = distro.toLowerCase()

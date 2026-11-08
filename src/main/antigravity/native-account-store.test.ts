@@ -8,7 +8,7 @@ import {
   setSecretStore
 } from '../../shared/secret-store'
 import { createEncryptedAntigravityAccountStore } from './native-account-store'
-import { AntigravityAccountService } from './native-account-service'
+import { ForkAntigravityAccountService } from './native-account-fork-service'
 import type { AntigravityCredentialIdentity } from './native-credential-codec'
 import { credential, harness, refreshedWithoutIdToken } from './native-account-test-fixtures'
 import { createAntigravityWindowsCredentialBackend } from './native-windows-credentials'
@@ -86,7 +86,7 @@ describe('protected Antigravity account snapshots', () => {
           email: null
         })
       )
-      const reopen = () => new AntigravityAccountService(store(), backend, Date.now, lookup)
+      const reopen = () => new ForkAntigravityAccountService(store(), backend, Date.now, lookup)
       const native = (contents: string) =>
         fake.writeGenericCredential('gemini:antigravity', 'antigravity', Buffer.from(contents))
       native(credential('prior'))
@@ -189,7 +189,7 @@ describe('protected Antigravity account snapshots', () => {
     const store = createEncryptedAntigravityAccountStore(path)
     store.write(vault)
     const before = readFileSync(path)
-    const service = new AntigravityAccountService(store, h.backend)
+    const service = new ForkAntigravityAccountService(store, h.backend)
     h.setNative(paddedCredential('new-account', 60000))
     await expect(service.addCurrentAccount()).rejects.toThrow('could not be saved')
     expect(readFileSync(path).equals(before)).toBe(true)
@@ -258,12 +258,12 @@ describe('protected Antigravity account snapshots', () => {
   it('keeps the selected account launchable after agy refreshes its token without an id_token', async () => {
     const h = harness()
     const store = createEncryptedAntigravityAccountStore(join(dir, 'vault'))
-    const service = new AntigravityAccountService(store, h.backend)
+    const service = new ForkAntigravityAccountService(store, h.backend)
     const id = (await service.addCurrentAccount()).activeAccountId!
     await service.selectAccount(id)
     h.setNative(refreshedWithoutIdToken(2))
     await service.prepareForLaunch()
-    const restarted = new AntigravityAccountService(store, h.backend)
+    const restarted = new ForkAntigravityAccountService(store, h.backend)
     h.setNative(refreshedWithoutIdToken(3))
     expect(await restarted.listAccounts()).toMatchObject({
       activeAccountId: id,

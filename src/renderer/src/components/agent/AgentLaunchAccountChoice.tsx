@@ -89,3 +89,14 @@ export function useAgentLaunchAccountChoice(
     }
   }
 }
+
+/** Fork: the panel's typed prompt and picked account, as draft fields (each only when set). */
+export function launchExtras(
+  prompt: string | undefined,
+  launchAccountId: string | null | undefined
+): { prompt?: string; launchAccountId?: string | null } {
+  return {
+    ...(prompt ? { prompt } : {}),
+    ...(launchAccountId !== undefined ? { launchAccountId } : {})
+  }
+}

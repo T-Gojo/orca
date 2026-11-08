@@ -6,7 +6,6 @@ import { readGrokAuthSession } from '../grok-auth'
 import { fetchCursorRateLimits } from '../cursor-fetcher'
 import { readCursorAuthSession } from '../cursor-auth'
 import { fetchZcodeRateLimits } from '../zcode-usage-fetcher'
-import { fetchKiroRateLimits } from '../kiro-usage-fetcher'
 import { fetchAntigravityRateLimits } from '../antigravity-usage-fetcher'
 import { antigravityUsageDisabledSnapshot } from '../antigravity-usage-snapshot'
 import { ZCODE_PLAN_SITE_BASE_URLS } from '../../../shared/zcode-plan-sites'
@@ -198,11 +197,7 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
     )
 
     const kiroResultPromise = settleSiblingProviderFetch(
-      this.kiroAccountUsage.track(
-        this.kiroAccountsReader,
-        () => fetchKiroRateLimits({ signal }),
-        options?.force === true
-      )
+      this.fetchKiroWithSavedAccounts(signal, options?.force === true)
     )
 
     const fetchAntigravity = (): Promise<ProviderRateLimits> =>
@@ -211,16 +206,13 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       )
     // Hidden meters avoid the CLI spawn; the separate promise keeps other providers responsive.
     const antigravityResultPromise = settleSiblingProviderFetch(
-      !antigravityFetchAllowed
-        ? Promise.resolve(previousState.antigravity ?? antigravityUsageDisabledSnapshot())
-        : antigravityTarget.runtime === 'host'
-          ? // Why host only: the saved-account probe runs the host's agy against private homes.
-            this.antigravityAccountUsage.track(
-              this.antigravityAccountsReader,
-              fetchAntigravity,
-              options?.force === true
-            )
-          : fetchAntigravity()
+      antigravityFetchAllowed
+        ? this.fetchAntigravityWithSavedAccounts(
+            antigravityTarget,
+            fetchAntigravity,
+            options?.force === true
+          )
+        : Promise.resolve(previousState.antigravity ?? antigravityUsageDisabledSnapshot())
     )
 
     const missingWslCodexHome =

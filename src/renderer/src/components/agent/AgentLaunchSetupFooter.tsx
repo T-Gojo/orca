@@ -8,7 +8,7 @@ import { useTranslate, type Translate } from '@/i18n/use-translate'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import type { NativeChatComposerHandle } from '../native-chat/composer/native-chat-composer-types'
 import { AgentLaunchPromptComposer } from './AgentLaunchPromptComposer'
-import { useAgentLaunchAccountChoice } from './AgentLaunchAccountChoice'
+import { launchExtras, useAgentLaunchAccountChoice } from './AgentLaunchAccountChoice'
 import {
   agentPickerButtonOrder,
   type AgentPickerEntry,
@@ -118,8 +118,8 @@ export function AgentLaunchSetupFooter({
   onLaunch: (
     surface: AgentPickerSurface,
     prompt?: string,
-    /** The saved account picked in the panel; absent when none was picked. */
-    launchAccountId?: string | null
+    /** Fork: the prompt and picked account as draft fields; absent when no account was picked. */
+    extras?: { prompt?: string; launchAccountId?: string | null }
   ) => boolean | void | Promise<boolean>
 }): React.JSX.Element {
   const composer = useRef<NativeChatComposerHandle>(null)
@@ -154,7 +154,7 @@ export function AgentLaunchSetupFooter({
             surface.current === 'terminal' && terminalBlocked
               ? false
               : account.launch(surface.current, (launchAccountId) =>
-                  onLaunch(surface.current, prompt, launchAccountId)
+                  onLaunch(surface.current, prompt, launchExtras(prompt, launchAccountId))
                 )
           }
         />

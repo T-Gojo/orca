@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { AntigravityAccountService } from './native-account-service'
+import { ForkAntigravityAccountService } from './native-account-fork-service'
 import { parseAntigravityNativeCredential } from './native-credential-codec'
 import { credential, harness, refreshedWithoutIdToken } from './native-account-test-fixtures'
 
@@ -43,7 +43,7 @@ describe('Antigravity native account identity and selection', () => {
     h.setNative(credential('b'))
     const b = (await h.service.addCurrentAccount()).activeAccountId!
     await h.service.selectAccount(a)
-    const restarted = new AntigravityAccountService(h.store, h.backend)
+    const restarted = new ForkAntigravityAccountService(h.store, h.backend)
     await restarted.prepareForLaunch()
     h.setNative(credential('b'))
     await restarted.prepareForLaunch()
@@ -208,7 +208,7 @@ describe('Antigravity native account identity and selection', () => {
     await expect(h.service.selectAccount(a)).rejects.toThrow('publication failed')
     expect(h.getNative()).toBe(credential('a'))
     expect(h.getVault()).toEqual(before)
-    const restarted = new AntigravityAccountService(h.store, h.backend)
+    const restarted = new ForkAntigravityAccountService(h.store, h.backend)
     expect((await restarted.listAccounts()).activeAccountId).toBe(a)
     expect((await restarted.selectAccount(a)).selectedAccountId).toBe(a)
   })

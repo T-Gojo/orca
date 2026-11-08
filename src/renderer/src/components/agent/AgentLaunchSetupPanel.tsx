@@ -385,14 +385,13 @@ export function AgentLaunchSetupPanel({
           entry={entry}
           terminalBlocked={terminalBlocked}
           disabled={disabled}
-          onLaunch={(surface, prompt, launchAccountId) => {
+          onLaunch={(surface, prompt, extras) => {
             const current = getDraft()
             return current
               ? onUse({
                   ...acceptAgentPickerArguments(entry, current),
                   surface,
-                  ...(prompt ? { prompt } : {}),
-                  ...(launchAccountId !== undefined ? { launchAccountId } : {})
+                  ...(extras ?? (prompt ? { prompt } : {}))
                 })
               : false
           }}
