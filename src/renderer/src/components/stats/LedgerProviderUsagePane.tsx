@@ -1,3 +1,4 @@
+import { getIntlLocale } from '@/i18n/i18n'
 import { useMemo } from 'react'
 import { CalendarDays, Coins, RefreshCw, Sparkles, Activity } from 'lucide-react'
 import { useTranslate } from '@/i18n/use-translate'
@@ -105,19 +106,19 @@ export function LedgerProviderUsagePane({
           />
           <StatCard
             label={t('auto.components.stats.LedgerProviderUsagePane.credits', 'Credits')}
-            value={credits > 0 ? Math.round(credits).toLocaleString() : 'n/a'}
+            value={credits > 0 ? Math.round(credits).toLocaleString(getIntlLocale()) : 'n/a'}
             icon={<Coins className="size-4" />}
           />
           <StatCard
             label={t('auto.components.stats.LedgerProviderUsagePane.sessions', 'Sessions')}
-            value={sessions.toLocaleString()}
+            value={sessions.toLocaleString(getIntlLocale())}
             icon={<Activity className="size-4" />}
           />
           <StatCard
             label={t('auto.components.stats.UsageOverviewPane.327603fe8b', 'Active days')}
             value={new Set(
               daily.filter((entry) => entry.totalTokens > 0).map((entry) => entry.day)
-            ).size.toLocaleString()}
+            ).size.toLocaleString(getIntlLocale())}
             icon={<CalendarDays className="size-4" />}
           />
         </div>

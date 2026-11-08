@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronRight, RefreshCw } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible'
-import { translate } from '@/i18n/i18n'
+import { getIntlLocale, translate } from '@/i18n/i18n'
 import { useTranslate } from '@/i18n/use-translate'
 import { AgentIcon, getAgentCatalog } from '@/lib/agent-catalog'
 import { Badge } from '../ui/badge'
@@ -40,7 +40,7 @@ function accountName(row: AccountUsageLedgerRow): string {
 
 function formatCredits(value: number): string {
   return translate('auto.components.stats.UsageAccountsSection.credits', '{{value}} credits', {
-    value: value >= 100 ? Math.round(value).toLocaleString() : value.toFixed(1)
+    value: value >= 100 ? Math.round(value).toLocaleString(getIntlLocale()) : value.toFixed(1)
   })
 }
 

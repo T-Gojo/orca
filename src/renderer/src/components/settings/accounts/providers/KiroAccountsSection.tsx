@@ -1,3 +1,4 @@
+import { runGuardedAccountAction } from './account-action-guard'
 import { useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
@@ -75,52 +76,44 @@ export function KiroAccountsSection({
   }, [ownerKind, environmentId])
 
   async function run(action: KiroAccountAction | 'Usage', accountId?: string): Promise<void> {
-    if (pending.current) {
-      return
-    }
-    pending.current = true
-    setBusy(true)
-    setError(null)
-    try {
-      if (action === 'Usage') {
-        const snapshot = await callRuntimeRpc<{ rateLimits: RateLimitState }>(
-          owner,
-          'accounts.list',
-          { refreshUsage: true }
-        )
-        const next = await callKiroAccounts(owner, 'List')
+    await runGuardedAccountAction(pending, mounted, setBusy, async () => {
+      setError(null)
+      try {
+        if (action === 'Usage') {
+          const snapshot = await callRuntimeRpc<{ rateLimits: RateLimitState }>(
+            owner,
+            'accounts.list',
+            { refreshUsage: true }
+          )
+          const next = await callKiroAccounts(owner, 'List')
+          if (mounted.current) {
+            setFetchedUsage(snapshot.rateLimits.kiroAccounts ?? [])
+            setState(next)
+          }
+          return
+        }
+        const next = await callKiroAccounts(owner, action, accountId)
         if (mounted.current) {
-          setFetchedUsage(snapshot.rateLimits.kiroAccounts ?? [])
           setState(next)
+          if (action === 'BeginSignIn') {
+            setAwaitingLogin(true)
+            setCopied(false)
+          } else if (next.currentAccount) {
+            setAwaitingLogin(false)
+          }
         }
-        return
-      }
-      const next = await callKiroAccounts(owner, action, accountId)
-      if (mounted.current) {
-        setState(next)
-        if (action === 'BeginSignIn') {
-          setAwaitingLogin(true)
-          setCopied(false)
-        } else if (next.currentAccount) {
-          setAwaitingLogin(false)
+      } catch (cause) {
+        if (action !== 'List') {
+          const observed = await callKiroAccounts(owner, 'List').catch(() => null)
+          if (mounted.current && observed) {
+            setState(observed)
+          }
         }
-      }
-    } catch (cause) {
-      if (action !== 'List') {
-        const observed = await callKiroAccounts(owner, 'List').catch(() => null)
-        if (mounted.current && observed) {
-          setState(observed)
+        if (mounted.current) {
+          setError(cause instanceof Error ? cause.message : 'Kiro account action failed.')
         }
       }
-      if (mounted.current) {
-        setError(cause instanceof Error ? cause.message : 'Kiro account action failed.')
-      }
-    } finally {
-      pending.current = false
-      if (mounted.current) {
-        setBusy(false)
-      }
-    }
+    })
   }
 
   const current = state?.currentAccount ?? null

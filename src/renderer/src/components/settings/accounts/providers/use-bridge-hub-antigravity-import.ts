@@ -1,3 +1,4 @@
+import { runGuardedAccountAction } from './account-action-guard'
 import { useState, type RefObject } from 'react'
 import type { Translate } from '@/i18n/use-translate'
 import { importBridgeHubAntigravityAccounts } from '@/runtime/provider-accounts/sign-in/runtime-antigravity-accounts-client'
@@ -29,37 +30,29 @@ export function useBridgeHubAntigravityImport({
 }): { available: boolean; notice: string | null; importAccounts: () => Promise<void> } {
   const [notice, setNotice] = useState<string | null>(null)
   async function importAccounts(): Promise<void> {
-    if (pending.current) {
-      return
-    }
-    pending.current = true
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const result = await importBridgeHubAntigravityAccounts(owner, target)
-      if (mounted.current) {
-        setState(result.state)
-        setNotice(
-          t(
-            'accounts.antigravity.bridgeHubImported',
-            'Imported {{imported}} accounts from Bridge Hub; {{skipped}} were already saved.',
-            { imported: result.imported, skipped: result.skipped }
+    await runGuardedAccountAction(pending, mounted, setBusy, async () => {
+      setError(null)
+      setNotice(null)
+      try {
+        const result = await importBridgeHubAntigravityAccounts(owner, target)
+        if (mounted.current) {
+          setState(result.state)
+          setNotice(
+            t(
+              'accounts.antigravity.bridgeHubImported',
+              'Imported {{imported}} accounts from Bridge Hub; {{skipped}} were already saved.',
+              { imported: result.imported, skipped: result.skipped }
+            )
           )
-        )
+        }
+      } catch (cause) {
+        if (mounted.current) {
+          setError(
+            cause instanceof Error ? cause.message : 'Bridge Hub accounts could not be imported.'
+          )
+        }
       }
-    } catch (cause) {
-      if (mounted.current) {
-        setError(
-          cause instanceof Error ? cause.message : 'Bridge Hub accounts could not be imported.'
-        )
-      }
-    } finally {
-      pending.current = false
-      if (mounted.current) {
-        setBusy(false)
-      }
-    }
+    })
   }
   return {
     available: owner.kind === 'local' && target.runtime === 'host',
