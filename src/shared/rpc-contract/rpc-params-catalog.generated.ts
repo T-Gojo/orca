@@ -348,7 +348,11 @@ import {
   ConnectorSlackMirrorSet,
   ConnectorSlackMirrorStatus
 } from './connectors/connector-params'
-import { DelegationRouteParams, DelegationUsageParams } from './delegation-params'
+import {
+  DelegationAdviceParams,
+  DelegationRouteParams,
+  DelegationUsageParams
+} from './delegation-params'
 import {
   AttachParams as AttachParamsOfEmulatorParams,
   AxParams,
@@ -1470,6 +1474,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'connector.slackMirror.post': ConnectorSlackMirrorPost,
   'connector.slackMirror.set': ConnectorSlackMirrorSet,
   'connector.slackMirror.status': ConnectorSlackMirrorStatus,
+  'delegation.advice': DelegationAdviceParams,
   'delegation.preferences': null,
   'delegation.route': DelegationRouteParams,
   'delegation.usage': DelegationUsageParams,

@@ -15,3 +15,8 @@ export const DelegationRouteParams = z
   })
   .strict()
   .optional()
+
+export const DelegationAdviceParams = z
+  .object({ agent: z.enum(DELEGATION_AGENTS).optional(), refresh: z.boolean().optional() })
+  .strict()
+  .optional()

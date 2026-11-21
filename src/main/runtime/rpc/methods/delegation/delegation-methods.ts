@@ -1,5 +1,6 @@
 import { defineMethod } from '../../core'
 import {
+  DelegationAdviceParams,
   DelegationRouteParams,
   DelegationUsageParams
 } from '../../../../../shared/rpc-contract/delegation-params'
@@ -8,6 +9,7 @@ import {
   readDelegationPreferences
 } from '../../../../delegation/delegation-preferences'
 import { readDelegationUsage, routeDelegationTask } from '../../../../delegation/delegation-service'
+import { buildDelegationAdvice } from '../../../../delegation/delegation-advice'
 
 /** Fork: usage-aware routing of work to other agents and their saved accounts. */
 export const DELEGATION_METHODS = [
@@ -28,6 +30,18 @@ export const DELEGATION_METHODS = [
         ...(params?.kind ? { kind: params.kind } : {}),
         refresh: params?.refresh !== false
       })
+  }),
+  defineMethod({
+    name: 'delegation.advice',
+    permission: 'workspace',
+    params: DelegationAdviceParams,
+    handler: async (params, { runtime }) => {
+      const [{ usage }, preferences] = await Promise.all([
+        readDelegationUsage(runtime, { refresh: params?.refresh === true }),
+        readDelegationPreferences()
+      ])
+      return { advice: buildDelegationAdvice(preferences, usage, params?.agent ?? 'claude') }
+    }
   }),
   defineMethod({
     name: 'delegation.preferences',

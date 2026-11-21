@@ -19,7 +19,13 @@ const PreferencesSchema = z.object({
       z.string().min(1).max(64),
       z.object({ agents: z.array(Agent).min(1).optional(), models: Models.optional() })
     )
-    .default({})
+    .default({}),
+  autoDelegation: z
+    .object({
+      enabled: z.boolean().default(true),
+      ownUsedPercent: z.number().min(1).max(100).default(70)
+    })
+    .default({ enabled: true, ownUsedPercent: 70 })
 })
 
 export const DEFAULT_DELEGATION_PREFERENCES: DelegationPreferences = PreferencesSchema.parse({

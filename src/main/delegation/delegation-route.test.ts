@@ -6,7 +6,8 @@ const preferences = {
   agentOrder: ['antigravity' as const, 'kiro' as const],
   models: { kiro: 'claude-sonnet-4.5' },
   maxUsedPercent: 90,
-  kinds: { review: { agents: ['kiro' as const] } }
+  kinds: { review: { agents: ['kiro' as const] } },
+  autoDelegation: { enabled: true, ownUsedPercent: 70 }
 }
 
 function account(

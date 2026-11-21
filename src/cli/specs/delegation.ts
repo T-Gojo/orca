@@ -33,12 +33,24 @@ export const DELEGATION_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    path: ['delegation', 'advice'],
+    summary: 'Print the auto-delegation note a coordinator agent gets with each prompt',
+    usage: 'orca delegation advice [--agent claude|codex] [--fresh] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'agent', 'fresh'],
+    notes: [
+      'Names the workers with quota and tells the coordinator to delegate by default; above autoDelegation.ownUsedPercent of its own plan, to delegate all bulk work.',
+      'Uses the last usage readings so it stays fast; --fresh reads usage first. Prints nothing when autoDelegation.enabled is false.',
+      'The Claude Code UserPromptSubmit hook that `config/scripts/fork.sh hooks` installs runs this.'
+    ],
+    examples: ['orca delegation advice', 'orca delegation advice --fresh']
+  },
+  {
     path: ['delegation', 'preferences'],
     summary: 'Show the delegation preferences and the file to edit them in',
     usage: 'orca delegation preferences [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
-      'agentOrder: agents to hand work to, first choice first. models: model per agent. maxUsedPercent: skip accounts at or above this share. kinds: per-kind agent order and models.'
+      'agentOrder: agents to hand work to, first choice first. models: model per agent. maxUsedPercent: skip accounts at or above this share. kinds: per-kind agent order and models. autoDelegation: {enabled, ownUsedPercent} for the per-prompt delegation note.'
     ],
     examples: ['orca delegation preferences']
   }

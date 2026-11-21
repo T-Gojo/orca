@@ -164,12 +164,26 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
 - **`orca delegation usage | route | preferences`**: per-account used % for every delegation agent
   (from the rate-limit service, including inactive saved accounts), a router that applies
   preferences and prints the worker-start flags plus fallbacks, and the preferences file
-  `userData/orca-delegation.json` (`agentOrder`, `models`, `maxUsedPercent`, `kinds`; defaults
+  `userData/orca-delegation.json` (`agentOrder`, `models`, `maxUsedPercent`, `kinds`, `autoDelegation`; defaults
   written on first use).
+- **Auto-delegation (on by default):** `fork/hooks/orca-auto-delegation.sh` is a Claude Code
+  `UserPromptSubmit` hook (registered in `~/.claude/settings.json` by `fork.sh install` or
+  `fork.sh hooks`, next to Orca's own hook entries, which Orca's installer leaves alone). In an Orca
+  terminal it adds `orca delegation advice` to every prompt: the coordinator's own used %, the best
+  account per worker agent, and "delegate by default" (above `autoDelegation.ownUsedPercent`, default
+  70%, "delegate all bulk work"). It is silent outside Orca, for workers (`ORCA_DELEGATION_WORKER=1`
+  from `--account`, or a session whose first prompt was a dispatch brief), with
+  `ORCA_AUTO_DELEGATION=off`, or when `autoDelegation.enabled` is false in the preferences file. It
+  uses the last usage readings so a prompt is not slowed; `delegation route` refreshes before a start.
+- **Waking the coordinator:** the skill has the coordinator run `orchestration check --run <id>
+  --types worker_done,... --wait` as a background command, so Claude Code's own background-task
+  notification wakes it. Upstream's pane wake-up (typing a note into the coordinator's prompt) did not
+  fire in the hidden dev test window, where CLI-created terminals are "orphaned" (no UI tab); the
+  background wait does not depend on it.
 - **Skill:** `fork/skills/agent-delegation/SKILL.md`, installed to `~/.claude/skills` by
   `fork.sh install` (or `fork.sh skills`). Kept out of upstream's bundled-skill generator on purpose.
-- **Files:** `src/main/delegation/*` (preferences, usage, route, overlay home, account env,
-  service, worker-account), `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`,
+- **Files:** `src/main/delegation/*` (preferences, usage, route, advice, overlay home, account env,
+  service, worker-account), `fork/hooks/orca-auto-delegation.sh`, `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`,
   `src/shared/delegation/delegation-types.ts`, `src/shared/rpc-contract/delegation-params.ts`,
   `src/cli/delegation/delegation-handlers.ts`, `src/cli/specs/delegation.ts`.
 - **macOS `login` resets HOME:** Orca starts shells through `/usr/bin/login` (`tcc-login-shell.ts`), which

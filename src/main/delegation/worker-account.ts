@@ -59,7 +59,11 @@ export async function workerAccountEnv(
   params: Pick<WorkerStartInput, 'account'>,
   agent: string
 ): Promise<Record<string, string> | undefined> {
+  // ORCA_DELEGATION_WORKER keeps the auto-delegation hook from making a worker delegate again.
   return params.account
-    ? (await delegationWorkerEnv(runtime, agent, params.account)).env
+    ? {
+        ...(await delegationWorkerEnv(runtime, agent, params.account)).env,
+        ORCA_DELEGATION_WORKER: '1'
+      }
     : undefined
 }

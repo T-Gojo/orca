@@ -82,6 +82,16 @@ export const DELEGATION_HANDLERS: Record<string, CommandHandler> = {
     }
     printResult(response, json, formatDelegationRoute)
   },
+  'delegation advice': async ({ client, flags, json }) => {
+    const agent = getOptionalStringFlag(flags, 'agent')
+    const response = await client.call<{ advice: string }>('delegation.advice', {
+      ...(agent ? { agent } : {}),
+      refresh: flags.has('fresh')
+    })
+    if (json || response.result.advice) {
+      printResult(response, json, (value) => value.advice)
+    }
+  },
   'delegation preferences': async ({ client, json }) => {
     const response = await client.call<{ path: string; preferences: DelegationPreferences }>(
       'delegation.preferences'

@@ -47,7 +47,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   // Fork: cross-agent delegation.
   {
     name: 'delegation',
-    keys: ['delegation usage', 'delegation route', 'delegation preferences'],
+    keys: ['delegation usage', 'delegation route', 'delegation advice', 'delegation preferences'],
     load: async () => (await import('../delegation/delegation-handlers.js')).DELEGATION_HANDLERS
   },
   {

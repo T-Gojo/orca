@@ -44,6 +44,8 @@ export type DelegationPreferences = {
   maxUsedPercent: number
   /** Named kinds of work (e.g. "review", "tests") with their own agent order or models. */
   kinds: Record<string, DelegationKindPreference>
+  /** Coordinators are told to delegate by default; above ownUsedPercent of their own plan, everything bulk. */
+  autoDelegation: { enabled: boolean; ownUsedPercent: number }
 }
 
 export type DelegationRoute = {

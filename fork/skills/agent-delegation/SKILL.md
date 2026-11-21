@@ -5,7 +5,8 @@ description: >-
   workers, on whichever saved account has usage left, then verify their work. Use when the
   user asks to delegate, offload, "let Kiro/Antigravity do it", spread work across agents or
   accounts, save your own usage, or when your own plan is running low on a long task. Also use
-  when a delegated worker ran out of usage and the work needs to move to another account.
+  when a delegated worker ran out of usage and the work needs to move to another account, and
+  whenever a prompt carries an "[Orca auto-delegation" note telling you to delegate.
 ---
 
 # Agent delegation (Orca fork)
@@ -13,6 +14,13 @@ description: >-
 You stay the coordinator: you plan, split the work, hand self-contained pieces to other
 agents running as Orca workers, then check what they did. Orca tracks every agent's saved
 accounts and their usage, and can start a worker on a specific account.
+
+In Orca, each prompt may carry an "[Orca auto-delegation ...]" note from the user's hook: your
+own usage, the workers with quota, and whether to delegate by default. Follow it without asking
+the user: delegate every task that creates or changes files, runs tests, or needs research or
+review, even a small one; do it yourself only for a direct answer, a one-line change, or when the
+user says to. If you are an Orca worker yourself (your prompt is a coordinator's brief),
+never delegate further.
 
 This builds on Orca orchestration. Before your first worker, load its guide once:
 `ORCA skills get orchestration` (worker protocol, waking, `send`, recovery).
@@ -58,10 +66,18 @@ ORCA orchestration worker-start --environment local --worktree current --agent <
   account, so they run in parallel without changing the login other sessions use.
 - `--account` needs an existing workspace (`--worktree current` or an exact one), not
   `new-child`/`new-top-level`.
-- Start independent workers together (up to about 4), then end your turn. Orca wakes you when
-  a worker reports. Never poll. If the user asks about it before you were woken, read the Run's
-  mail once with `ORCA orchestration inbox --terminal run:<run_id> --limit 20` (the start
-  receipt names the Run) and act on any `worker_done` there.
+- Start independent workers together (up to about 4). Then start ONE background command (in
+  Claude Code: Bash with `run_in_background`) that returns when a worker reports, and end your
+  turn; you are notified when it exits:
+
+  ```text
+  ORCA orchestration check --run <run_id> --types worker_done,escalation,decision_gate --wait --timeout-ms 3600000
+  ```
+
+  The start receipt names the Run. The command marks what it returns as read, so act on every
+  message it prints, then start it again while workers are still running. If it timed out with
+  nothing, start it again. Orca may also type a wake-up note into your pane; if it does, still
+  read mail with this command. Never poll in the foreground.
 
 ## 4. Verify, then retry or report
 

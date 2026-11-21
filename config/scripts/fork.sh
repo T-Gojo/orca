@@ -6,6 +6,7 @@
 #   config/scripts/fork.sh build    # package Orca.app (macOS) from the current checkout into dist/
 #   config/scripts/fork.sh install  # replace /Applications/Orca.app with that build (quit Orca first)
 #   config/scripts/fork.sh skills   # install the fork's agent skills (fork/skills) for Claude Code
+#   config/scripts/fork.sh hooks    # install the auto-delegation Claude Code hook (fork/hooks)
 set -euo pipefail
 
 FORK_BRANCH="${ORCA_FORK_BRANCH:-main}"
@@ -194,6 +195,29 @@ install_app() {
   killall Dock 2>/dev/null || true
   echo "Installed $(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString) to $APP_PATH"
   install_fork_skills
+  install_fork_hooks
+}
+
+# Registers the auto-delegation hook (FORK.md §8) next to Orca's own Claude Code hooks.
+install_fork_hooks() {
+  local config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  local hook="$config_dir/hooks/orca-auto-delegation.sh"
+  mkdir -p "$config_dir/hooks"
+  cp "$REPO_ROOT/fork/hooks/orca-auto-delegation.sh" "$hook"
+  chmod +x "$hook"
+  node - "$config_dir/settings.json" "$hook" <<'NODE'
+const fs = require('node:fs')
+const [file, hook] = process.argv.slice(2)
+const settings = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}
+const hooks = (settings.hooks ??= {})
+const kept = (hooks.UserPromptSubmit ?? []).filter(
+  (group) => !(group.hooks ?? []).some((h) => String(h.command).includes('orca-auto-delegation'))
+)
+kept.push({ hooks: [{ type: 'command', command: `/bin/sh "${hook}"`, timeout: 8 }] })
+hooks.UserPromptSubmit = kept
+fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n')
+NODE
+  echo "Installed auto-delegation hook in $config_dir/settings.json"
 }
 
 # Fork-only agent skills (fork/skills/<name>/SKILL.md) go to Claude Code's user skills.
@@ -213,8 +237,9 @@ case "${1:-}" in
   build) build ;;
   install) install_app ;;
   skills) install_fork_skills ;;
+  hooks) install_fork_hooks ;;
   *)
-    echo "usage: $0 {sync|dev|build|install|skills}" >&2
+    echo "usage: $0 {sync|dev|build|install|skills|hooks}" >&2
     exit 2
     ;;
 esac
