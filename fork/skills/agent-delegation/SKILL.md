@@ -6,7 +6,7 @@ description: >-
   user asks to delegate, offload, "let Kiro/Antigravity do it", spread work across agents or
   accounts, save your own usage, or when your own plan is running low on a long task. Also use
   when a delegated worker ran out of usage and the work needs to move to another account, and
-  whenever a prompt carries an "[Orca auto-delegation" note telling you to delegate.
+  whenever a prompt carries an "[Orca usage brief" note.
 ---
 
 # Agent delegation (Orca fork)
@@ -15,12 +15,34 @@ You stay the coordinator: you plan, split the work, hand self-contained pieces t
 agents running as Orca workers, then check what they did. Orca tracks every agent's saved
 accounts and their usage, and can start a worker on a specific account.
 
-In Orca, each prompt may carry an "[Orca auto-delegation ...]" note from the user's hook: your
-own usage, the workers with quota, and whether to delegate by default. Follow it without asking
-the user: delegate every task that creates or changes files, runs tests, or needs research or
-review, even a small one; do it yourself only for a direct answer, a one-line change, or when the
-user says to. If you are an Orca worker yourself (your prompt is a coordinator's brief),
-never delegate further.
+In Orca, each prompt carries an "[Orca usage brief ...]" from the user's hook: your own 5h and
+weekly usage and pace, each worker agent's best accounts with reset clocks, quota that would reset
+unused, each agent's tier, and the best light and strong route. The user's goal is to run long
+sessions that use every account's quota (5h and weekly) before it resets, without the work
+suffering. Act on it with judgment and never ask the user first. If you are an Orca worker yourself
+(your prompt is a coordinator's brief), never delegate further.
+
+## Deciding who does what
+
+Decide per task, not by rule:
+
+- **Delegate** self-contained work you can brief in a few paragraphs: a feature, tests, a
+  refactor, research or a code search, a review, docs, bulk edits. Split independent pieces across
+  workers in parallel.
+- **Match difficulty to tier.** light (Antigravity, Gemini Flash): well-scoped edits, boilerplate,
+  tests from a clear spec, docs, search, summaries. standard (Kiro): ordinary features and
+  refactors. strong (Codex, Claude on another account): hard bugs, multi-file design, subtle
+  concurrency or security, reviews. When unsure, go one tier up. Give light workers tighter
+  specs: exact files, signatures and the commands that prove it.
+- **Do it yourself** when it is quick to do, depends on what you and the user discussed, needs a
+  tight edit-run-debug loop, is tangled with what you are already changing, or a worker failed at
+  it twice. Fix small review findings yourself rather than sending them back.
+- **Mix**: keep the delicate core for yourself and hand the surrounding pieces to workers at the
+  same time.
+- **Spend what expires.** Prefer accounts whose quota "resets unused", including your own: if the
+  brief says yours resets unused, keep working yourself in parallel with workers. If the brief
+  says you are short on quota, delegate everything that can be briefed and keep planning, the
+  delicate core and verification.
 
 This builds on Orca orchestration. Before your first worker, load its guide once:
 `ORCA skills get orchestration` (worker protocol, waking, `send`, recovery).
@@ -34,17 +56,17 @@ and stop.
 ## 1. Check usage and pick a route
 
 ```text
-ORCA delegation route [--kind <kind>] [--agent <agent>]
+ORCA delegation route --tier light|standard|strong [--agent <agent>] [--kind <kind>]
 ```
 
-It refreshes usage, applies the user's preferences (agent order, model per agent, usage
-threshold, named kinds such as `review` or `research`), and prints the `--agent`, `--account`
-and `--model` flags for the best route plus fallbacks. Exit code 1 means every account is
-exhausted: tell the user, with the reset times from `ORCA delegation usage`.
+The brief's "Best" line is usually enough for one task. For several tasks, or when the brief is
+older, run `route`: it refreshes usage and prints the `--agent`, `--account` and `--model` flags of
+the best account for that tier, plus fallbacks. Give parallel workers different accounts (take the
+fallbacks in order). It never picks your own Claude account. Exit code 1 means no account of that
+tier is left: try the next tier up, or do it yourself.
 
-- `ORCA delegation usage` lists every account and how much of its plan is used. Check your
-  own agent's row too: when your account is above about 70%, delegate the bulk work and keep
-  planning and verification for yourself.
+- `ORCA delegation usage` lists every account with all its windows and reset times.
+- Another of the user's Claude accounts is a strong worker: `--agent claude --account <id|email>`.
 - Respect a model or agent the user named over the route.
 - `ORCA delegation preferences` shows the preferences file; edit it only when the user asks.
 
@@ -61,8 +83,8 @@ with worker_done". One focused task per worker; split large work.
 ORCA orchestration worker-start --environment local --worktree current --agent <agent> --account <account> [--model <model>] --spec-file <task.md>
 ```
 
-- `--account` takes an id or email from `delegation usage`, `system`, or `auto` (least-used
-  account under the threshold). Antigravity and Kiro workers get a private login for that
+- `--account` takes an id or email from `delegation usage`, `system`, or `auto` (the account
+  `route` would pick). Antigravity and Kiro workers get a private login for that
   account, so they run in parallel without changing the login other sessions use.
 - `--account` needs an existing workspace (`--worktree current` or an exact one), not
   `new-child`/`new-top-level`.

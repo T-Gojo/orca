@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getAppEnvironment } from '../../shared/app-lifecycle/app-environment'
 import {
   DELEGATION_AGENTS,
+  DELEGATION_TIERS,
   type DelegationPreferences
 } from '../../shared/delegation/delegation-types'
 
@@ -11,13 +12,19 @@ const Agent = z.enum(DELEGATION_AGENTS)
 const Models = z.partialRecord(Agent, z.string().min(1).max(200))
 
 const PreferencesSchema = z.object({
-  agentOrder: z.array(Agent).min(1).default(['antigravity', 'kiro', 'codex']),
+  agentOrder: z.array(Agent).min(1).default(['antigravity', 'kiro', 'codex', 'claude']),
   models: Models.default({}),
   maxUsedPercent: z.number().min(1).max(100).default(90),
   kinds: z
     .record(
       z.string().min(1).max(64),
       z.object({ agents: z.array(Agent).min(1).optional(), models: Models.optional() })
+    )
+    .default({}),
+  profiles: z
+    .partialRecord(
+      Agent,
+      z.object({ tier: z.enum(DELEGATION_TIERS), note: z.string().max(300).optional() })
     )
     .default({}),
   autoDelegation: z
@@ -28,7 +35,16 @@ const PreferencesSchema = z.object({
     .default({ enabled: true, ownUsedPercent: 70 })
 })
 
+// Tiers fill in per agent so a preferences file written before them still gets them.
+const DEFAULT_PROFILES: DelegationPreferences['profiles'] = {
+  antigravity: { tier: 'light', note: 'Gemini Flash' },
+  kiro: { tier: 'standard', note: 'Kiro' },
+  codex: { tier: 'strong', note: 'OpenAI Codex' },
+  claude: { tier: 'strong', note: 'Claude Code, another account' }
+}
+
 export const DEFAULT_DELEGATION_PREFERENCES: DelegationPreferences = PreferencesSchema.parse({
+  profiles: DEFAULT_PROFILES,
   kinds: {
     review: { agents: ['codex', 'antigravity', 'kiro'] },
     research: { agents: ['antigravity', 'kiro', 'codex'] }
@@ -60,5 +76,5 @@ export async function readDelegationPreferences(
       `${path} is not valid delegation preferences: ${parsed.error.issues[0]?.message ?? 'invalid'}`
     )
   }
-  return parsed.data
+  return { ...parsed.data, profiles: { ...DEFAULT_PROFILES, ...parsed.data.profiles } }
 }

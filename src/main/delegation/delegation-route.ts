@@ -3,48 +3,49 @@ import type {
   DelegationAgent,
   DelegationPreferences,
   DelegationRoute,
-  DelegationRouteResult
+  DelegationRouteResult,
+  DelegationTier
 } from '../../shared/delegation/delegation-types'
+import { DELEGATION_TIERS } from '../../shared/delegation/delegation-types'
+import { accountPace } from './delegation-pace'
 
 export type DelegationRouteRequest = {
   /** Only this agent; otherwise the preferences' order (or the kind's). */
   agent?: DelegationAgent
   kind?: string
+  /** The task's difficulty: only agents at or above this tier. */
+  tier?: DelegationTier
+  /** `agent:accountId` (or `agent:system`) keys to leave out, e.g. the coordinator's own account. */
+  exclude?: readonly string[]
+  now?: number
+}
+
+export function delegationAccountKey(usage: Pick<DelegationAccountUsage, 'agent' | 'accountId'>) {
+  return `${usage.agent}:${usage.accountId ?? 'system'}`
 }
 
 function quoteFlag(value: string): string {
   return /^[\w.@:/-]+$/.test(value) ? value : `"${value.replace(/["\\]/g, '\\$&')}"`
 }
 
-function toRoute(
-  usage: DelegationAccountUsage,
-  model: string | null,
-  reason: string
-): DelegationRoute {
-  const account = usage.accountId ?? 'system'
-  return {
-    agent: usage.agent,
-    accountId: usage.accountId,
-    accountLabel: usage.label,
-    model,
-    usedPercent: usage.usedPercent,
-    reason,
-    workerStartFlags: [
-      `--agent ${usage.agent}`,
-      `--account ${quoteFlag(account)}`,
-      ...(model ? [`--model ${quoteFlag(model)}`] : [])
-    ]
-  }
-}
+const tierRank = (tier: DelegationTier) => DELEGATION_TIERS.indexOf(tier)
 
-/** Least-used first; an unread account sorts after every read one, since its share is unknown. */
-function byHeadroom(a: DelegationAccountUsage, b: DelegationAccountUsage): number {
-  return (a.usedPercent ?? 101) - (b.usedPercent ?? 101)
+type Candidate = { usage: DelegationAccountUsage; route: DelegationRoute; score: number }
+
+function describe(candidate: DelegationRoute, order: readonly DelegationAgent[]): string {
+  const pace = candidate.pace
+  const why = !pace
+    ? 'usage not read yet'
+    : pace.expiring >= 5
+      ? `${Math.round(pace.expiring)}% of its plan would reset unused; ${Math.round(pace.spare)}% usable now`
+      : `${Math.round(pace.spare)}% usable now`
+  return `${candidate.agent} (${candidate.tier}, preference #${order.indexOf(candidate.agent) + 1}): ${why}`
 }
 
 /**
- * Picks the agent, account and model for one delegated task: the first agent in the preferred
- * order with an account under the usage threshold, on its least-used account.
+ * Fork: picks the agent, account and model for one delegated task. Among accounts under the usage
+ * threshold whose agent is capable enough, quota that would otherwise reset unused goes first, then
+ * the most usable share; an exact tier match and the preferred order break near-ties.
  */
 export function routeDelegation(
   preferences: DelegationPreferences,
@@ -60,32 +61,55 @@ export function routeDelegation(
   const order: DelegationAgent[] = request.agent
     ? [request.agent]
     : (kind?.agents ?? preferences.agentOrder)
-  const routes: DelegationRoute[] = []
-  for (const agent of order) {
-    const model = kind?.models?.[agent] ?? preferences.models[agent] ?? null
-    // Saved accounts first: they are the ones Orca can pin a worker to.
-    const candidates = usage
-      .filter((entry) => entry.agent === agent && entry.available)
-      .sort(
-        (a, b) => byHeadroom(a, b) || Number(a.accountId === null) - Number(b.accountId === null)
-      )
-    for (const candidate of candidates) {
-      const used =
-        candidate.usedPercent === null
-          ? 'usage not read yet'
-          : `${Math.round(candidate.usedPercent)}% used`
-      routes.push(
-        toRoute(candidate, model, `${agent} is preference #${order.indexOf(agent) + 1}; ${used}`)
-      )
+  const excluded = new Set(request.exclude ?? [])
+  const now = request.now ?? Date.now()
+  const candidates: Candidate[] = []
+  for (const entry of usage) {
+    const rank = order.indexOf(entry.agent)
+    const tier = preferences.profiles[entry.agent]?.tier ?? 'standard'
+    if (
+      rank === -1 ||
+      !entry.available ||
+      excluded.has(delegationAccountKey(entry)) ||
+      (request.tier && tierRank(tier) < tierRank(request.tier))
+    ) {
+      continue
     }
+    const model = kind?.models?.[entry.agent] ?? preferences.models[entry.agent] ?? null
+    const pace = accountPace(entry, now)
+    const route: DelegationRoute = {
+      agent: entry.agent,
+      accountId: entry.accountId,
+      accountLabel: entry.label,
+      model,
+      usedPercent: entry.usedPercent,
+      tier,
+      pace,
+      reason: '',
+      workerStartFlags: [
+        `--agent ${entry.agent}`,
+        `--account ${quoteFlag(entry.accountId ?? 'system')}`,
+        ...(model ? [`--model ${quoteFlag(model)}`] : [])
+      ]
+    }
+    route.reason = describe(route, order)
+    // Unread accounts rank after read ones; saved accounts before the agent's System default.
+    const score = pace
+      ? pace.expiring * 2 +
+        pace.spare / 4 +
+        (request.tier === tier ? 15 : 0) +
+        (order.length - rank) * 3
+      : -10 - rank - Number(entry.accountId === null)
+    candidates.push({ usage: entry, route, score })
   }
-  const [route, ...alternatives] = routes
-  if (route) {
-    return { status: 'routed', route, alternatives }
+  candidates.sort((a, b) => b.score - a.score)
+  const [first, ...rest] = candidates
+  if (first) {
+    return { status: 'routed', route: first.route, alternatives: rest.map((c) => c.route) }
   }
   return {
     status: 'exhausted',
-    reason: `Every ${order.join(', ')} account is at or above ${preferences.maxUsedPercent}% used, or failing.`,
+    reason: `No ${order.join(', ')} account${request.tier ? ` of tier ${request.tier} or higher` : ''} is under ${preferences.maxUsedPercent}% used and working.`,
     usage: usage.filter((entry) => order.includes(entry.agent))
   }
 }

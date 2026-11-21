@@ -22,5 +22,7 @@ if [ -z "$cli" ]; then
   if [ -n "${ORCA_DEV_REPO_ROOT-}" ] && command -v orca-dev >/dev/null 2>&1; then cli=orca-dev; else cli=orca; fi
 fi
 # Word splitting is intended: ORCA_CLI_COMMAND may carry its own arguments.
-$cli delegation advice --agent claude 2>/dev/null
+# An older CLI without --session still gets the full brief.
+$cli delegation advice --agent claude ${session:+--session "$session"} 2>/dev/null ||
+  $cli delegation advice --agent claude 2>/dev/null
 exit 0

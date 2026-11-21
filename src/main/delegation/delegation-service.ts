@@ -50,6 +50,26 @@ export async function readDelegationUsage(
   }
 }
 
+const STALE_READING_MS = 5 * 60_000
+let lastBackgroundRefreshAt = 0
+
+/** Reads usage fresh in the background when the last readings are stale, so the next brief is current
+ *  without making this one wait. At most once per stale period. */
+export function refreshDelegationUsageSoon(
+  runtime: DelegationRuntime,
+  usage: readonly DelegationAccountUsage[],
+  now = Date.now()
+): void {
+  const stale = usage.some(
+    (entry) => entry.readAt === null || now - entry.readAt > STALE_READING_MS
+  )
+  if (!stale || now - lastBackgroundRefreshAt < STALE_READING_MS) {
+    return
+  }
+  lastBackgroundRefreshAt = now
+  void runtime.refreshAccountsForMobile().catch(() => undefined)
+}
+
 export async function routeDelegationTask(
   runtime: DelegationRuntime,
   request: DelegationRouteRequest & { refresh?: boolean }

@@ -164,17 +164,35 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
 - **`orca delegation usage | route | preferences`**: per-account used % for every delegation agent
   (from the rate-limit service, including inactive saved accounts), a router that applies
   preferences and prints the worker-start flags plus fallbacks, and the preferences file
-  `userData/orca-delegation.json` (`agentOrder`, `models`, `maxUsedPercent`, `kinds`, `autoDelegation`; defaults
+  `userData/orca-delegation.json` (`agentOrder`, `models`, `maxUsedPercent`, `kinds`, `profiles`, `autoDelegation`; defaults
   written on first use).
 - **Auto-delegation (on by default):** `fork/hooks/orca-auto-delegation.sh` is a Claude Code
   `UserPromptSubmit` hook (registered in `~/.claude/settings.json` by `fork.sh install` or
   `fork.sh hooks`, next to Orca's own hook entries, which Orca's installer leaves alone). In an Orca
-  terminal it adds `orca delegation advice` to every prompt: the coordinator's own used %, the best
-  account per worker agent, and "delegate by default" (above `autoDelegation.ownUsedPercent`, default
-  70%, "delegate all bulk work"). It is silent outside Orca, for workers (`ORCA_DELEGATION_WORKER=1`
-  from `--account`, or a session whose first prompt was a dispatch brief), with
-  `ORCA_AUTO_DELEGATION=off`, or when `autoDelegation.enabled` is false in the preferences file. It
-  uses the last usage readings so a prompt is not slowed; `delegation route` refreshes before a start.
+  terminal it adds the **usage brief** (`orca delegation advice`) to every prompt: the coordinator's
+  own 5h/weekly usage and pace (when it would run out before reset, or how much of its own quota
+  resets unused), each worker agent's tier and best two accounts with reset clocks and "resets
+  unused" share, and the best light and strong route. The coordinator (Claude Opus) makes the call
+  per task with the skill's judgment guide; the numbers are computed, the decision is not rule-based.
+  - Pace (`delegation-pace.ts`): from each window's reset time and length (5h, 7d, 30d), the share
+    an even pace would have used by now minus the share used is what "resets unused"; the average
+    rate since the window started projects when it runs out. Windows resetting within 20 minutes
+    count as nothing at risk; a reading older than its reset counts as a fresh window.
+  - Routing (`delegation-route.ts`): agents at or above the task's `--tier` (preferences `profiles`:
+    antigravity light, kiro standard, codex and claude strong), quota that resets unused first, then
+    usable share; exact tier and preferred order break near-ties. A Claude Code session's own
+    account (from `CLAUDE_CONFIG_DIR` = `claude-profiles/<id>`) is never offered; the user's other
+    Claude accounts are strong workers.
+  - Cost: the brief is about 1,000 characters; when nothing changed materially (shares to 5%) since
+    the session's last brief within 30 minutes, the CLI prints a one-line note instead (`--session`,
+    keys in `$TMPDIR/orca-delegation-brief`). Stale readings trigger a throttled background refresh,
+    so a prompt never waits on usage probes.
+  - Silent outside Orca, for workers (`ORCA_DELEGATION_WORKER=1` from `--account`, or a session whose
+    first prompt was a dispatch brief), with `ORCA_AUTO_DELEGATION=off`, or with
+    `autoDelegation.enabled: false`.
+  - No separate router model: a small fast model (e.g. a Cloudflare Workers AI Flash-class model)
+    would add an API key, network latency on every prompt and a weaker judge than the coordinator
+    already in the loop; the coordinator gets the numbers instead.
 - **Waking the coordinator:** the skill has the coordinator run `orchestration check --run <id>
   --types worker_done,... --wait` as a background command, so Claude Code's own background-task
   notification wakes it. Upstream's pane wake-up (typing a note into the coordinator's prompt) did not

@@ -8,7 +8,11 @@ import {
   delegationPreferencesPath,
   readDelegationPreferences
 } from '../../../../delegation/delegation-preferences'
-import { readDelegationUsage, routeDelegationTask } from '../../../../delegation/delegation-service'
+import {
+  readDelegationUsage,
+  refreshDelegationUsageSoon,
+  routeDelegationTask
+} from '../../../../delegation/delegation-service'
 import { buildDelegationAdvice } from '../../../../delegation/delegation-advice'
 
 /** Fork: usage-aware routing of work to other agents and their saved accounts. */
@@ -28,6 +32,8 @@ export const DELEGATION_METHODS = [
       routeDelegationTask(runtime, {
         ...(params?.agent ? { agent: params.agent } : {}),
         ...(params?.kind ? { kind: params.kind } : {}),
+        ...(params?.tier ? { tier: params.tier } : {}),
+        ...(params?.selfAccount ? { exclude: [`claude:${params.selfAccount}`] } : {}),
         refresh: params?.refresh !== false
       })
   }),
@@ -40,7 +46,12 @@ export const DELEGATION_METHODS = [
         readDelegationUsage(runtime, { refresh: params?.refresh === true }),
         readDelegationPreferences()
       ])
-      return { advice: buildDelegationAdvice(preferences, usage, params?.agent ?? 'claude') }
+      refreshDelegationUsageSoon(runtime, usage)
+      const self = params?.selfAccount
+      return buildDelegationAdvice(preferences, usage, {
+        agent: params?.agent ?? 'claude',
+        ...(self ? { accountId: self === 'system' ? null : self } : {})
+      })
     }
   }),
   defineMethod({

@@ -19,15 +19,18 @@ export const DELEGATION_COMMAND_SPECS: CommandSpec[] = [
     path: ['delegation', 'route'],
     summary: 'Pick the agent, account and model for one delegated task',
     usage:
-      'orca delegation route [--agent antigravity|kiro|codex|claude] [--kind <kind>] [--cached] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'agent', 'kind', 'cached'],
+      'orca delegation route [--tier light|standard|strong] [--agent antigravity|kiro|codex|claude] [--kind <kind>] [--cached] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'agent', 'kind', 'tier', 'cached'],
     notes: [
-      'Takes the first agent in your preferred order (or the --kind order) that has an account under the usage threshold, on its least-used account.',
+      '--tier is the task’s difficulty: only agents whose model tier (preferences `profiles`) is at least that are considered.',
+      'Among accounts under the usage threshold, quota that would otherwise reset unused (5h, weekly or monthly, at an even pace) goes first, then the most usable share; the preferred order breaks near-ties.',
+      'Inside a Claude Code session, that session’s own Claude account is never picked.',
       'Prints the worker-start flags to use, and fallbacks to try if that worker runs out of usage. Exits 1 when every account is exhausted.',
       'Edit the order, models, threshold and kinds in the file `orca delegation preferences` names.'
     ],
     examples: [
       'orca delegation route',
+      'orca delegation route --tier light',
       'orca delegation route --kind review',
       'orca delegation route --agent kiro --json'
     ]
@@ -35,10 +38,13 @@ export const DELEGATION_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['delegation', 'advice'],
     summary: 'Print the auto-delegation note a coordinator agent gets with each prompt',
-    usage: 'orca delegation advice [--agent claude|codex] [--fresh] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'agent', 'fresh'],
+    usage:
+      'orca delegation advice [--agent claude|codex] [--self-account <id|system>] [--session <id>] [--fresh] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'agent', 'self-account', 'session', 'fresh'],
     notes: [
-      'Names the workers with quota and tells the coordinator to delegate by default; above autoDelegation.ownUsedPercent of its own plan, to delegate all bulk work.',
+      'A usage brief: the coordinator’s own windows and pace, every worker account’s 5h/weekly/monthly usage with reset times and quota that would reset unused, each agent’s capability tier, and the best light and strong route.',
+      '--session: when the brief has not materially changed (shares to 5%) since this session’s last one within 30 minutes, prints a one-line note instead.',
+      'The coordinator’s own account comes from its Claude Code session (or --self-account) and is never offered as a worker.',
       'Uses the last usage readings so it stays fast; --fresh reads usage first. Prints nothing when autoDelegation.enabled is false.',
       'The Claude Code UserPromptSubmit hook that `config/scripts/fork.sh hooks` installs runs this.'
     ],

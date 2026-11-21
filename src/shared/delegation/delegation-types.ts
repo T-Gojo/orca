@@ -6,6 +6,28 @@ export function isDelegationAgent(value: string): value is DelegationAgent {
   return DELEGATION_AGENTS.some((agent) => agent === value)
 }
 
+/** How hard a task an agent's model handles well: light (e.g. Gemini Flash) < standard < strong. */
+export const DELEGATION_TIERS = ['light', 'standard', 'strong'] as const
+export type DelegationTier = (typeof DELEGATION_TIERS)[number]
+
+export type DelegationAgentProfile = {
+  tier: DelegationTier
+  /** What the agent's model is good and bad at, shown to the coordinator. */
+  note?: string
+}
+
+/** Where an account stands against its plan's clock, from its windows' reset times. */
+export type DelegationAccountPace = {
+  /** Share usable right now: the tightest window's remaining share. */
+  spare: number
+  /** Share that would reset unused at an even pace: elapsed share of the window minus used share,
+   *  capped by `spare`. High means use this account now. */
+  expiring: number
+  /** When the account runs out at its average rate so far, if that is before the window resets. */
+  exhaustsAt: number | null
+  exhaustingWindow: DelegationUsageWindow['name'] | null
+}
+
 export type DelegationUsageWindow = {
   name: 'session' | 'weekly' | 'monthly'
   usedPercent: number
@@ -44,6 +66,8 @@ export type DelegationPreferences = {
   maxUsedPercent: number
   /** Named kinds of work (e.g. "review", "tests") with their own agent order or models. */
   kinds: Record<string, DelegationKindPreference>
+  /** Capability tier and note per agent. */
+  profiles: Partial<Record<DelegationAgent, DelegationAgentProfile>>
   /** Coordinators are told to delegate by default; above ownUsedPercent of their own plan, everything bulk. */
   autoDelegation: { enabled: boolean; ownUsedPercent: number }
 }
@@ -54,6 +78,8 @@ export type DelegationRoute = {
   accountLabel: string | null
   model: string | null
   usedPercent: number | null
+  tier: DelegationTier
+  pace: DelegationAccountPace | null
   reason: string
   /** The worker-start flags this route stands for, ready to append to a spec. */
   workerStartFlags: string[]

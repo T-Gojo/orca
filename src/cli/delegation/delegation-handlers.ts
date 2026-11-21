@@ -1,5 +1,9 @@
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { CommandHandler } from '../dispatch/dispatch'
 import { printResult } from '../output/command-result-output'
+import { writeStdoutLine } from '../output/stdout-line'
 import { getOptionalStringFlag } from '../arguments/flags'
 import type {
   DelegationAccountUsage,
@@ -7,6 +11,45 @@ import type {
   DelegationRoute,
   DelegationRouteResult
 } from '../../shared/delegation/delegation-types'
+
+const PROFILE_ACCOUNT = /claude-profiles[/\\]([0-9a-f-]{36})(?:[/\\]|$)/i
+
+/** Inside a Claude Code session, the saved account it runs on: Orca routes each saved Claude
+ *  account to its own `claude-profiles/<id>` config folder. Undefined when not in Claude Code or
+ *  on the globally selected login. */
+export function claudeSessionAccount(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (env.CLAUDECODE !== '1') {
+    return undefined
+  }
+  for (const value of [env.CLAUDE_CONFIG_DIR, env.ORCA_CLAUDE_PROFILE_POINTER]) {
+    const match = value ? PROFILE_ACCOUNT.exec(value) : null
+    if (match) {
+      return match[1]
+    }
+  }
+  return undefined
+}
+
+const BRIEF_REPEAT_MS = 30 * 60_000
+
+/** Whether this session already got a brief with this key in the last half hour; records it if not. */
+async function briefUnchanged(session: string, key: string): Promise<boolean> {
+  if (!/^[\w-]{1,128}$/.test(session)) {
+    return false
+  }
+  const dir = join(tmpdir(), 'orca-delegation-brief')
+  const file = join(dir, session)
+  const [previous, info] = await Promise.all([
+    readFile(file, 'utf8').catch(() => null),
+    stat(file).catch(() => null)
+  ])
+  if (previous === key && info && Date.now() - info.mtimeMs < BRIEF_REPEAT_MS) {
+    return true
+  }
+  await mkdir(dir, { recursive: true })
+  await writeFile(file, key)
+  return false
+}
 
 function percent(value: number | null): string {
   return value === null ? 'unread' : `${Math.round(value)}% used`
@@ -38,7 +81,7 @@ export function formatDelegationUsage(usage: readonly DelegationAccountUsage[]):
 }
 
 function formatRoute(route: DelegationRoute): string {
-  return `${route.agent} on ${route.accountLabel ?? route.accountId ?? 'system'}${route.model ? ` (${route.model})` : ''}: ${route.reason}`
+  return `${route.agent} on ${route.accountLabel ?? route.accountId ?? 'system'}${route.model ? ` (${route.model})` : ''}. ${route.reason}`
 }
 
 export function formatDelegationRoute(result: DelegationRouteResult): string {
@@ -72,9 +115,13 @@ export const DELEGATION_HANDLERS: Record<string, CommandHandler> = {
   'delegation route': async ({ client, flags, json }) => {
     const agent = getOptionalStringFlag(flags, 'agent')
     const kind = getOptionalStringFlag(flags, 'kind')
+    const tier = getOptionalStringFlag(flags, 'tier')
+    const selfAccount = claudeSessionAccount()
     const response = await client.call<DelegationRouteResult>('delegation.route', {
       ...(agent ? { agent } : {}),
       ...(kind ? { kind } : {}),
+      ...(tier ? { tier } : {}),
+      ...(selfAccount ? { selfAccount } : {}),
       refresh: !flags.has('cached')
     })
     if (response.result.status === 'exhausted') {
@@ -84,11 +131,21 @@ export const DELEGATION_HANDLERS: Record<string, CommandHandler> = {
   },
   'delegation advice': async ({ client, flags, json }) => {
     const agent = getOptionalStringFlag(flags, 'agent')
-    const response = await client.call<{ advice: string }>('delegation.advice', {
+    const selfAccount = getOptionalStringFlag(flags, 'self-account') ?? claudeSessionAccount()
+    const response = await client.call<{ advice: string; key: string }>('delegation.advice', {
       ...(agent ? { agent } : {}),
+      ...(selfAccount ? { selfAccount } : {}),
       refresh: flags.has('fresh')
     })
-    if (json || response.result.advice) {
+    const session = getOptionalStringFlag(flags, 'session')
+    const { advice, key } = response.result
+    if (!json && advice && session && (await briefUnchanged(session, key))) {
+      writeStdoutLine(
+        '[Orca usage brief: no material change since your last prompt; the last brief still holds]'
+      )
+      return
+    }
+    if (json || advice) {
       printResult(response, json, (value) => value.advice)
     }
   },
