@@ -64,6 +64,7 @@ import { renderClaudeAccountsSection } from './claude/accounts-pane-claude-secti
 import { renderCodexAccountsSection } from './codex/accounts-pane-codex-section'
 import { renderGeminiAccountsSection } from './providers/accounts-pane-gemini-section'
 import { renderOpenCodeAccountsSection } from './providers/accounts-pane-opencode-section'
+import { renderKiroAccountsSection } from './providers/accounts-pane-kiro-section'
 import { MiniMaxAccountsSection } from './usage/MiniMaxAccountsSection'
 import { useUsageHostSettings } from './usage/use-usage-host-settings'
 import { ManagedDataAccountsSection } from './providers/ManagedDataAccountsSection'
@@ -385,6 +386,7 @@ export function AccountsPane({
         ownerPlatform={accountOwnerPlatform}
       />
     ) : null,
+    renderKiroAccountsSection(model, t),
     matchesSettingsSearch(searchQuery, getAccountsOpencodeSearchEntries())
       ? renderOpenCodeAccountsSection(model, t)
       : null,

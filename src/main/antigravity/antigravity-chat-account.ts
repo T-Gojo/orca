@@ -20,6 +20,7 @@ import { ANTIGRAVITY_CHAT_HOME_FOLDER } from './antigravity-chat-home'
 import { antigravityUserHome, linkAntigravityUserSkills } from './antigravity-chat-user-skills'
 import { resolveAgentPlatformProject } from './antigravity-agent-platform-project'
 import { assertAntigravityChatCredential } from './antigravity-chat-credential'
+import { seedAntigravityChatLogin } from './antigravity-chat-seeded-login'
 
 type SignInOwner = Pick<AcpAgentConnection, 'close' | 'exited'> & {
   onExit(listener: () => void): void
@@ -132,26 +133,28 @@ export const antigravityChatAccount = {
       ...(await gcpProjection(auth, env))
     })
     // Unchanged settings cost no durable write, so a listing or a start mostly writes nothing.
-    if ((await readFile(path, 'utf8').catch(() => null)) === projection) {
-      return
+    if ((await readFile(path, 'utf8').catch(() => null)) !== projection) {
+      try {
+        await writeFileDurableIfCurrent(
+          durableWriteTempPath(path),
+          path,
+          projection,
+          () => {
+            assertCurrent?.()
+            return true
+          },
+          0o600
+        )
+      } catch (cause) {
+        assertCurrent?.()
+        throw new AntigravitySignInSentence(
+          'Antigravity account settings could not be prepared. Check that Orca can write its data folder and try again.',
+          { cause }
+        )
+      }
     }
-    try {
-      await writeFileDurableIfCurrent(
-        durableWriteTempPath(path),
-        path,
-        projection,
-        () => {
-          assertCurrent?.()
-          return true
-        },
-        0o600
-      )
-    } catch (cause) {
-      assertCurrent?.()
-      throw new AntigravitySignInSentence(
-        'Antigravity account settings could not be prepared. Check that Orca can write its data folder and try again.',
-        { cause }
-      )
-    }
+    await seedAntigravityChatLogin(home).catch((error: unknown) => {
+      console.warn('[antigravity] Could not sign the chat in with the agy account:', error)
+    })
   }
 }

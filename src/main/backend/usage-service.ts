@@ -6,6 +6,11 @@ import { MuseUsageStore } from '../muse-usage/store'
 import type { UsageStoreHost } from '../usage/usage-store-host'
 import { stopUsageScanWorker } from '../usage/scan-worker/usage-scan-worker-spawn'
 import type { UsageProviderKey } from '../../shared/backend/backend-service-contract'
+import { ACCOUNT_USAGE_COLLECT_METHOD } from '../../shared/account-usage-ledger-types'
+import {
+  collectAccountUsageSources,
+  forwardAccountUsageRollups
+} from '../usage/account-usage-backend'
 
 const rangeSchema = z.object({
   scope: z.string().max(4096),
@@ -82,6 +87,13 @@ export function createUsageService(host: UsageStoreHost) {
     museUsage: new MuseUsageStore(host)
   }
   const all = Object.values(stores)
+  // Fork: per-account ledger collection (FORK.md section 5).
+  const stopForwarding = forwardAccountUsageRollups(host.recordAccountUsage)
+  const tokenStores = {
+    claude: stores.claudeUsage,
+    codex: stores.codexUsage,
+    opencode: stores.openCodeUsage
+  }
   const handlers = new Map<string, Handler>()
   registerUsageQueries(handlers, 'claudeUsage', stores.claudeUsage)
   registerUsageQueries(handlers, 'codexUsage', stores.codexUsage)
@@ -91,6 +103,7 @@ export function createUsageService(host: UsageStoreHost) {
   const active = new Set<Promise<unknown>>()
   const stop = async (): Promise<void> => {
     accepting = false
+    stopForwarding()
     for (const store of all) {
       store.stopScanAdmission()
     }
@@ -111,6 +124,9 @@ export function createUsageService(host: UsageStoreHost) {
     }
     if (privileged && method === 'claudeUsage:getAutomationRunUsage') {
       return stores.claudeUsage.getAutomationRunUsage(automationSchema.parse(params))
+    }
+    if (privileged && method === ACCOUNT_USAGE_COLLECT_METHOD) {
+      return collectAccountUsageSources(tokenStores, params)
     }
     if (privileged && method === 'codexUsage:getAutomationRunUsage') {
       return stores.codexUsage.getAutomationRunUsage(automationSchema.parse(params))

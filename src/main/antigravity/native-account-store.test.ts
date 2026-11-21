@@ -8,7 +8,7 @@ import {
   setSecretStore
 } from '../../shared/secure-storage/secret-store'
 import { createEncryptedAntigravityAccountStore } from './native-account-store'
-import { AntigravityAccountService } from './native-account-service'
+import { ForkAntigravityAccountService } from './native-account-fork-service'
 import type { AntigravityCredentialIdentity } from './native-credential-codec'
 import { credential, harness, refreshedWithoutIdToken } from './native-account-test-fixtures'
 import { createAntigravityWindowsCredentialBackend } from './native-windows-credentials'
@@ -78,7 +78,7 @@ describe('protected Antigravity account snapshots', () => {
           email: null
         })
       )
-      const reopen = () => new AntigravityAccountService(store(), backend, Date.now, lookup)
+      const reopen = () => new ForkAntigravityAccountService(store(), backend, Date.now, lookup)
       const native = (contents: string) =>
         fake.writeGenericCredential('gemini:antigravity', 'antigravity', Buffer.from(contents))
       native(credential('prior'))
@@ -177,7 +177,7 @@ describe('protected Antigravity account snapshots', () => {
     const store = createEncryptedAntigravityAccountStore(path)
     await store.write(vault)
     const before = readFileSync(path)
-    const service = new AntigravityAccountService(store, h.backend)
+    const service = new ForkAntigravityAccountService(store, h.backend)
     h.setNative(paddedCredential('new-account', 60000))
     await expect(service.addCurrentAccount()).rejects.toThrow('could not be saved')
     expect(readFileSync(path).equals(before)).toBe(true)
@@ -246,12 +246,17 @@ describe('protected Antigravity account snapshots', () => {
   it('keeps the selected account launchable across refreshes and a verified grant rotation', async () => {
     const h = harness()
     const store = createEncryptedAntigravityAccountStore(join(dir, 'vault'))
-    const service = new AntigravityAccountService(store, h.backend)
+    const service = new ForkAntigravityAccountService(store, h.backend)
     const id = (await service.addCurrentAccount()).activeAccountId!
     await service.selectAccount(id)
     h.setNative(refreshedWithoutIdToken(2))
     await service.prepareForLaunch()
-    const restarted = new AntigravityAccountService(store, h.backend, Date.now, h.lookupIdentity)
+    const restarted = new ForkAntigravityAccountService(
+      store,
+      h.backend,
+      Date.now,
+      h.lookupIdentity
+    )
     h.setNative(refreshedWithoutIdToken(3))
     expect(await restarted.listAccounts()).toMatchObject({
       activeAccountId: id,
@@ -261,7 +266,9 @@ describe('protected Antigravity account snapshots', () => {
     await restarted.prepareForLaunch()
     expect((await store.read()).accounts[0].credentials).toBe(refreshedWithoutIdToken(3))
     h.setNative(refreshedWithoutIdToken(4, 'refresh-other-grant'))
-    await expect(restarted.prepareForLaunch()).rejects.toThrow('native Antigravity account changed')
+    // Fork: an unsaved login (another grant) is followed, not refused: the selection clears.
+    await restarted.prepareForLaunch()
+    expect((await store.read()).selectedAccountId).toBeNull()
     h.lookupIdentity.mockClear()
 
     h.lookupIdentity.mockResolvedValue({
@@ -282,7 +289,8 @@ describe('protected Antigravity account snapshots', () => {
       email: null
     })
     h.setNative(refreshedWithoutIdToken(6, 'refresh-other-grant'))
-    await expect(restarted.prepareForLaunch()).rejects.toThrow('native Antigravity account changed')
+    await restarted.prepareForLaunch()
+    expect((await store.read()).selectedAccountId).toBeNull()
     expect(h.backend.write).not.toHaveBeenCalled()
   })
 
@@ -292,7 +300,9 @@ describe('protected Antigravity account snapshots', () => {
     await h.service.selectAccount(id)
     await expect(h.service.removeAccount(id)).rejects.toThrow('Switch agy to another account')
     h.setNative(credential('b'))
-    await expect(h.service.prepareForLaunch()).rejects.toThrow('native Antigravity account changed')
+    // Fork: launches follow agy's unsaved login instead of refusing; the selection clears.
+    await h.service.prepareForLaunch()
+    expect(h.getVault().selectedAccountId).toBeNull()
     expect(await h.service.removeAccount(id)).toMatchObject({
       accounts: [],
       activeAccountId: null,

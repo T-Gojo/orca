@@ -30,6 +30,7 @@ import {
 import { formatBareUsagePercentage, formatUsagePercentageLabel } from './usage-percentage-label'
 import { getUsageHealthTone } from './usage-health-tone'
 import { UsageBar, UsageDisplayToggle, UsageValue } from './usage-meter'
+import { useUsageRowAccounts } from './usage-roster-saved-accounts'
 
 type ProviderId = ProviderRateLimits['provider']
 
@@ -197,6 +198,7 @@ export function UsageRow({
   const hasUsage = sections.length > 0
   const name = getProviderDisplayName(p.provider)
   const plan = formatPlanLabel(p.planType)
+  const accounts = useUsageRowAccounts(p.provider, mode, display)
   // Why: Detailed lists every window below, so a top-right summary would repeat one of them.
   const showDetails = hasUsage && mode === 'verbose'
   const soonestReset = showDetails ? soonestResetLabel(sections, now, intlLocale, t) : null
@@ -241,7 +243,8 @@ export function UsageRow({
       {state.detail ? (
         <span className="pl-[30px] text-[11px] text-muted-foreground">{state.detail}</span>
       ) : null}
-      {showDetails ? (
+      {accounts.node}
+      {showDetails && !accounts.hidesWindows ? (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-[30px]">
           {sections.map((section) => {
             const label = shortUsageLabel(p, section, false, t)

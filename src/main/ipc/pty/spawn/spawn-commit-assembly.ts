@@ -67,6 +67,7 @@ export type PtySpawnCommitState = {
   provisionalPtySize: PtySpawnSizeSeed | undefined
   isDaemonHostSpawn: boolean
   codexResumeHomeSelected: boolean
+  codexHomePinned: boolean
   codexResumeUnavailable?: boolean
   selectedCodexHomePath: string | null
   codexSelectionTarget: CodexAccountSelectionTarget

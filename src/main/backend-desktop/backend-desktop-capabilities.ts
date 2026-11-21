@@ -13,6 +13,8 @@ import { agentTokenUsageSchema } from '../../shared/telemetry/schemas/telemetry-
 import { claudeProfileTranscriptDirs } from '../claude-usage/transcript-file-discovery'
 import { readUsageWorktreeCatalog } from '../usage/worktree-attribution/usage-worktree-metadata'
 import { isTelemetryEnabled, track } from '../telemetry/client'
+import { ACCOUNT_USAGE_RECORD_METHOD } from '../../shared/account-usage-ledger-types'
+import { recordAccountUsageFromBackend } from '../usage/account-usage-desktop'
 import type { UsageWorktreeSource } from '../usage/worktree-attribution/usage-worktree-metadata'
 import { currentWorkerEntryLayout } from '../worker-threads/worker-thread-entry-path'
 import { isRendererDocumentNavigation } from '../window/security/renderer-document-navigation'
@@ -62,6 +64,10 @@ export function createBackendDesktopCapabilities(
     }
     if (method === 'usage.telemetry.capture') {
       return track('agent_token_usage', agentTokenUsageSchema.parse(params))
+    }
+    // Fork: the per-account usage ledger lives in main.
+    if (method === ACCOUNT_USAGE_RECORD_METHOD) {
+      return recordAccountUsageFromBackend(params)
     }
     throw new Error('This desktop capability is not supported.')
   }

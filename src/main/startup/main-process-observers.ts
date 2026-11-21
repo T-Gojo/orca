@@ -5,6 +5,7 @@ import type { AutomationUsageClient } from '../../shared/backend/backend-service
 import { BackendSupervisor } from '../backend-desktop/backend-supervisor'
 import { provideHostUsageAnalytics } from '../usage/host-usage-analytics'
 import { BACKEND_PUBLIC_USAGE_METHOD } from '../../shared/backend/backend-service-contract'
+import { installDesktopAccountUsage } from '../usage/account-usage-desktop'
 import { AgentAwakeService } from '../power/agent-awake-service'
 import { normalizeComputerAwakeMode } from '../../shared/app-lifecycle/computer-awake-mode'
 import { registerSystemResumeBroadcast } from '../power/system-resume-broadcast'
@@ -176,6 +177,10 @@ export function startUsageBackend(usageWorktrees: UsageWorktreeHistory): {
   state.backend = backend
   // Paired clients get a renderer's usage privileges, never the automation-only methods.
   provideHostUsageAnalytics((call) => backend.callControl(BACKEND_PUBLIC_USAGE_METHOD, call))
+  // Fork: the per-account usage ledger, fed by the backend's scans (FORK.md section 5).
+  if (state.store) {
+    installDesktopAccountUsage(state.store, backend)
+  }
   return {
     claudeUsage: backend.automationClient('claudeUsage'),
     codexUsage: backend.automationClient('codexUsage')

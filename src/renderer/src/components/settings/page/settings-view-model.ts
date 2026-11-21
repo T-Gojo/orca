@@ -175,6 +175,8 @@ export function buildSettingsViewModel(
     model.activeSectionId === 'setup-guide' && model.settingsSearchQuery.trim() === ''
   // Why no query check: search still shows only the active section.
   const isWidePluginsPane = model.activeSectionId === 'plugins'
+  // Fork: usage tables need the whole window for account emails and per-agent columns.
+  const isFullWidthStatsPane = model.activeSectionId === 'stats'
 
   return {
     generalNavGroups,
@@ -182,7 +184,8 @@ export function buildSettingsViewModel(
     isSectionMounted,
     isFocusedShortcutsPane,
     isFocusedSetupGuidePane,
-    isWidePluginsPane
+    isWidePluginsPane,
+    isFullWidthStatsPane
   }
 }
 

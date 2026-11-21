@@ -7,6 +7,7 @@ import { useTranslate } from '@/i18n/use-translate'
 import { getShortcutPlatform } from '@/lib/keyboard/shortcut-platform'
 import type { NativeChatComposerHandle } from '../native-chat/composer/native-chat-composer-types'
 import { AgentLaunchPromptComposer } from './AgentLaunchPromptComposer'
+import { launchExtras, useAgentLaunchAccountChoice } from './AgentLaunchAccountChoice'
 import {
   agentPickerButtonOrder,
   type AgentPickerEntry,
@@ -99,10 +100,16 @@ export function AgentLaunchSetupFooter({
   ref?: Ref<AgentLaunchSetupFooterHandle>
   disabled?: boolean
   terminalBlocked?: boolean
-  onLaunch: (surface: AgentPickerSurface, prompt?: string) => boolean | void | Promise<boolean>
+  onLaunch: (
+    surface: AgentPickerSurface,
+    prompt?: string,
+    /** Fork: the prompt and picked account as draft fields; absent when no account was picked. */
+    extras?: { prompt?: string; launchAccountId?: string | null }
+  ) => boolean | void | Promise<boolean>
 }): React.JSX.Element {
   const t = useTranslate()
   const composer = useRef<NativeChatComposerHandle>(null)
+  const account = useAgentLaunchAccountChoice(entry, disabled)
   // Enter launches the default way; a Launch button names its own before it submits the prompt.
   const surface = useRef(entry.defaultSurface)
   const launch = (next: AgentPickerSurface): void => {
@@ -116,6 +123,7 @@ export function AgentLaunchSetupFooter({
   useImperativeHandle(ref, () => ({ launch }))
   return (
     <>
+      {account.row ? <div className="px-3 pt-1">{account.row}</div> : null}
       <div
         className="border-t border-border px-2 pt-2 pb-2"
         onKeyDownCapture={(event) => {
@@ -131,7 +139,9 @@ export function AgentLaunchSetupFooter({
           onLaunch={(prompt) =>
             surface.current === 'terminal' && terminalBlocked
               ? false
-              : onLaunch(surface.current, prompt)
+              : account.launch(surface.current, (launchAccountId) =>
+                  onLaunch(surface.current, prompt, launchExtras(prompt, launchAccountId))
+                )
           }
         />
       </div>

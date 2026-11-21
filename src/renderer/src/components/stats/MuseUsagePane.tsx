@@ -9,13 +9,12 @@ import { useAppStore } from '../../store'
 import { ClaudeUsageLoadingState } from './ClaudeUsageLoadingState'
 import { MuseUsageDetails } from './MuseUsageDetails'
 import { StatCard } from './StatCard'
-import { UsageFilterRadioGroup, UsageTrackingPaneShell } from './UsageTrackingPaneShell'
+import { UsageTrackingPaneShell } from './UsageTrackingPaneShell'
 import { formatTokens, formatUpdatedAt } from './usage-formatters'
 import { translate } from '@/i18n/i18n'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
 // Why: generic labels reuse the OpenCode pane's keys so both panes share one translation.
-const RANGE_OPTIONS: MuseUsageRange[] = ['7d', '30d', '90d', 'all']
 const SCOPE_OPTIONS: { value: MuseUsageScope; label: string }[] = [
   {
     value: 'orca',
@@ -61,8 +60,6 @@ export function MuseUsagePane(): React.JSX.Element {
   const observeMuseUsage = useAppStore((state) => state.observeMuseUsage)
   const setMuseUsageEnabled = useAppStore((state) => state.setMuseUsageEnabled)
   const refreshMuseUsage = useAppStore((state) => state.refreshMuseUsage)
-  const setMuseUsageScope = useAppStore((state) => state.setMuseUsageScope)
-  const setMuseUsageRange = useAppStore((state) => state.setMuseUsageRange)
   const recordFeatureInteraction = useAppStore((state) => state.recordFeatureInteraction)
 
   useUsageObservation(observeMuseUsage)
@@ -139,22 +136,6 @@ export function MuseUsagePane(): React.JSX.Element {
         'Refresh Muse usage'
       )}
       refreshLabel={t('auto.components.stats.OpenCodeUsagePane.603cd138dc', 'Refresh')}
-      filterSections={[
-        <UsageFilterRadioGroup
-          key="scope"
-          label={t('auto.components.stats.OpenCodeUsagePane.40d283c837', 'Scope')}
-          value={scope}
-          options={SCOPE_OPTIONS}
-          onValueChange={(value) => void setMuseUsageScope(value)}
-        />,
-        <UsageFilterRadioGroup
-          key="range"
-          label={t('auto.components.stats.OpenCodeUsagePane.b5ed5c9fd0', 'Range')}
-          value={range}
-          options={RANGE_OPTIONS.map((value) => ({ value, label: RANGE_LABELS[value] }))}
-          onValueChange={(value) => void setMuseUsageRange(value)}
-        />
-      ]}
       selectionSummary={
         <>
           {SCOPE_OPTIONS.find((option) => option.value === scope)?.label} • {RANGE_LABELS[range]}

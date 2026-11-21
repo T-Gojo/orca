@@ -15,6 +15,7 @@ import { fetchOpenCodeGoUsage } from '../providers/opencode-go/opencode-go-usage
 import { RateLimitServiceAntigravityAccounts } from './service-antigravity-accounts'
 import type { FetchAllCyclePrepared } from './full-cycle-prepared'
 import type { ProviderRateLimits } from '../../../shared/agent-usage/rate-limits/rate-limit-types'
+import { settleSiblingProviderFetch } from './service-sibling-provider-result'
 
 export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServiceAntigravityAccounts {
   protected async prepareFetchAllCycle(
@@ -155,45 +156,45 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       cursor: this.withFetchingStatus(previousState.cursor, 'cursor'),
       zcode: zcodeConfigChanged
         ? this.withFetchingStatus(null, 'zcode')
-        : this.withFetchingStatus(previousState.zcode, 'zcode')
+        : this.withFetchingStatus(previousState.zcode, 'zcode'),
+      kiro: this.withFetchingStatus(previousState.kiro, 'kiro')
     })
     // Async Keychain/worker DB reads must not delay other providers.
-    const cursorResultPromise = readCursorAuthSession()
-      .then((authReadResult) => {
+    const cursorResultPromise = settleSiblingProviderFetch(
+      readCursorAuthSession().then((authReadResult) => {
         this.cursorAuthConfigured = authReadResult.status === 'ok'
         return fetchCursorRateLimits({ signal, authReadResult })
       })
-      .then(
-        (value) => ({ status: 'fulfilled', value }) as const,
-        (reason) => ({ status: 'rejected', reason }) as const
-      )
-    const zcodeResultPromise = (
+    )
+
+    const zcodeResultPromise = settleSiblingProviderFetch(
       zcodePlanConfigResult.error
         ? Promise.resolve(this.getZcodePlanCredentialError(zcodePlanConfigResult.error))
         : fetchZcodeRateLimits({ signal, planCredential: zcodePlanCredential })
-    ).then(
-      (value) => ({ status: 'fulfilled', value }) as const,
-      (reason) => ({ status: 'rejected', reason }) as const
     )
+
+    const kiroResultPromise = settleSiblingProviderFetch(
+      this.fetchKiroWithSavedAccounts(signal, options?.force === true)
+    )
+
+    const fetchAntigravity = (): Promise<ProviderRateLimits> =>
+      fetchAntigravityRateLimits({ signal, target: antigravityTarget }).then((limits) =>
+        this.attributeAntigravityReading(antigravityRead, antigravityGeneration, limits)
+      )
     // Hidden meters avoid the CLI spawn; the separate promise keeps other providers responsive.
-    const antigravityResultPromise = (
+    const antigravityResultPromise = settleSiblingProviderFetch(
       antigravityFetchAllowed
-        ? fetchAntigravityRateLimits({ signal, target: antigravityTarget }).then((limits) =>
-            this.attributeAntigravityReading(antigravityRead, antigravityGeneration, limits)
+        ? this.fetchAntigravityWithSavedAccounts(
+            antigravityTarget,
+            fetchAntigravity,
+            options?.force === true
           )
         : Promise.resolve(previousState.antigravity ?? antigravityUsageDisabledSnapshot())
-    ).then(
-      (value) => ({ status: 'fulfilled', value }) as const,
-      (reason) => ({ status: 'rejected', reason }) as const
     )
     const missingWslCodexHome =
       codexFetchGated || codexHomePath ? null : this.getMissingWslCodexHomeResult(codexTarget)
-    const grokResultPromise = fetchGrokRateLimits({
-      signal,
-      authReadResult: grokAuthReadResult
-    }).then(
-      (value) => ({ status: 'fulfilled', value }) as const,
-      (reason) => ({ status: 'rejected', reason }) as const
+    const grokResultPromise = settleSiblingProviderFetch(
+      fetchGrokRateLimits({ signal, authReadResult: grokAuthReadResult })
     )
     // Live display does not waive automated Retry-After gates.
     const claudeFetchGated =
@@ -297,6 +298,7 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       grokResultPromise,
       cursorResultPromise,
       zcodeResultPromise,
+      kiroResultPromise,
       antigravityResultPromise
     }
   }

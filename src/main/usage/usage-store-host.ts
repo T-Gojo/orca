@@ -1,5 +1,6 @@
 import type { AgentTokenUsage } from '../../shared/telemetry/schemas/telemetry-agent-token-usage-schema'
 import type { UsageWorktreeRef } from './worktree-attribution/usage-worktree-metadata'
+import type { AccountUsageRecorder } from './account-usage-backend'
 
 export type UsageWorktreeCatalog = {
   repoIds: string[]
@@ -17,4 +18,6 @@ export type UsageStoreHost = {
   readCatalog(): Promise<UsageWorktreeCatalog>
   claudeProfileDirs(): Promise<string[]>
   telemetry: UsageTelemetryHost
+  /** Fork: the desktop keeps the per-account ledger; headless hosts omit it. */
+  recordAccountUsage?: AccountUsageRecorder
 }

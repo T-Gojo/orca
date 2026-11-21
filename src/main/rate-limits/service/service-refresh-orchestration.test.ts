@@ -52,6 +52,18 @@ vi.mock('../providers/antigravity/antigravity-usage-fetcher', () => ({
   fetchAntigravityRateLimits: vi.fn()
 }))
 
+// Fork: Kiro usage reads the real kiro-cli login unless mocked.
+vi.mock('../kiro-usage-fetcher', () => ({
+  fetchKiroRateLimits: vi.fn(async () => ({
+    provider: 'kiro',
+    session: null,
+    weekly: null,
+    updatedAt: 0,
+    error: null,
+    status: 'unavailable'
+  }))
+}))
+
 vi.mock('../providers/minimax/minimax-fetcher', () => ({
   fetchMiniMaxRateLimits: vi.fn()
 }))

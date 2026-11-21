@@ -7,6 +7,7 @@ import { getMiniMaxStatusBarToggleSearchEntry } from './appearance-status-bar-mi
 import { getGrokStatusBarToggleSearchEntry } from './appearance-status-bar-grok-toggle-search'
 import { getCursorStatusBarToggleSearchEntry } from './appearance-status-bar-cursor-toggle-search'
 import { getZcodeStatusBarToggleSearchEntry } from './appearance-status-bar-zcode-toggle-search'
+import { getKiroStatusBarToggleSearchEntry } from './appearance-status-bar-kiro-toggle-search'
 import { getMuseStatusBarToggleSearchEntry } from './appearance-status-bar-muse-toggle-search'
 import { getGitBlameStatusBarToggleSearchEntry } from './appearance-status-bar-git-blame-toggle-search'
 
@@ -173,6 +174,7 @@ export const getStatusBarToggles = createLocalizedCatalog(
     getGrokStatusBarToggleSearchEntry(),
     getCursorStatusBarToggleSearchEntry(),
     getZcodeStatusBarToggleSearchEntry(),
+    getKiroStatusBarToggleSearchEntry(),
     getMuseStatusBarToggleSearchEntry(),
     {
       id: 'ssh',

@@ -33,6 +33,7 @@ import { UsageUnitLabel, usageChipShowsPercentage } from './usage/usage-unit-lab
 import type { useStatusBarController } from './composition/use-status-bar-controller'
 import { isOwnerNotSetUpPlaceholder } from './usage/owner-usage-rate-limits'
 import { getAccountOwnerKey } from './accounts/owner-account-rows'
+import { withSavedAccountRows } from './usage/usage-roster-saved-accounts'
 
 type StatusBarController = NonNullable<ReturnType<typeof useStatusBarController>>
 
@@ -160,7 +161,7 @@ export function StatusBarUsageArea({
                   canSignIn={canSignInFromUsageRow}
                   onManageAccounts={handleManageAccounts}
                   onUsageDetails={handleUsageDetails}
-                  renderRow={(p, rowNode) => {
+                  renderRow={withSavedAccountRows((p, rowNode) => {
                     // Why: a placeholder has nothing to drill into; its row opens the host's accounts.
                     if (isOwnerNotSetUpPlaceholder(p)) {
                       return null
@@ -208,7 +209,7 @@ export function StatusBarUsageArea({
                         )}
                       />
                     )
-                  }}
+                  })}
                 />
               </DropdownMenuContent>
             </DropdownMenu>

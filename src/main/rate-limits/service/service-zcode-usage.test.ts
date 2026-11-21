@@ -50,6 +50,17 @@ vi.mock('../providers/zcode/zcode-usage-fetcher', () => ({
   fetchZcodeRateLimits: vi.fn(),
   hasZcodeCliPlanCredentials: vi.fn(() => false)
 }))
+vi.mock('../kiro-usage-fetcher', () => ({
+  fetchKiroRateLimits: async () => ({
+    provider: 'kiro',
+    session: null,
+    weekly: null,
+    // ast-grep-ignore: test-no-wall-clock -- a fresh unavailable Kiro snapshot keeps activation debounce tests on their own providers
+    updatedAt: Date.now(),
+    error: null,
+    status: 'unavailable'
+  })
+}))
 
 vi.mock('../providers/minimax/minimax-fetcher', () => ({
   fetchMiniMaxRateLimits: vi.fn()

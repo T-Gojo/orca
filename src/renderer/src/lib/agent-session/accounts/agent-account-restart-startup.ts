@@ -26,6 +26,7 @@ import { resolveStartupShell } from '../../../../../shared/agent-launch/startup/
 import type { AppState } from '@/store/types'
 import type { AccountRestartAgent } from '@/store/terminals/terminal-contracts'
 import type { ProjectExecutionRuntimeResolution } from '../../../../../shared/execution-host/project-execution-runtime'
+import { pinnedStartupEnv, takePaneRestartAccount } from '@/lib/agent-terminal-account-pins'
 
 export type AgentAccountRestartStartup = {
   command: string
@@ -37,6 +38,8 @@ export type AgentAccountRestartStartup = {
 }
 
 type AccountRestartPane = {
+  /** The PTY being replaced; carries a per-pane account chosen from the tab menu. */
+  ptyId?: string
   tabId: string
   leafId: string
   worktreeId: string
@@ -132,7 +135,12 @@ export function buildPaneAccountRestartStartup(
   ) {
     return null
   }
-  return resume ?? (agent === 'codex' ? buildCodexAccountRestartStartup(args) : null)
+  const startup: AgentAccountRestartStartup | null =
+    resume ?? (agent === 'codex' ? buildCodexAccountRestartStartup(args) : null)
+  const accountId = takePaneRestartAccount(args.ptyId)
+  return startup && accountId !== undefined
+    ? { ...startup, ...pinnedStartupEnv(startup.env, agent, accountId) }
+    : startup
 }
 
 export function buildCodexAccountRestartStartup(

@@ -4,6 +4,7 @@ import type {
   AntigravityAccountUsage,
   InactiveAccountUsage,
   ProviderRateLimits,
+  RateLimitRuntimeTarget,
   RateLimitState
 } from '../../../shared/agent-usage/rate-limits/rate-limit-types'
 import type { AntigravityAccountUsageRecorder } from '../providers/antigravity/antigravity-account-usage'
@@ -28,6 +29,10 @@ import type { NormalizedClaudeAccountSelectionTarget } from '../../claude-accoun
 import type { InactiveClaudeAccount } from '../providers/claude/claude-managed-account-usage'
 import type { NetworkProxySettings } from '../../../shared/network/network-proxy'
 import { readGrokAuthSession } from '../providers/grok/grok-auth'
+import { join } from 'node:path'
+import { getAppEnvironment } from '../../../shared/app-lifecycle/app-environment'
+import { SavedAccountUsageTracker, type SavedAccountsReader } from '../saved-account-usage'
+import { fetchKiroRateLimits } from '../kiro-usage-fetcher'
 
 export abstract class RateLimitServiceState {
   protected state: InternalRateLimitState = {
@@ -41,7 +46,8 @@ export abstract class RateLimitServiceState {
     grok: null,
     cursor: null,
     zcode: null,
-    muse: null
+    muse: null,
+    kiro: null
   }
   protected grokAuthConfigured = readGrokAuthSession().status === 'ok'
   // Async Keychain/desktop DB probing belongs in fetch cycles, never synchronous construction.
@@ -49,6 +55,8 @@ export abstract class RateLimitServiceState {
   protected openCodeGoApiKeyConfigured = false
   protected pollInterval: number = DEFAULT_POLL_MS
   protected timer: ReturnType<typeof setInterval> | null = null
+  // Why: when set, only explicit user actions (refresh button, account changes) fetch usage.
+  protected manualRefreshOnly = false
   protected deferredStartupRefreshTimer: ReturnType<typeof setTimeout> | null = null
   // Coalesce focus/show/restore bursts into provider-throttled retries.
   protected lastActiveFailureRetryAtByProvider: Record<ActiveRateLimitProvider, number> = {
@@ -62,7 +70,8 @@ export abstract class RateLimitServiceState {
     antigravity: 0,
     cursor: 0,
     zcode: 0,
-    muse: 0
+    muse: 0,
+    kiro: 0
   }
   // Failures increase activation backoff; success/unavailable resets it.
   protected activeFailureStreakByProvider: Record<ActiveRateLimitProvider, number> = {
@@ -76,7 +85,8 @@ export abstract class RateLimitServiceState {
     antigravity: 0,
     cursor: 0,
     zcode: 0,
-    muse: 0
+    muse: 0,
+    kiro: 0
   }
   protected mainWindow: BrowserWindow | null = null
   /** Paired clients streaming usage (accounts.subscribe); headless hosts have no window to watch. */
@@ -139,6 +149,14 @@ export abstract class RateLimitServiceState {
   protected antigravityAccountUsageRecorder: AntigravityAccountUsageRecorder | null = null
   protected antigravityAccounts: AntigravityAccountUsage[] = []
   protected museUsageEnabledResolver: MuseUsageEnabledResolver | null = null
+  protected antigravityAccountsReader: SavedAccountsReader | null = null
+  protected antigravityAccountUsage = new SavedAccountUsageTracker('antigravity', () =>
+    join(getAppEnvironment().getPath('userData'), 'antigravity-accounts', 'usage-cache.json')
+  )
+  protected kiroAccountsReader: SavedAccountsReader | null = null
+  protected kiroAccountUsage = new SavedAccountUsageTracker('kiro', () =>
+    join(getAppEnvironment().getPath('userData'), 'kiro-accounts', 'usage-cache.json')
+  )
   protected inactiveClaudeAccountsResolver: (() => InactiveClaudeAccount[]) | null = null
   protected inactiveCodexAccountsResolver: (() => InactiveCodexAccountInfo[]) | null = null
   protected networkProxySettingsResolver: (() => NetworkProxySettings) | null = null
@@ -273,5 +291,28 @@ export abstract class RateLimitServiceState {
     } finally {
       this.publicationInFlight = null
     }
+  }
+
+  /** Fork: Kiro usage, credited to the saved account it came from (FORK.md §5). */
+  protected fetchKiroWithSavedAccounts(
+    signal: AbortSignal,
+    force: boolean
+  ): Promise<ProviderRateLimits> {
+    return this.kiroAccountUsage.track(
+      this.kiroAccountsReader,
+      () => fetchKiroRateLimits({ signal }),
+      force
+    )
+  }
+
+  /** Fork: also reads inactive saved Antigravity accounts. Why host only: the probe runs the host's agy. */
+  protected fetchAntigravityWithSavedAccounts(
+    target: RateLimitRuntimeTarget,
+    fetch: () => Promise<ProviderRateLimits>,
+    force: boolean
+  ): Promise<ProviderRateLimits> {
+    return target.runtime === 'host'
+      ? this.antigravityAccountUsage.track(this.antigravityAccountsReader, fetch, force)
+      : fetch()
   }
 }

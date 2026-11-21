@@ -25,6 +25,7 @@ import { normalizeCodexRuntimeSelection } from '../../codex-accounts/account-man
 import { normalizeClaudeRuntimeSelection } from '../../claude-accounts/selection/runtime-selection'
 import { CLAUDE_HOST_SYSTEM_DEFAULT_USAGE_ID } from '../../../shared/agent-accounts/claude/claude-system-default-usage'
 import type { ClaudeStatusLineRateLimits } from '../../../shared/agent-usage/rate-limits/claude-statusline-rate-limits'
+import { wireSavedAccountUsage } from '../../rate-limits/saved-account-usage-wiring'
 
 export type ProviderAccountServices = {
   rateLimits: RateLimitService
@@ -158,6 +159,8 @@ export function createProviderAccountServices(
   )
   // Hidden Muse meters must not spawn the Muse CLI.
   rateLimits.setMuseUsageEnabledResolver(() => store.getUI().statusBarItems.includes('muse'))
+  // Fork: per-saved-account Kiro and Antigravity usage (FORK.md sections 1 and 2).
+  wireSavedAccountUsage(rateLimits)
   setAntigravityNativeCredentialChangeListener(() =>
     rateLimits.invalidateAntigravityCredentialState()
   )

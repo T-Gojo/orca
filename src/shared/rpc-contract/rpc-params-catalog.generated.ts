@@ -570,6 +570,7 @@ import {
 } from './jira/jira-params'
 import { JiraQuickFilterStateParam } from './jira/jira-quick-filter-params'
 import { JiraSavedFilterMutationParam } from './jira/jira-saved-filter-params'
+import { KiroAccountMutationParams } from './kiro-accounts-params'
 import {
   AgentIssueContext,
   AgentSearchIssues,
@@ -1060,6 +1061,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.antigravityChatSignInComplete': AntigravityChatSignInCompleteParams,
   'accounts.antigravityChatSignInStart': AntigravityChatSignInStartParams,
   'accounts.antigravityChatSignInSubscribe': null,
+  'accounts.antigravityImportBridgeHub': AntigravityAccountTargetParams,
   'accounts.antigravityList': AntigravityAccountTargetParams,
   'accounts.antigravityRemove': AntigravityAccountMutationParams,
   'accounts.antigravitySelect': AntigravityAccountMutationParams,
@@ -1071,6 +1073,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.hostSignInStart': HostAccountSignInStartParams,
   'accounts.hostSignInSubmitCode': HostAccountSignInCodeParams,
   'accounts.hostSignInWait': HostAccountSignInWaitParams,
+  'accounts.kiroAddCurrent': null,
+  'accounts.kiroBeginSignIn': null,
+  'accounts.kiroList': null,
+  'accounts.kiroRemove': KiroAccountMutationParams,
+  'accounts.kiroSelect': KiroAccountMutationParams,
   'accounts.list': ListAccountsParams,
   'accounts.listData': null,
   'accounts.minimaxClearApiKey': null,

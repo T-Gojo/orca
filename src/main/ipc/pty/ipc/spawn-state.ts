@@ -94,6 +94,7 @@ export type PtyIpcSpawnState = {
   skipCodexHomeEnv: boolean
   stripInheritedOrcaCodexHome: boolean
   codexResumeHomeSelected: boolean
+  codexHomePinned: boolean
   provisionalPtySize: PtySpawnSizeSeed | undefined
   initiallyHidden: boolean
   preSpawnHiddenMarkId: string | null
@@ -171,6 +172,7 @@ export function createPtyIpcSpawnState(
     skipCodexHomeEnv: false,
     stripInheritedOrcaCodexHome: false,
     codexResumeHomeSelected: false,
+    codexHomePinned: false,
     provisionalPtySize: undefined,
     initiallyHidden: false,
     preSpawnHiddenMarkId: null

@@ -1,3 +1,4 @@
+import { ContinuationAccountSelect, useContinuationAccount } from './ContinuationAccountSelect'
 import { useAgentPickerDraftScope } from '../agent/AgentLaunchSetupButton'
 import { agentsOfferedForLaunch } from '@/lib/agent-session/launch/inventory/host-chat-program'
 import { worktreeLaunchWorkspace } from '@/lib/agent-session/launch/routing/agent-launch-route-input'
@@ -178,6 +179,13 @@ export function AgentSessionContinuationDialog({
       defaultAgent: settings?.defaultTuiAgent
     })
   const selection = observation.selectionFor(selectedAgent, currentPick?.surface)
+  const account = useContinuationAccount({
+    open,
+    request,
+    agent: selectedAgent,
+    choice: selection.choice,
+    settings
+  })
 
   useEffect(() => {
     if (!starting) {
@@ -208,26 +216,29 @@ export function AgentSessionContinuationDialog({
     // Aborts when the dialog closes or moves to another request; a sent launch still settles.
     const signal = abortRef.current?.signal
     setStartingFor(start)
-    const launched = await launchAgentSessionContinuation({
-      agent: selectedAgent,
-      prompt,
-      worktreeId: request.worktreeId,
-      groupId: request.groupId,
-      initialCwd: request.initialCwd,
-      launchChoice: selection.choice,
-      ...(currentPick?.draft
-        ? agentPickerFreshLaunchInputs(
-            currentPick.draft,
-            {
-              surface: selection.choice.route === 'terminal-tui' ? 'terminal' : 'chat',
-              executionHostId: selection.choice.executionHostId
-            },
-            currentPick.entry
-          )
-        : {}),
-      launchSource: request.launchSource,
-      signal
-    })
+    const launched =
+      (await account.prepare()) &&
+      (await launchAgentSessionContinuation({
+        agent: selectedAgent,
+        prompt,
+        worktreeId: request.worktreeId,
+        groupId: request.groupId,
+        initialCwd: request.initialCwd,
+        launchChoice: selection.choice,
+        ...(currentPick?.draft
+          ? agentPickerFreshLaunchInputs(
+              currentPick.draft,
+              {
+                surface: selection.choice.route === 'terminal-tui' ? 'terminal' : 'chat',
+                executionHostId: selection.choice.executionHostId
+              },
+              currentPick.entry
+            )
+          : {}),
+        launchSource: request.launchSource,
+        signal,
+        ...account.launchInput
+      }))
     setStartingFor((current) => (current === start ? null : current))
     // A late finish is reported by the launch's own owners, never by a dialog it no longer holds.
     if (launched && !signal?.aborted) {
@@ -329,6 +340,8 @@ export function AgentSessionContinuationDialog({
             </DialogError>
           ) : null}
         </div>
+
+        <ContinuationAccountSelect account={account} />
 
         <div className="grid min-w-0 gap-1.5">
           <label id={contextLabelId} className="text-[13px] font-medium">

@@ -796,7 +796,8 @@
         "gitBlameKeywordBlame": "blame",
         "gitBlameKeywordAuthor": "author",
         "gitBlameKeywordCommit": "commit",
-        "gitBlameToggleDescription": "Show the author and age of the cursor line. Click it to open the commit."
+        "gitBlameToggleDescription": "Show the author and age of the cursor line. Click it to open the commit.",
+        "kiroToggleDescription": "Show Kiro credit usage when signed in through kiro-cli or Kiro IDE."
       },
       "menuBarIcon": {
         "description": "Keep an Orca shortcut and activity indicator in the macOS menu bar.",
@@ -2869,6 +2870,16 @@
           }
         }
       },
+      "antigravityLaunchAccounts": {
+        "switched": "Antigravity switched to {{value0}}",
+        "switchedAll": "Antigravity keeps one login, so other Antigravity terminals use this account from their next request.",
+        "switchFailed": "Could not switch Antigravity account"
+      },
+      "tabAgentAccountSwitch": {
+        "notResumable": "This Claude session cannot be resumed yet. Send it a message first, then try again.",
+        "restarting": "Restarting on {{value0}}",
+        "claudeWaits": "Claude restarts once its current turn ends, then resumes this conversation."
+      },
       "claudeAgentRowView": {
         "openParentConversation": "Open parent conversation",
         "parentViewFailed": "Claude could not open the parent conversation. Try again in the Claude pane.",
@@ -3113,7 +3124,7 @@
         "94a5afe910": "SSH Hosts",
         "40d80bad8a": "Beta",
         "de0c2907a1": "Remote Orca Servers",
-        "b351014180": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
+        "b351014180": "Orca stats plus token and plan usage for every agent and account you use.",
         "d72a58b5b9": "Stats & Usage",
         "dcd0d9b74f": "Keyboard shortcuts for common actions.",
         "94295ebfb3": "Shortcuts",
@@ -5414,6 +5425,8 @@
             "8e9d603a09": "Unpin Tab"
           },
           "QuickLaunchButton": {
+            "openWithAccount": "Open with account",
+            "defaultAccount": "Default",
             "348a04c1ad": "Agent settings…",
             "ec2adf093e": "Launch {{value0}} in a new terminal",
             "e518f544b1": "No agents detected",
@@ -5431,6 +5444,7 @@
             "startChat": "Start a chat with {{value0}}",
             "cliTag": "(CLI)",
             "agentsLoading": "Loading agents",
+            "switchAccountAndOpen": "Switch account and open",
             "chatNotOnWindows": "No chat on Windows yet"
           },
           "RecentTabSwitcher": {
@@ -5583,6 +5597,13 @@
           "TabBarQuickCommandHostLoadStatus": {
             "82e294f3ca": "Host unavailable",
             "7c129b08ff": "Loading host…"
+          },
+          "AccountLaunchRow": {
+            "currentAccount": "Current"
+          },
+          "ChangeAccountMenuItems": {
+            "label": "Change Account",
+            "heading": "Continue this session on"
           },
           "nativeChatCliFork": {
             "cannotOpenInCli": "This session cannot be opened in the CLI."
@@ -5762,6 +5783,7 @@
             "cursorUsageMenu": "Cursor Usage",
             "hiddenUsageProviders": "Also: {{value0}}",
             "zcodeUsageMenu": "ZCode Usage",
+            "kiroUsageMenu": "Kiro Usage",
             "rateLimitResetsAvailable_one": "{{count}} rate-limit reset available",
             "rateLimitResetsAvailable_other": "{{count}} rate-limit resets available",
             "signedOutAccounts": "Signed out",
@@ -5958,6 +5980,7 @@
             "e2c6a4f917": "Run Grok to refresh",
             "d1b7f509ac": "Run grok in a terminal on the computer running Orca and wait for it to start. If prompted, complete sign-in, then retry usage. You do not need to send a chat message.",
             "f90b3d7a16": "Run Kimi to refresh",
+            "kiroRunToRefresh": "Run Kiro to refresh",
             "a37e8c15d4": "Run kimi in a terminal on the computer running Orca and wait for it to start, then retry usage.",
             "fbc80d8be2": "Zen balance",
             "c03c61f53f": "Balance",
@@ -6016,6 +6039,8 @@
             "gotIt": "Got it"
           },
           "UsageRosterPanel": {
+            "accountLoading": "Loading…",
+            "accountNotLoaded": "Refresh to load usage",
             "title": "Usage",
             "openDetails": "Open usage details",
             "notSignedIn": "not signed in",
@@ -6130,6 +6155,18 @@
           "usageUnitLabel": {
             "used": "Used",
             "remaining": "Remaining"
+          },
+          "antigravityAccounts": {
+            "fiveHours": "5 hours",
+            "unnamed": "Antigravity account",
+            "notRead": "Refresh to read usage",
+            "neverRead": "No reading yet. Refresh to read it.",
+            "activeUpdated": "Active · Updated {{value0}}",
+            "lastReading": "Last reading {{value0}}"
+          },
+          "savedAccounts": {
+            "credits": "Credits",
+            "unnamed": "Saved account"
           },
           "mergeSnapshotAndSessions": {
             "unattributed": "Unattributed"
@@ -6261,8 +6298,6 @@
           "424cd50412": "Enable Claude usage analytics",
           "8d18bbb771": "Refresh",
           "c5b9b344d0": "Refresh Claude usage",
-          "505be9aac4": "Range",
-          "f61cffb9c8": "Scope",
           "dd29209b21": "Filters",
           "e9bf9fce0e": "Claude usage options",
           "6afacbee37": "Claude Usage Tracking",
@@ -6311,8 +6346,6 @@
           "f7c1affbd5": "Enable Codex usage analytics",
           "3022cda443": "Refresh",
           "ec4d270e2c": "Refresh Codex usage",
-          "89162e019b": "Range",
-          "6d68e8399a": "Scope",
           "1af1a39b2f": "Filters",
           "70b5b8581f": "Codex usage options",
           "408210470c": "Codex Usage Tracking",
@@ -6352,8 +6385,6 @@
           "f04131b3be": "Enable OpenCode usage analytics",
           "603cd138dc": "Refresh",
           "bed558df0b": "Refresh OpenCode usage",
-          "b5ed5c9fd0": "Range",
-          "40d283c837": "Scope",
           "01583b30aa": "Filters",
           "230d6de108": "OpenCode usage options",
           "bea80ceae0": "OpenCode Usage Tracking",
@@ -6415,7 +6446,7 @@
           "c760c481c5": "Usage Overview",
           "55c910f4f1": "- some model prices are unavailable",
           "enableMuse": "Enable Muse",
-          "noLocalUsageYet": "No local Claude, Codex, OpenCode, or Muse usage found yet. The overview will populate after the next agent session writes token logs.",
+          "noLocalUsageYet": "No local agent usage found yet. The overview will populate after the next agent session writes its logs.",
           "providersEnabledWithData": "{{enabled}} enabled - {{withData}} with data",
           "sessionCount_one": "{{formatted}} session",
           "sessionCount_other": "{{formatted}} sessions"
@@ -6449,7 +6480,7 @@
             "0bba8ca244": "statistics",
             "0e2a0b6431": "usage",
             "372debfac0": "stats",
-            "26bb901fcd": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
+            "26bb901fcd": "Orca stats plus token and plan usage for every agent and account you use.",
             "cb2430ae6a": "Stats & Usage",
             "f8a1b2c3d4": "grok",
             "e7f0a1b2c3": "subscription",
@@ -6476,7 +6507,7 @@
               "69e2b50427": "Daily intensity",
               "3a795542fa": "Combined token mix",
               "e65084cb4b": "reasoning",
-              "3bc4a01b24": "Combined input, output, and cache tokens across enabled providers.",
+              "3bc4a01b24": "Combined input, output, and cache tokens across every tracked agent.",
               "4ff104da47": "Token mix",
               "0015facc1f": "Cache",
               "7f270458af": "Output",
@@ -6485,15 +6516,15 @@
               "statusScanning": "Scanning",
               "statusEnabled": "Enabled",
               "statusOff": "Off",
-              "recentCombinedActivity": "Recent combined Claude, Codex, OpenCode, and Muse token activity.",
+              "recentCombinedActivity": "Recent combined token activity across every tracked agent.",
+              "estimatedTokens": "Estimated: this agent logs credits, not tokens, so Orca estimates tokens from context size and output length.",
               "sessionCount_one": "{{formatted}} session",
               "sessionCount_other": "{{formatted}} sessions",
               "turnCount_one": "{{formatted}} turn",
               "turnCount_other": "{{formatted}} turns",
               "eventCount_one": "{{formatted}} event",
               "eventCount_other": "{{formatted}} events",
-              "sessionsAndActivity": "{{sessions}} - {{activity}}",
-              "tokenTotal": "{{tokens}} tokens"
+              "sessionsAndActivity": "{{sessions}} - {{activity}}"
             }
           }
         },
@@ -6522,6 +6553,30 @@
           "emptyMessage": "No local Muse usage found yet for this scope.",
           "noCostNote": "Muse session logs record tokens but not cost, so no cost estimate is shown.",
           "recentSessionsDescription": "Most recent local Muse sessions in this scope."
+        },
+        "LedgerProviderUsagePane": {
+          "title": "{{value0}} usage",
+          "source": "Read from this agent’s local session logs.",
+          "credits": "Credits",
+          "sessions": "Sessions"
+        },
+        "UsageAccountsSection": {
+          "allTime": "All time",
+          "refresh": "Read every agent’s usage now",
+          "empty": "No usage recorded yet. Orca reads agent logs every few minutes; refresh to read them now.",
+          "unknownAccount": "Saved account",
+          "credits": "{{value}} credits",
+          "tokenMix": "In {{in}} · Out {{out}} · Cache {{cache}}",
+          "activeDay": "1 active day",
+          "activeDays": "{{count}} active days",
+          "removed": "Removed",
+          "title": "Accounts",
+          "tokensHeading": "Usage"
+        },
+        "UsageAccountLimitsList": {
+          "heading": "Plan limits",
+          "refresh": "Refresh plan limits for every account",
+          "empty": "No signed-in agent reports plan limits yet."
         },
         "usageFormatters": {
           "notScannedYet": "Not scanned yet",
@@ -10148,7 +10203,7 @@
           "c40dadaac8": "Mobile",
           "c2ee313198": "Use existing machines over SSH for files, terminals, Git, and workspaces.",
           "7686cb5c36": "Connect this browser to a saved Orca server.",
-          "8acf3f22e0": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
+          "8acf3f22e0": "Orca stats plus token and plan usage for every agent and account you use.",
           "a737a4bb22": "Keyboard shortcuts for common actions.",
           "23bf7a1ad4": "Shortcuts",
           "7210ac09c4": "Native desktop notifications for agent activity and terminal events.",
@@ -11076,6 +11131,9 @@
             "usagePercentageDisplayDescription": "Choose whether provider limits show the percentage used or remaining.",
             "zcodeUsageDescription": "Show ZCode Coding Plan quota usage in the status bar.",
             "zcode": "zcode",
+            "kiroUsageTitle": "Kiro Usage",
+            "kiroUsageDescription": "Show Kiro monthly credit usage in the status bar.",
+            "kiro": "kiro",
             "zai": "zai",
             "glm": "glm",
             "tray": {
@@ -22934,7 +22992,9 @@
       "modeLatestStatus": "Latest status (recommended)",
       "modeFullTranscript": "Full transcript",
       "modeFullCost": "Slower, and uses more of your plan or API credits.",
-      "startSessionSentence": "Start session"
+      "startSessionSentence": "Start session",
+      "account": "Account",
+      "defaultAccount": "{{value0}} (Default)"
     },
     "status": {
       "bar": {
@@ -25014,7 +25074,9 @@
       "googleSignInAgyOption": "Sign in by running agy",
       "googleSignInOrca": "Orca's built-in sign-in",
       "googleSignInOrcaOption": "Sign in through your browser here; no agy needed",
-      "googleSignInUpdateFailed": "Couldn't change how Antigravity signs in with Google."
+      "googleSignInUpdateFailed": "Couldn't change how Antigravity signs in with Google.",
+      "bridgeHubImport": "Import from Bridge Hub",
+      "bridgeHubImported": "Imported {{imported}} accounts from Bridge Hub; {{skipped}} were already saved."
     },
     "claude": {
       "added": "Account added. Select it to use it for the next Claude you start.",
@@ -25134,6 +25196,40 @@
       "cancel": "Cancel",
       "save": "Save",
       "unsupportedHost": "Update Orca on {{host}} to change this setting there."
+    },
+    "kiro": {
+      "creditsUsed": "Credits: {{percent}}% used",
+      "title": "Kiro",
+      "scope": "Save kiro-cli logins on {{host}} and switch between them. kiro-cli keeps one login, so switching changes it for every new kiro-cli session there.",
+      "retry": "Retry",
+      "signedInAs": "kiro-cli is signed in as {{email}}.",
+      "identityUnknown": "kiro-cli is signed in, but Kiro could not confirm the account yet. Run kiro-cli once, then refresh.",
+      "signedOut": "kiro-cli is not signed in on this host.",
+      "save": "Save current account",
+      "addAnother": "Sign in another account",
+      "refresh": "Refresh accounts",
+      "usage": "Refresh usage",
+      "working": "Updating account",
+      "loginSteps": "Your previous login is saved. Run this in a terminal on {{host}}, finish the browser sign-in, then click Refresh accounts and Save current account.",
+      "copied": "Copied",
+      "copy": "Copy command",
+      "empty": "No saved Kiro accounts. Save the current kiro-cli login to start switching.",
+      "saved": "Saved Kiro account",
+      "active": "Active",
+      "inUse": "In use",
+      "switch": "Switch",
+      "remove": "Remove",
+      "sessions": "Running kiro-cli sessions keep their account until restarted. The Kiro IDE keeps its own login.",
+      "switched": "Kiro switched to {{value0}}",
+      "switchedAll": "kiro-cli keeps one login, so new kiro-cli sessions use this account. Running ones keep theirs until restarted.",
+      "switchFailed": "Could not switch Kiro account",
+      "searchTitle": "Kiro Accounts",
+      "searchDescription": "Save kiro-cli logins and switch between them, with each account’s credit usage.",
+      "keyword": {
+        "kiro": "kiro",
+        "kiroCli": "kiro-cli"
+      },
+      "thisComputer": "this computer"
     }
   },
   "fileSearch": {
@@ -26491,6 +26587,24 @@
       "events_other": "{{count}} events",
       "sessions_other": "{{count}} sessions",
       "turns_other": "{{count}} turns"
+    },
+    "usageFilters": {
+      "range": "Range",
+      "allSessions": "All sessions",
+      "orcaWorkspaces": "Orca workspaces",
+      "sessionsLabel": "Sessions: {{value}}",
+      "allSessionsHint": "Every local session, from any app",
+      "orcaWorkspacesHint": "Only sessions in your Orca workspaces"
+    },
+    "usageAccounts": {
+      "earlierUsage": "Earlier usage",
+      "earlierUsageHint": "Logged before Orca recorded which account was signed in",
+      "accountCount_one": "{{count}} account",
+      "accountCount_other": "{{count}} accounts",
+      "subtitle": "Usage per account, kept after an account is removed · {{range}}"
+    },
+    "usageProviders": {
+      "toggle": "Show {{provider}} details"
     }
   },
   "github": {
@@ -26541,7 +26655,9 @@
     "noChat": "No chat for {{agent}}",
     "noTerminal": "No terminal for {{agent}}",
     "openAsChat": "Open as chat",
-    "openAsTerminal": "Open as terminal"
+    "openAsTerminal": "Open as terminal",
+    "account": "Account",
+    "accountLabel": "{{agent}} account"
   },
   "automations": {
     "runFailures": {

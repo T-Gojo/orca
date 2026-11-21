@@ -18,6 +18,10 @@ import { FloatingTerminalIconContextMenu } from '@/components/floating-terminal/
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/overlay-interaction/close-all-context-menus'
 import { useStatusBarController } from './composition/use-status-bar-controller'
 import { StatusBarUsageArea } from './StatusBarUsageArea'
+import {
+  getUsageRosterSavedAccounts,
+  UsageRosterSavedAccountsProvider
+} from './usage/usage-roster-saved-accounts'
 import { scrollStripSidewaysOnWheel } from '../tab-bar/strip/tab-strip-scroll-metrics'
 import { StatusBarVisibilityMenu } from './composition/StatusBarVisibilityMenu'
 import { isPairedWebClientWindow } from '@/app-shell/chrome/desktop-window-chrome'
@@ -98,7 +102,9 @@ export function StatusBarSurface({
         setMenuOpen(true)
       }}
     >
-      <StatusBarUsageArea controller={controller} />
+      <UsageRosterSavedAccountsProvider value={getUsageRosterSavedAccounts(controller)}>
+        <StatusBarUsageArea controller={controller} />
+      </UsageRosterSavedAccountsProvider>
 
       {/* Why: attention segments shrink only after usage reaches its minimum, then scroll instead of
           compressing; the row's padding keeps edge badges and focus rings inside the scroll box. */}

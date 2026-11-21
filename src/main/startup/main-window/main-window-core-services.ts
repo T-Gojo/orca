@@ -166,4 +166,6 @@ async function installMainWindowCoreServices(
   // Attach durable diagnostic pulls now, defer process launch past first paint.
   initTccPromptNotice(window, { deferWatchUntilReadyToShow: true })
   rateLimits.attach(window)
+  // Fork: only the startup read and user refreshes fetch usage; no background polling.
+  rateLimits.setManualRefreshOnly(true)
 }

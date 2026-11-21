@@ -1,4 +1,9 @@
 import {
+  mergeSavedAccountUsage,
+  type SavedAccountsReader,
+  type SavedAccountUsageProbe
+} from '../saved-account-usage'
+import {
   localAccountRuntimeTargetKey,
   type LocalAccountRuntimeTarget
 } from '../../../shared/agent-accounts/local-account-runtime'
@@ -103,6 +108,22 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
     this.antigravityUsageEnabledResolver = resolver
   }
 
+  setAntigravityAccountsReader(reader: SavedAccountsReader): void {
+    this.antigravityAccountsReader = reader
+  }
+
+  setAntigravityAccountUsageProbe(probe: SavedAccountUsageProbe): void {
+    this.antigravityAccountUsage.useInactiveProbe(probe, () => this.pushToRenderer())
+  }
+
+  setKiroAccountsReader(reader: SavedAccountsReader): void {
+    this.kiroAccountsReader = reader
+  }
+
+  setKiroAccountUsageProbe(probe: SavedAccountUsageProbe): void {
+    this.kiroAccountUsage.useInactiveProbe(probe, () => this.pushToRenderer())
+  }
+
   setAntigravityFetchTarget(target: LocalAccountRuntimeTarget): void {
     if (
       localAccountRuntimeTargetKey(target) ===
@@ -143,7 +164,9 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
     this.detachWindowListeners?.()
     this.mainWindow = mainWindow
     const refreshOnResume = (): void => {
-      void this.refreshIfWatched()
+      if (!this.manualRefreshOnly) {
+        void this.refreshIfWatched()
+      }
     }
     // Replacing windows must also detach the old closed listener.
     const detachWindowListeners = (): void => {
@@ -179,6 +202,16 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
         released = true
         this.usageViewers -= 1
       }
+    }
+  }
+
+  /** Stop background polling and focus/show/restore refreshes; the startup read and user refreshes still run. */
+  setManualRefreshOnly(enabled: boolean): void {
+    this.manualRefreshOnly = enabled
+    if (enabled) {
+      this.stopTimer()
+    } else if (this.mainWindow) {
+      this.startTimer()
     }
   }
 
@@ -235,7 +268,13 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
         this.inactiveCodexCache,
         this.inactiveCodexFetching
       ),
-      antigravityAccounts: this.antigravityAccounts
+      antigravityAccounts: mergeSavedAccountUsage(
+        this.antigravityAccounts,
+        this.antigravityFetchTarget.runtime === 'host'
+          ? this.antigravityAccountUsage.list(this.state.antigravity)
+          : undefined
+      ),
+      kiroAccounts: this.kiroAccountUsage.list(this.state.kiro)
     }
   }
 }

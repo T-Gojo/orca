@@ -3,6 +3,7 @@ import type { CodexUsageDailyAggregate, CodexUsageSession } from '../../codex-us
 import type { OpenCodeUsageDailyAggregate, OpenCodeUsageSession } from '../../opencode-usage/types'
 import type { MuseUsageDailyAggregate, MuseUsageSession } from '../../muse-usage/types'
 import type { UsageScanWorktreeRef } from '../provider-lifecycle/usage-provider-contract'
+import type { UsageSourceRollup } from '../../../shared/account-usage-ledger-types'
 import type {
   UsageCacheSplitRequest,
   UsageCacheSplitResult,
@@ -45,6 +46,8 @@ export type UsageScanWorkerScanBody =
 export type UsageScanWorkerRequestBody =
   | UsageScanWorkerScanBody
   | ({ operation: 'splitCacheFile' } & UsageCacheSplitRequest)
+  // Fork: no providerId, so the scheduler runs one collection at a time beside provider scans.
+  | { operation: 'collectAccountSources'; providerId?: undefined }
 
 export type UsageScanWorkerRequest = UsageScanWorkerRequestBody & { id: number }
 
@@ -55,18 +58,22 @@ export type UsageScanWorkerScanValue =
       providerId: 'claude'
       sessions: ClaudeUsageSession[]
       dailyAggregates: ClaudeUsageDailyAggregate[]
+      /** Optional: an older worker build omits it. */
+      sourceRollups?: UsageSourceRollup[]
     }
   | {
       operation: 'scan'
       providerId: 'codex'
       sessions: CodexUsageSession[]
       dailyAggregates: CodexUsageDailyAggregate[]
+      sourceRollups?: UsageSourceRollup[]
     }
   | {
       operation: 'scan'
       providerId: 'opencode'
       sessions: OpenCodeUsageSession[]
       dailyAggregates: OpenCodeUsageDailyAggregate[]
+      sourceRollups?: UsageSourceRollup[]
     }
   | {
       operation: 'scan'
@@ -78,6 +85,11 @@ export type UsageScanWorkerScanValue =
 export type UsageScanWorkerValue =
   | UsageScanWorkerScanValue
   | ({ operation: 'splitCacheFile' } & UsageCacheSplitResult)
+  | {
+      operation: 'collectAccountSources'
+      kiro: UsageSourceRollup[]
+      antigravity: UsageSourceRollup[]
+    }
 
 export type UsageScanWorkerResponse =
   | { id: number; ok: true; value: UsageScanWorkerValue }

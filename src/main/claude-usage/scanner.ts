@@ -67,6 +67,14 @@ async function planClaudeUsageFile(
   }
 }
 
+function isRetainableClaudeProjection(file: ClaudeUsagePersistedFile): boolean {
+  return (
+    Array.isArray(file.sessions) &&
+    Array.isArray(file.dailyAggregates) &&
+    Array.isArray(file.ownedDedupeKeys)
+  )
+}
+
 async function yieldToEventLoop(): Promise<void> {
   await new Promise((resolve) => setImmediate(resolve))
 }
@@ -101,6 +109,10 @@ export async function scanClaudeUsageFiles(
       await yieldToEventLoop()
     }
   }
+  // Why kept: a deleted transcript (Claude's own cleanup, a removed account) must not lower history.
+  const vanished = previousProcessedFiles.filter(
+    (previous) => !plans.has(previous.path) && isRetainableClaudeProjection(previous)
+  )
   const lostOwner = previousProcessedFiles.some(
     (previous) => previous.ownedDedupeKeys?.length > 0 && !plans.has(previous.path)
   )
@@ -180,8 +192,13 @@ export async function scanClaudeUsageFiles(
   const processedFiles: ClaudeUsagePersistedFile[] = []
   const sessionsById = new Map<string, ClaudeUsageSession>()
   const dailyByKey = new Map<string, ClaudeUsageDailyAggregate>()
-  for (const path of files) {
-    const processed = projections.get(path)
+  // A fork that reclaimed every record of a deleted transcript already counts it.
+  const kept = vanished.filter(
+    (previous) =>
+      previous.ownedDedupeKeys.length === 0 ||
+      previous.ownedDedupeKeys.some((key) => !ownerByKey.has(key))
+  )
+  for (const processed of [...files.map((path) => projections.get(path)), ...kept]) {
     if (processed) {
       processedFiles.push(processed)
       mergeClaudeSessions(sessionsById, processed.sessions)

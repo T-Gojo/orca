@@ -61,6 +61,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       grokResultPromise,
       cursorResultPromise,
       zcodeResultPromise,
+      kiroResultPromise,
       antigravityResultPromise
     } = prepared
     if (signal.aborted) {
@@ -216,12 +217,14 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         : this.state.minimax
     })
 
-    const [grokSettled, cursorSettled, zcodeSettled, antigravitySettled] = await Promise.all([
-      grokResultPromise,
-      cursorResultPromise,
-      zcodeResultPromise,
-      antigravityResultPromise
-    ])
+    const [grokSettled, cursorSettled, zcodeSettled, kiroSettled, antigravitySettled] =
+      await Promise.all([
+        grokResultPromise,
+        cursorResultPromise,
+        zcodeResultPromise,
+        kiroResultPromise,
+        antigravityResultPromise
+      ])
     if (signal.aborted) {
       return
     }
@@ -240,6 +243,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         }
     const shouldApplyZcode = zcodeGeneration === this.zcodeFetchGeneration
     const antigravity = settleSiblingProviderResult('antigravity', antigravitySettled)
+    const kiro = settleSiblingProviderResult('kiro', kiroSettled)
     const shouldApplyAntigravity = antigravityGeneration === this.antigravityFetchGeneration
     // Discard Cursor stale usage only for a known account change; unidentified transient failures retain their last reading.
     const cursorAccountChanged = hasKnownProvenanceChange(previousState.cursor, cursor)
@@ -257,6 +261,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
     if (shouldApplyAntigravity) {
       this.trackActiveFailureStreak('antigravity', antigravity)
     }
+    this.trackActiveFailureStreak('kiro', kiro)
     this.updateState({
       ...this.state,
       grok: this.applyStalePolicy(grok, previousState.grok),
@@ -273,7 +278,8 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         ? this.state.antigravity
         : hasKnownProvenanceChange(previousState.antigravity, antigravity)
           ? antigravity
-          : this.applyStalePolicy(antigravity, previousState.antigravity)
+          : this.applyStalePolicy(antigravity, previousState.antigravity),
+      kiro: this.applyStalePolicy(kiro, previousState.kiro)
     })
 
     // Published separately so a slow Muse CLI never delays the sibling batch above.

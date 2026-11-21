@@ -39,6 +39,7 @@ import {
   AntigravityTerminalAccountRows,
   type AntigravityAccountAction
 } from './AntigravityTerminalAccountRows'
+import { AntigravityBridgeHubImportRow } from './AntigravityBridgeHubImportRow'
 
 function usageMatchesTarget(provenance: string, target: AntigravityAccountTarget): boolean {
   if (target.runtime === 'host' || target.wslDistro) {
@@ -397,6 +398,12 @@ export function AntigravityAccountsSection({
           busy={busy}
           windowsHost={windowsHost}
           run={(action, accountId) => void run(action, accountId)}
+        />
+        <AntigravityBridgeHubImportRow
+          owner={owner}
+          target={target}
+          busy={busy}
+          guard={{ pending, mounted, setBusy, setError, setState }}
         />
       </SettingsGroup>
       {chats &&

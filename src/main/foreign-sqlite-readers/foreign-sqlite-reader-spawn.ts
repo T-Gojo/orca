@@ -5,6 +5,8 @@ import { spawnWorkerThread } from '../worker-threads/worker-thread-spawn'
 import { currentWorkerEntryLayout } from '../worker-threads/worker-thread-entry-path'
 import type { CursorDesktopProfileReadResult } from './cursor-profile-result'
 import { ForeignSqliteReaderClient } from './foreign-sqlite-reader-client'
+import type { KiroCliTokenReadResult } from './kiro-cli-token-result'
+import type { KiroCliLoginReadResult, KiroCliLoginWriteResult } from './kiro-cli-login-result'
 import { resolveForeignSqliteReaderEntryPath } from './foreign-sqlite-reader-entry-path'
 import type { BinderSessionRow, OpenCodeSessionCursor } from './opencode-binder-sessions-result'
 import type {
@@ -29,6 +31,22 @@ function getSharedClient(): ForeignSqliteReaderClient {
 
 export function readCursorDesktopProfile(dbPath: string): Promise<CursorDesktopProfileReadResult> {
   return getSharedClient().readCursorProfile(dbPath)
+}
+
+export function readKiroCliToken(dbPath: string): Promise<KiroCliTokenReadResult> {
+  return getSharedClient().readKiroCliToken(dbPath)
+}
+
+export function readKiroCliLogin(dbPath: string): Promise<KiroCliLoginReadResult> {
+  return getSharedClient().readKiroCliLogin(dbPath)
+}
+
+export function writeKiroCliLogin(
+  dbPath: string,
+  contents: string | null,
+  expected: string | null
+): Promise<KiroCliLoginWriteResult> {
+  return getSharedClient().writeKiroCliLogin(dbPath, contents, expected)
 }
 
 export function readOpenCodePromptFailure(

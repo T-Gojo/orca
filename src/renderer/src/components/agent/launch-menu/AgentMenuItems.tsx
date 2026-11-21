@@ -6,8 +6,7 @@ import { useAppStateValue } from '@/store/retained-views/app-state-view'
 import { SubscribedAgentLaunchPickerMenu } from '@/components/agent/AgentLaunchPickerMenu'
 import {
   agentPickerFreshLaunchInputs,
-  type AgentPickerEntry,
-  type AgentPickerDraft
+  type AgentPickerEntry
 } from '../../../../../shared/agent-launch/picker/agent-launch-picker'
 import React, { useCallback } from 'react'
 import { toast } from 'sonner'
@@ -27,6 +26,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut
 } from '@/components/ui/dropdown-menu'
+import {
+  useAgentRowAccountLaunch,
+  type AccountAwareLaunch
+} from '@/components/tab-bar/agent-row-launch-accounts'
 import { getAgentCatalog } from '@/lib/agent-catalog/agent-catalog'
 import { AgentIcon } from '@/components/agent/icons/AgentIcon'
 import { useOptionalShortcutLabel } from '@/lib/keyboard/useShortcutLabel'
@@ -92,8 +95,8 @@ export function useTabAgentMenuLaunch({
   /** A New Chat opened at once: its composer takes the focus the menu gives back. */
   onFocusChat?: (tabId: string) => void
 }) {
-  const runLaunch = useCallback(
-    (row: NewTabAgentMenuRow, draft?: AgentPickerDraft, pickerEntry?: AgentPickerEntry) => {
+  const runLaunch = useCallback<AccountAwareLaunch>(
+    (row, draft, pickerEntry, launchAccountId) => {
       if (
         disabled ||
         row.kind === 'chat-unavailable' ||
@@ -129,6 +132,11 @@ export function useTabAgentMenuLaunch({
           : {}),
         worktreeId,
         groupId,
+        ...(launchAccountId !== undefined
+          ? { launchAccountId }
+          : draft?.launchAccountId !== undefined
+            ? { launchAccountId: draft.launchAccountId }
+            : {}),
         // A caller's prompt (notes) owns the launch; otherwise the picker panel's typed one.
         ...(prompt !== undefined ? { prompt } : draft?.prompt ? { prompt: draft.prompt } : {}),
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),
@@ -206,7 +214,7 @@ export function ProjectedAgentMenuItems({
 }: {
   disabled?: boolean
   model: NewTabAgentMenuModel
-  runLaunch: React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']
+  runLaunch: AccountAwareLaunch
   pickerInventory?: AgentPickerInventorySource
   onSelectPickerAgent?: (agent: AgentPickerEntry['agent']) => void
   hidePickerSearch?: boolean
@@ -215,6 +223,11 @@ export function ProjectedAgentMenuItems({
   const desktopDefaultAgent = useAppStateValue((s) => s.settings?.defaultTuiAgent)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
   const shortcutLabels = useAgentMenuShortcutLabels(pickerInventory ? model : undefined)
+  const accountRow = useAgentRowAccountLaunch(
+    model.state === 'settled' ? model.rows : [],
+    disabled,
+    runLaunch
+  )
   if (model.state === 'loading') {
     // Why: rows fill in once when every answer is known, instead of reshuffling under the pointer.
     return (
@@ -313,32 +326,33 @@ export function ProjectedAgentMenuItems({
           return (
             <React.Fragment key={rowId(row)}>
               {startsCliGroup ? <DropdownMenuSeparator /> : null}
-              {other ? (
-                <TabAgentSurfaceChoiceRow
-                  row={row}
-                  other={other}
-                  label={label}
-                  terminalPending={model.terminalPending}
-                  disabled={disabled}
-                  runLaunch={runLaunch}
-                >
-                  {rowContent}
-                </TabAgentSurfaceChoiceRow>
-              ) : (
-                <DropdownMenuItem
-                  variant="launch"
-                  disabled={disabled || !!pendingReason}
-                  aria-description={pendingReason}
-                  onSelect={(event) => {
-                    if (runLaunch(row) === false) {
-                      event.preventDefault()
-                    }
-                  }}
-                  title={rowTitle(row, label, t)}
-                >
-                  {rowContent}
-                </DropdownMenuItem>
-              )}
+              {accountRow(row, rowTitle(row, label, t), rowContent) ??
+                (other ? (
+                  <TabAgentSurfaceChoiceRow
+                    row={row}
+                    other={other}
+                    label={label}
+                    terminalPending={model.terminalPending}
+                    disabled={disabled}
+                    runLaunch={runLaunch}
+                  >
+                    {rowContent}
+                  </TabAgentSurfaceChoiceRow>
+                ) : (
+                  <DropdownMenuItem
+                    variant="launch"
+                    disabled={disabled || !!pendingReason}
+                    aria-description={pendingReason}
+                    onSelect={(event) => {
+                      if (runLaunch(row) === false) {
+                        event.preventDefault()
+                      }
+                    }}
+                    title={rowTitle(row, label, t)}
+                  >
+                    {rowContent}
+                  </DropdownMenuItem>
+                ))}
             </React.Fragment>
           )
         })
