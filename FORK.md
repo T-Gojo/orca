@@ -141,6 +141,58 @@ of that login for each account and swaps it in to switch accounts.
   `src/main/ipc/pty/*`, `codex-pane-account-registry*`, and the right-click "Change account" menu in
   `ChangeAccountMenuItems.tsx`.
 
+### 8. Cross-agent delegation (Claude → Antigravity, Kiro, Codex) with usage-aware accounts
+
+A coordinator agent (usually Claude Code in an Orca terminal) hands self-contained tasks to other
+agents as Orca orchestration workers, on whichever saved account has usage left, then verifies the
+result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `send`, retries).
+
+- **`worker-start --account <id|email|system|auto>`** (agents: claude, codex, antigravity, kiro;
+  existing workspaces only, not `--on`/`--terminal`/`new-child`/`new-top-level`):
+  - claude/codex: the existing per-terminal pin env (`ORCA_PIN_CLAUDE_ACCOUNT` /
+    `ORCA_PIN_CODEX_ACCOUNT`).
+  - antigravity/kiro keep ONE machine-wide login, so a worker gets a private `HOME` overlay
+    (`userData/delegation-homes/<agent>/<accountId>/home`): symlinks to every entry of the real
+    home except the agent's login location, which holds that account's saved login —
+    agy: `.gemini/antigravity-cli/antigravity-oauth-token` plus `SSH_CONNECTION` so agy uses the
+    file login instead of the keychain; kiro: a copy of `Library/Application Support/kiro-cli/data.sqlite3`
+    with the account's login rows. Verified: parallel accounts work and the shared login and
+    Bridge Hub rotation are never touched. Tokens the agent refreshes are written back to Orca's
+    vault on the next start. Not supported on Windows (refused with a message).
+  - `auto` refreshes usage and picks the least-used account under the threshold; the worker is
+    forced to terminal mode (chats sign in their own way).
+- **`orca delegation usage | route | preferences`**: per-account used % for every delegation agent
+  (from the rate-limit service, including inactive saved accounts), a router that applies
+  preferences and prints the worker-start flags plus fallbacks, and the preferences file
+  `userData/orca-delegation.json` (`agentOrder`, `models`, `maxUsedPercent`, `kinds`; defaults
+  written on first use).
+- **Skill:** `fork/skills/agent-delegation/SKILL.md`, installed to `~/.claude/skills` by
+  `fork.sh install` (or `fork.sh skills`). Kept out of upstream's bundled-skill generator on purpose.
+- **Files:** `src/main/delegation/*` (preferences, usage, route, overlay home, account env,
+  service, worker-account), `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`,
+  `src/shared/delegation/delegation-types.ts`, `src/shared/rpc-contract/delegation-params.ts`,
+  `src/cli/delegation/delegation-handlers.ts`, `src/cli/specs/delegation.ts`.
+- **Hooks into upstream:** `account` in `orchestration-worker-start-params.ts`;
+  `resolveWorkerStartAccount` + `workerAccountMode` in `worker-start-method.ts`;
+  `workerAccountEnv` in `worker-start-agent-placement.ts`; `accountEnv` in
+  `createExistingWorktreeWorkerTerminal` (`worker-placement-topology.ts`); `--account` in the CLI
+  worker-start handler and spec; `DELEGATION_METHODS` in `rpc-method-registry.ts`; the
+  `delegation` handler group and specs index.
+
+### Upstream gate notes (main-process rules)
+
+- Fork main-process code uses only `fs/promises` (upstream's `main-sync-fs` ratchet). The Kiro vault store is
+  async like upstream's Antigravity store.
+- The account usage ledger has no fixed interval timer: it collects once at startup, then after usage scans and
+  on window focus, at most every 10 minutes (`collectAccountUsageAfterActivity`, upstream's recurring-timer rule).
+- `config/main-blocking-helper-baseline.txt` carries fork rows marked `# fork:`. Each one reaches an upstream
+  entry-path `existsSync` (SQLite reader worker, usage scan worker, Antigravity credential backend), not new
+  blocking code. Drop a row if upstream makes that helper async.
+- Kiro's Accounts search entries live in `accounts-kiro-search.ts`, appended in
+  `settings-navigation-capability-sections.ts`; `accounts-search.ts` is upstream's. The Accounts pane renders
+  `KiroAccountsPaneSection` (`accounts-pane-kiro-section.tsx`). Codex's pinned-account launch reuses
+  `mirrorSystemInto` in `runtime-home-service-managed-home.ts`.
+
 ## Merging upstream
 
 1. `config/scripts/fork.sh sync`. git `rerere` is on, so resolutions repeat.

@@ -30,6 +30,8 @@ export const WorkerStartParams = z
     agent: OptionalString,
     model: OptionalWorkerLaunchPreference,
     effort: OptionalWorkerLaunchPreference,
+    /** Fork: run the worker on this saved account (id, email, `system` or `auto`). */
+    account: OptionalString,
     retryOf: OptionalString,
     timeoutMs: OptionalFiniteNumber,
     devMode: z.boolean().optional(),

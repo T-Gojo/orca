@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { open } from 'node:fs/promises'
+import { mkdir, open, readFile, stat as statFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { isDefinitiveAbsence } from '../../shared/errors/definitive-filesystem-absence'
 import { writeCredentialFileAtomic } from '../credentials/integration-credential-file'
 import { ANTIGRAVITY_ACP_COMMAND, ANTIGRAVITY_ACP_VERSION } from './antigravity-acp-runtime'
 import { createAntigravityHostCredentialBackend } from './native-credential-backend'
@@ -17,6 +17,17 @@ const SCAN_CHUNK_BYTES = 16 * 1024 * 1024
 const clients = new Map<string, OAuthClient | null>()
 
 const digest = (value: string): string => createHash('sha256').update(value).digest('hex')
+
+async function readIfPresent(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, 'utf8')
+  } catch (error) {
+    if (isDefinitiveAbsence(error)) {
+      return null
+    }
+    throw error
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -50,7 +61,7 @@ export async function readAntigravityServerClient(
   serverPath: string,
   clientId: string
 ): Promise<OAuthClient | null> {
-  const stat = statSync(serverPath)
+  const stat = await statFile(serverPath)
   const key = `${serverPath}:${stat.size}:${stat.mtimeMs}:${clientId}`
   if (clients.has(key)) {
     return clients.get(key) ?? null
@@ -101,10 +112,11 @@ export async function seedAntigravityChatLogin(
   if (!login?.refreshToken) {
     return
   }
-  if (existsSync(tokenPath)) {
-    const current: unknown = JSON.parse(readFileSync(tokenPath, 'utf8'))
+  const currentToken = await readIfPresent(tokenPath)
+  if (currentToken !== null) {
+    const current: unknown = JSON.parse(currentToken)
     const refresh = isRecord(current) ? current.refresh_token : null
-    const marker = existsSync(markerPath) ? readFileSync(markerPath, 'utf8').trim() : null
+    const marker = (await readIfPresent(markerPath))?.trim() ?? null
     if (typeof refresh !== 'string' || marker !== digest(refresh)) {
       return
     }
@@ -120,12 +132,15 @@ export async function seedAntigravityChatLogin(
     ANTIGRAVITY_ACP_VERSION,
     ANTIGRAVITY_ACP_COMMAND
   )
-  const client =
-    clientId && existsSync(serverPath) ? await deps.readClient(serverPath, clientId) : null
+  const serverExists = await statFile(serverPath).then(
+    () => true,
+    () => false
+  )
+  const client = clientId && serverExists ? await deps.readClient(serverPath, clientId) : null
   if (!client) {
     return
   }
-  mkdirSync(dirname(tokenPath), { recursive: true, mode: 0o700 })
+  await mkdir(dirname(tokenPath), { recursive: true, mode: 0o700 })
   // google-auth's authorized-user shape; the server refreshes the access token on first use.
   const token = {
     refresh_token: login.refreshToken,
@@ -134,5 +149,5 @@ export async function seedAntigravityChatLogin(
     client_secret: client.clientSecret
   }
   await writeCredentialFileAtomic(tokenPath, Buffer.from(JSON.stringify(token), 'utf8'))
-  writeFileSync(markerPath, digest(login.refreshToken), { mode: 0o600 })
+  await writeFile(markerPath, digest(login.refreshToken), { mode: 0o600 })
 }

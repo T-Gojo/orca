@@ -1,16 +1,23 @@
-import { translate } from '../../../../i18n/i18n'
-import type { Translate } from '../../../../i18n/use-translate'
+import { useTranslate } from '../../../../i18n/use-translate'
 import { getProviderAccountsOwnerKey } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import { matchesSettingsSearch } from '../../search/settings-search'
-import { getAccountsKiroSearchEntries } from '../accounts-search'
+import { getAccountsKiroSearchEntries } from '../accounts-kiro-search'
 import type { AccountsPaneSectionModel } from '../accounts-pane-types'
 import { KiroAccountsSection } from './KiroAccountsSection'
 
-/** Fork: Kiro's saved accounts, shown after Antigravity in the Accounts pane. */
-export function renderKiroAccountsSection(
-  model: AccountsPaneSectionModel,
-  t: Translate = translate
-): React.JSX.Element | null {
+type KiroSectionModel = Pick<
+  AccountsPaneSectionModel,
+  'searchQuery' | 'accountOwner' | 'isRemoteAccountScope' | 'accountRuntimeSentenceLabel'
+>
+
+/** Fork: Kiro's saved accounts, shown after Antigravity in the Accounts pane. A component, not a
+ *  render call: the pane's model carries ref-reading runners the React compiler rejects in render. */
+export function KiroAccountsPaneSection({
+  model
+}: {
+  model: KiroSectionModel
+}): React.JSX.Element | null {
+  const t = useTranslate()
   if (!matchesSettingsSearch(model.searchQuery, getAccountsKiroSearchEntries())) {
     return null
   }

@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve as resolvePath } from 'node:path'
 import type {
@@ -40,9 +40,9 @@ function withDetail(email: string, detail: string | null | undefined): string {
   return detail ? `${email} · ${detail}` : email
 }
 
-function readJson(path: string): unknown {
+async function readJson(path: string): Promise<unknown> {
   try {
-    return JSON.parse(readFileSync(path, 'utf8'))
+    return JSON.parse(await readFile(path, 'utf8'))
   } catch {
     return null
   }
@@ -56,24 +56,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Sessions each Claude home ran, from its live session records and last session per project.
  * Why: every account folder links the same transcript folder, so a log alone names no account.
  */
-export function readClaudeSessionOwners(
+export async function readClaudeSessionOwners(
   homes: readonly { home: string; accountKey: string; stateFile?: string }[]
-): Map<string, string> {
+): Promise<Map<string, string>> {
   const owners = new Map<string, string>()
   for (const { home, accountKey, stateFile } of homes) {
     let names: string[] = []
     try {
-      names = readdirSync(join(home, 'sessions')).filter((name) => name.endsWith('.json'))
+      names = (await readdir(join(home, 'sessions'))).filter((name) => name.endsWith('.json'))
     } catch {
       // No live sessions in this home.
     }
     for (const name of names) {
-      const record = readJson(join(home, 'sessions', name))
+      const record = await readJson(join(home, 'sessions', name))
       if (isRecord(record) && typeof record.sessionId === 'string') {
         owners.set(record.sessionId, accountKey)
       }
     }
-    const state = readJson(stateFile ?? join(home, '.claude.json'))
+    const state = await readJson(stateFile ?? join(home, '.claude.json'))
     const projects = isRecord(state) && isRecord(state.projects) ? state.projects : {}
     for (const project of Object.values(projects)) {
       if (isRecord(project) && typeof project.lastSessionId === 'string') {
@@ -110,13 +110,13 @@ function claudeHomes(
 export type SourceResolver = (rollup: UsageSourceRollup) => ResolvedSourceAccount
 
 /** Builds the per-collection resolver; reads live session records once, not per source. */
-export function createSourceResolver(
+export async function createSourceResolver(
   provider: AccountUsageProvider,
   settings: LedgerSettings,
   singleLogin: SingleLoginAccounts | null
-): SourceResolver {
+): Promise<SourceResolver> {
   if (provider === 'claude') {
-    const owners = readClaudeSessionOwners(claudeHomes(settings))
+    const owners = await readClaudeSessionOwners(claudeHomes(settings))
     const labelOf = (key: string): string | null => {
       const account = settings.claudeManagedAccounts.find((entry) => entry.id === key)
       return account ? withDetail(account.email, account.organizationName) : null

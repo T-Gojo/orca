@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ProviderRateLimits } from '../../shared/agent-usage/rate-limits/rate-limit-types'
 import { writeCredentialFileAtomic } from '../credentials/integration-credential-file'
@@ -34,8 +34,8 @@ export async function probeAntigravityAccountUsage(
   const home = join(deps.probeRoot, accountId)
   const loginDir = join(home, '.gemini', 'antigravity-cli')
   const loginPath = join(loginDir, 'antigravity-oauth-token')
-  mkdirSync(loginDir, { recursive: true, mode: 0o700 })
-  writeCredentialFileAtomic(loginPath, Buffer.from(saved, 'utf8'))
+  await mkdir(loginDir, { recursive: true, mode: 0o700 })
+  await writeCredentialFileAtomic(loginPath, Buffer.from(saved, 'utf8'))
   try {
     const reading = await fetchAntigravityRateLimits({
       signal: deps.signal,
@@ -46,7 +46,7 @@ export async function probeAntigravityAccountUsage(
       })
     })
     // agy refreshes the access token in place; keep the saved login as current as the one it used.
-    const refreshed = existsSync(loginPath) ? readFileSync(loginPath, 'utf8') : null
+    const refreshed = await readFile(loginPath, 'utf8').catch(() => null)
     if (refreshed && refreshed !== saved) {
       await deps.logins.update(accountId, saved, refreshed).catch((error: unknown) => {
         console.warn('[rate-limits] Could not save the refreshed Antigravity login:', error)
@@ -54,6 +54,6 @@ export async function probeAntigravityAccountUsage(
     }
     return reading
   } finally {
-    rmSync(loginPath, { force: true })
+    await rm(loginPath, { force: true })
   }
 }

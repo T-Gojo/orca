@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import { z } from 'zod'
 import {
   ACCOUNT_USAGE_COLLECT_METHOD,
@@ -9,6 +9,7 @@ import {
 } from '../../shared/account-usage-ledger-types'
 import {
   collectAccountUsage,
+  collectAccountUsageAfterActivity,
   getAccountUsageLedger,
   installAccountUsageLedger
 } from './account-usage-collection'
@@ -55,6 +56,8 @@ function accountUsageSnapshot(
 export async function recordAccountUsageFromBackend(raw: unknown): Promise<null> {
   const { provider, rollups } = RecordParams.parse(raw)
   await getAccountUsageLedger()?.record(provider, rollups)
+  // A scan means Orca is in use; kiro-cli and agy logs have no scan of their own.
+  collectAccountUsageAfterActivity()
   return null
 }
 
@@ -68,6 +71,7 @@ export function installDesktopAccountUsage(
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The private usage service returns collectAccountUsageSources' typed result for this method.
       (await backend.callControl(ACCOUNT_USAGE_COLLECT_METHOD, request)) as AccountSourceRollups
   )
+  app.on('browser-window-focus', collectAccountUsageAfterActivity)
   ipcMain.handle('accountUsage:getSnapshot', (_event, args: { range: AccountUsageLedgerRange }) =>
     accountUsageSnapshot(args.range)
   )

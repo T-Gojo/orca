@@ -52,7 +52,9 @@ export async function collectAccountUsageSources(
       (['claude', 'codex', 'opencode'] as const)
         .filter(wanted)
         .map((provider) =>
-          stores[provider].getScanState().enabled ? stores[provider].refresh(force) : null
+          Promise.resolve(
+            stores[provider].getScanState().enabled ? stores[provider].refresh(force) : null
+          )
         )
     ),
     wanted('kiro') || wanted('antigravity')

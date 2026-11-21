@@ -124,11 +124,7 @@ export abstract class CodexRuntimeHomeLaunch extends CodexRuntimeHomeRouting {
     if (resolved.kind === 'untrusted') {
       throw new Error(`Sign in to ${account.email} again in Settings before opening it.`)
     }
-    syncSystemCodexResourcesIntoManagedHome(resolved.homePath)
-    syncSystemConfigIntoManagedCodexHome({
-      runtimeHomePath: resolved.homePath,
-      systemHomePath: getSystemCodexHomePath()
-    })
+    this.mirrorSystemInto(resolved.homePath)
     void this.prepareAccountHistoryForPinnedHome(resolved.homePath)
     return resolved.homePath
   }

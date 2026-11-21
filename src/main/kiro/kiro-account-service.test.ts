@@ -22,8 +22,8 @@ function login(user: string, generation = 1): string {
 function setup(initial: string | null) {
   let vault: KiroAccountVault = { accounts: [], selectedAccountId: null }
   const store: KiroAccountStore = {
-    read: () => structuredClone(vault),
-    write: (next) => {
+    read: async () => structuredClone(vault),
+    write: async (next) => {
       vault = structuredClone(next)
     }
   }

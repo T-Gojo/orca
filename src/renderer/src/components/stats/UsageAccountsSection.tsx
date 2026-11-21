@@ -34,8 +34,7 @@ function accountName(row: AccountUsageLedgerRow, t: Translate = translate): stri
     return t('auto.components.status.bar.StatusBar.c676918adc', 'System default')
   }
   return (
-    row.label ??
-    t('auto.components.stats.UsageAccountsSection.unknownAccount', 'Saved account')
+    row.label ?? t('auto.components.stats.UsageAccountsSection.unknownAccount', 'Saved account')
   )
 }
 
@@ -83,13 +82,9 @@ function rowDetails(row: AccountUsageLedgerRow, t: Translate = translate): strin
     }),
     row.activeDays === 1
       ? t('auto.components.stats.UsageAccountsSection.activeDay', '1 active day')
-      : t(
-          'auto.components.stats.UsageAccountsSection.activeDays',
-          '{{count}} active days',
-          {
-            count: row.activeDays
-          }
-        ),
+      : t('auto.components.stats.UsageAccountsSection.activeDays', '{{count}} active days', {
+          count: row.activeDays
+        }),
     row.topModel
   ]
     .filter((part): part is string => Boolean(part))

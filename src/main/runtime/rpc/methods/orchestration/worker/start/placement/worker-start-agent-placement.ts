@@ -1,3 +1,4 @@
+import { workerAccountEnv } from '../../../../../../../delegation/worker-account'
 import type { RuntimeTerminalCreate } from '../../../../../../../../shared/terminal/runtime/runtime-terminal-create-contract'
 /** Use the shared executor for new workers; structured worktrees omit startup agent, then resolve host support before chat creation.
  * Keep worker lineage/effects and background presentation in factories; caller passes the pre-decided mode.
@@ -274,10 +275,12 @@ function workerSurfaceFactory(
     },
     createTerminalAgent: async ({ worktreeId }) => {
       recordSurfaceStage(worktreeId)
+      const accountEnv = await workerAccountEnv(args.runtime, args.params, agent)
       const terminal = await createExistingWorktreeWorkerTerminal({
         runtime: args.runtime,
         worktreeId,
         agent,
+        ...(accountEnv ? { accountEnv } : {}),
         ...(args.launch.preferences ? { launchPreferences: args.launch.preferences } : {}),
         taskId: args.taskId,
         effects: args.effects

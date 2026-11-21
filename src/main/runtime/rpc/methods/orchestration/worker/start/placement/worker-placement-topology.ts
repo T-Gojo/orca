@@ -64,6 +64,8 @@ export async function createExistingWorktreeWorkerTerminal(args: {
   worktreeId: string
   agent: TuiAgent
   launchPreferences?: AgentLaunchPreferences
+  /** Fork: routes the agent to a saved account (`worker-start --account`). */
+  accountEnv?: Record<string, string>
   taskId: string
   effects: WorkerEffect[]
 }): Promise<RuntimeTerminalCreate> {
@@ -73,6 +75,7 @@ export async function createExistingWorktreeWorkerTerminal(args: {
     launchSource: 'orchestration',
     suppressStartupUpdatePrompt: true,
     ...(args.launchPreferences ? { launchPreferences: args.launchPreferences } : {}),
+    ...(args.accountEnv ? { accountEnv: args.accountEnv } : {}),
     title: `worker-${args.taskId}`,
     // Worker creation is background work and must not pull the sidebar away.
     surfaceOwner: false

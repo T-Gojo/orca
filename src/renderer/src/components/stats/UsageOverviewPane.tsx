@@ -349,7 +349,7 @@ export function UsageOverviewPane(): React.JSX.Element {
               provider={provider}
               totalTokens={overview.totalTokens}
               // Ledger providers (Kiro, Antigravity) have no scan state, so theirs is always known.
-              stateKnown={knownProviders[provider.id as keyof typeof knownProviders] !== null}
+              stateKnown={new Map(Object.entries(knownProviders)).get(provider.id) !== null}
               onEnable={() => {
                 recordFeatureInteraction('usage-tracking')
                 if (provider.id === 'claude') {

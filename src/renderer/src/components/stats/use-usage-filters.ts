@@ -1,6 +1,9 @@
 import { useCallback } from 'react'
 import { useAppStore } from '../../store'
-import type { ClaudeUsageRange, ClaudeUsageScope } from '../../../../shared/agent-usage/analytics/claude-usage-types'
+import type {
+  ClaudeUsageRange,
+  ClaudeUsageScope
+} from '../../../../shared/agent-usage/analytics/claude-usage-types'
 
 export type UsageRange = ClaudeUsageRange
 export type UsageScope = ClaudeUsageScope

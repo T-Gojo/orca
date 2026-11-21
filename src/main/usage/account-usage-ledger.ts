@@ -82,7 +82,7 @@ export class AccountUsageLedger {
   record(provider: AccountUsageProvider, rollups: readonly UsageSourceRollup[]): Promise<void> {
     const next = this.records.then(async () => {
       await this.loaded
-      const resolve = createSourceResolver(
+      const resolve = await createSourceResolver(
         provider,
         this.getSettings(),
         await this.readSingleLogin(provider)

@@ -1,6 +1,7 @@
-import { existsSync, lstatSync, readFileSync } from 'node:fs'
+import { lstat, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { isDefinitiveAbsence } from '../../shared/errors/definitive-filesystem-absence'
 
 /** One saved agy login, in the shape agy keeps in its own credential store. */
 export type ImportedAntigravityLogin = { email: string | null; contents: string }
@@ -24,17 +25,22 @@ export function bridgeHubAntigravityAccountsPath(env: NodeJS.ProcessEnv = proces
  * Reads Bridge Hub's saved agy accounts as agy logins. Bridge Hub writes these same logins into
  * agy's credential store when it switches accounts, so each one is a working agy sign-in.
  */
-export function readBridgeHubAntigravityLogins(
+export async function readBridgeHubAntigravityLogins(
   path = bridgeHubAntigravityAccountsPath()
-): ImportedAntigravityLogin[] {
-  if (!existsSync(path)) {
+): Promise<ImportedAntigravityLogin[]> {
+  const stat = await lstat(path).catch((error: unknown) => {
+    if (isDefinitiveAbsence(error)) {
+      return null
+    }
+    throw error
+  })
+  if (!stat) {
     return []
   }
-  const stat = lstatSync(path)
   if (!stat.isFile() || stat.size > MAX_FILE_BYTES) {
     throw new Error('The Bridge Hub Antigravity account file could not be read safely.')
   }
-  const value: unknown = JSON.parse(readFileSync(path, 'utf8'))
+  const value: unknown = JSON.parse(await readFile(path, 'utf8'))
   const accounts = isRecord(value) && Array.isArray(value.accounts) ? value.accounts : []
   const logins: ImportedAntigravityLogin[] = []
   for (const account of accounts) {

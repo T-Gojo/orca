@@ -48,9 +48,7 @@ function LimitRow({ row, now }: { row: AccountLimitRow; now: number }): React.JS
         </div>
         <div className="truncate text-xs text-muted-foreground">
           {getProviderDisplayName(row.provider)}
-          {row.active
-            ? ` · ${t('auto.components.status.bar.StatusBar.ff0fbe9311', 'Active')}`
-            : ''}
+          {row.active ? ` · ${t('auto.components.status.bar.StatusBar.ff0fbe9311', 'Active')}` : ''}
           {section && row.limits ? ` · ${shortUsageLabel(row.limits, section, false, t)}` : ''}
           {resetsAt !== null ? ` · ${formatResetCountdown(resetsAt - now)}` : ''}
         </div>

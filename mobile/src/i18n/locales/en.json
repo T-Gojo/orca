@@ -6702,7 +6702,8 @@
             "c06c1d215d": "Claude usage could not be refreshed because the network request failed.",
             "cabdc2a9e0": "Claude sign-in credentials could not be read.",
             "a7517cccb6": "Claude usage is unavailable right now.",
-            "8418ec448d": "{{value0}} usage could not be refreshed. Agent sessions may still be signed in."
+            "8418ec448d": "{{value0}} usage could not be refreshed. Agent sessions may still be signed in.",
+            "kiroRunToRefresh": "Run Kiro to refresh"
           },
           "StatusBar": {
             "c676918adc": "System default"

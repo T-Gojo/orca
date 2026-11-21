@@ -29,6 +29,10 @@ import { ORCA_SESSION_ADDRESS_PREFIX } from '../../../../../../shared/agent-sess
 import { ORCHESTRATION_SESSION_CALLER_ERROR_CODES as SESSION_CODES } from '../../../../../../shared/orchestration/orchestration-session-caller-codes'
 import { resolveDispatchCreator } from '../runs/dispatch-creator'
 import { checkedWorkerOrigin } from '../../bots-items-worker-origin'
+import {
+  resolveWorkerStartAccount,
+  workerAccountMode
+} from '../../../../../delegation/worker-account'
 
 type WorkerStartContext = Pick<
   RpcContext,
@@ -77,18 +81,22 @@ export async function startWorker(
     startParams.origin !== undefined
       ? await checkedWorkerOrigin(startParams.origin, ctx)
       : undefined
+  // Fork: resolve --account before anything starts.
+  const accountParams = await resolveWorkerStartAccount(startParams, runtime)
   const prepared = await prepareWorkerStart(
-    checked ? { ...startParams, origin: checked.origin } : startParams,
+    checked ? { ...accountParams, origin: checked.origin } : accountParams,
     ctx,
     startFollowUp
   )
   const { params, followUp, coordinator, bindRun, helperCreator, taskDeps, existingTask, withRun } =
     prepared
   const db = runtime.getOrchestrationDb()
-  const mode = decideWorkerStartMode({
-    params,
-    settings: readWorkerStartModeSettings(runtime)
-  })
+  const mode =
+    workerAccountMode(params) ??
+    decideWorkerStartMode({
+      params,
+      settings: readWorkerStartModeSettings(runtime)
+    })
   if (params.on) {
     // Remote workers are terminal-only; carry the mode receipt to explain structured-preference fallback.
     const receipt = await startFederatedWorker({

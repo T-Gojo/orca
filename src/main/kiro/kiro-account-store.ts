@@ -1,5 +1,6 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { lstat, mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { credentialFileExists, inCredentialFileOrder } from '../credentials/credential-file-io'
 import { getSecretStore } from '../../shared/secure-storage/secret-store'
 import { writeCredentialFileAtomic } from '../credentials/integration-credential-file'
 import type { KiroAccountSummary } from '../../shared/kiro-account-types'
@@ -11,8 +12,8 @@ export type KiroAccountVault = {
   selectedAccountId: string | null
 }
 export type KiroAccountStore = {
-  read(): KiroAccountVault
-  write(vault: KiroAccountVault): void
+  read(): Promise<KiroAccountVault>
+  write(vault: KiroAccountVault): Promise<void>
 }
 
 const MAX_VAULT_BYTES = 4 * 1024 * 1024
@@ -48,61 +49,65 @@ function requireProtection(): void {
 
 export function createEncryptedKiroAccountStore(path: string): KiroAccountStore {
   return {
-    read() {
-      if (!existsSync(path)) {
-        return { accounts: [], selectedAccountId: null }
-      }
-      requireProtection()
-      try {
-        const stat = lstatSync(path)
-        if (
-          !stat.isFile() ||
-          stat.size > MAX_VAULT_BYTES ||
-          (process.platform !== 'win32' && (stat.mode & 0o077) !== 0)
-        ) {
-          throw new Error('unsafe vault')
+    async read() {
+      return inCredentialFileOrder(`${path}.mutation`, async () => {
+        if (!(await credentialFileExists(path))) {
+          return { accounts: [], selectedAccountId: null }
         }
-        const value: unknown = JSON.parse(getSecretStore().decryptString(readFileSync(path)))
-        if (
-          !isRecord(value) ||
-          !Array.isArray(value.accounts) ||
-          !value.accounts.every(isAccount) ||
-          !isNullableString(value.selectedAccountId)
-        ) {
-          throw new Error('invalid vault')
+        requireProtection()
+        try {
+          const info = await lstat(path)
+          if (
+            !info.isFile() ||
+            info.size > MAX_VAULT_BYTES ||
+            (process.platform !== 'win32' && (info.mode & 0o077) !== 0)
+          ) {
+            throw new Error('unsafe vault')
+          }
+          const value: unknown = JSON.parse(getSecretStore().decryptString(await readFile(path)))
+          if (
+            !isRecord(value) ||
+            !Array.isArray(value.accounts) ||
+            !value.accounts.every(isAccount) ||
+            !isNullableString(value.selectedAccountId)
+          ) {
+            throw new Error('invalid vault')
+          }
+          const ids = new Set(value.accounts.map((account) => account.id))
+          if (
+            ids.size !== value.accounts.length ||
+            (value.selectedAccountId !== null && !ids.has(value.selectedAccountId))
+          ) {
+            throw new Error('invalid selection')
+          }
+          for (const account of value.accounts) {
+            decodeKiroCliLogin(account.login)
+          }
+          return { accounts: value.accounts, selectedAccountId: value.selectedAccountId }
+        } catch {
+          throw new Error(
+            'Kiro account snapshots could not be read; the existing vault was preserved.'
+          )
         }
-        const ids = new Set(value.accounts.map((account) => account.id))
-        if (
-          ids.size !== value.accounts.length ||
-          (value.selectedAccountId !== null && !ids.has(value.selectedAccountId))
-        ) {
-          throw new Error('invalid selection')
-        }
-        for (const account of value.accounts) {
-          decodeKiroCliLogin(account.login)
-        }
-        return { accounts: value.accounts, selectedAccountId: value.selectedAccountId }
-      } catch {
-        throw new Error(
-          'Kiro account snapshots could not be read; the existing vault was preserved.'
-        )
-      }
+      })
     },
-    write(vault) {
-      requireProtection()
-      mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
-      try {
-        const encrypted = getSecretStore().encryptString(JSON.stringify(vault))
-        if (encrypted.length > MAX_VAULT_BYTES) {
-          throw new Error('vault exceeds readable size')
+    async write(vault) {
+      return inCredentialFileOrder(`${path}.mutation`, async () => {
+        requireProtection()
+        await mkdir(dirname(path), { recursive: true, mode: 0o700 })
+        try {
+          const encrypted = getSecretStore().encryptString(JSON.stringify(vault))
+          if (encrypted.length > MAX_VAULT_BYTES) {
+            throw new Error('vault exceeds readable size')
+          }
+          await writeCredentialFileAtomic(path, encrypted)
+          if (process.platform !== 'win32' && ((await stat(path)).mode & 0o077) !== 0) {
+            throw new Error('unsafe permissions')
+          }
+        } catch {
+          throw new Error('Kiro account snapshots could not be saved.')
         }
-        writeCredentialFileAtomic(path, encrypted)
-        if (process.platform !== 'win32' && (statSync(path).mode & 0o077) !== 0) {
-          throw new Error('unsafe permissions')
-        }
-      } catch {
-        throw new Error('Kiro account snapshots could not be saved.')
-      }
+      })
     }
   }
 }

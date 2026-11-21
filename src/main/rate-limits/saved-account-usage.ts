@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { mkdir, readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type {
   ProviderRateLimits,
   SavedAccountUsage
 } from '../../shared/agent-usage/rate-limits/rate-limit-types'
-import { writeFileAtomically } from '../filesystem/atomic-file-publication'
+import { writeCredentialFileAtomic } from '../credentials/integration-credential-file'
 
 export type SavedAccountsSnapshot = {
   activeAccountId: string | null
@@ -49,6 +49,8 @@ function readsAnotherAccount(
  */
 export class SavedAccountUsageTracker {
   private readings: Map<string, ProviderRateLimits> | null = null
+  private loading: Promise<Map<string, ProviderRateLimits>> | null = null
+  private saving: Promise<void> = Promise.resolve()
   private accounts: SavedAccountsSnapshot | null = null
   private inactiveRefresh: Promise<void> | null = null
   private probe: SavedAccountUsageProbe | null = null
@@ -74,6 +76,10 @@ export class SavedAccountUsageTracker {
     const reading = await fetch()
     const after = read ? await read().catch(() => null) : null
     this.accounts = after ?? before ?? this.accounts
+    if (this.accounts) {
+      // list() shows these cached readings, so they are loaded before any account is listed.
+      await this.load()
+    }
     const activeId = before?.activeAccountId
     // Why both reads: a switch during the probe would file one account's quota under another.
     if (
@@ -82,9 +88,9 @@ export class SavedAccountUsageTracker {
       after?.activeAccountId === activeId &&
       !readsAnotherAccount(reading, after, activeId)
     ) {
-      const readings = this.load()
+      const readings = await this.load()
       readings.set(activeId, reading)
-      this.persist(readings, after)
+      await this.persist(readings, after)
     }
     // Why after the active read: one CLI run at a time, and saved accounts never delay its meter.
     void this.refreshInactive(refresh).then(() => this.onInactiveRead?.())
@@ -111,7 +117,7 @@ export class SavedAccountUsageTracker {
     force: boolean,
     accounts: SavedAccountsSnapshot
   ): Promise<void> {
-    const readings = this.load()
+    const readings = await this.load()
     let changed = false
     for (const account of accounts.accounts) {
       if (account.id === accounts.activeAccountId || (!force && readings.has(account.id))) {
@@ -125,7 +131,7 @@ export class SavedAccountUsageTracker {
       }
     }
     if (changed) {
-      this.persist(readings, accounts)
+      await this.persist(readings, accounts)
     }
   }
 
@@ -135,7 +141,7 @@ export class SavedAccountUsageTracker {
     if (!accounts || accounts.accounts.length === 0) {
       return undefined
     }
-    const readings = this.load()
+    const readings = this.readings ?? new Map<string, ProviderRateLimits>()
     return accounts.accounts.map((account) => {
       const active = account.id === accounts.activeAccountId
       const live = active && !readsAnotherAccount(current, accounts, account.id)
@@ -148,31 +154,36 @@ export class SavedAccountUsageTracker {
     })
   }
 
-  private load(): Map<string, ProviderRateLimits> {
-    if (this.readings) {
-      return this.readings
-    }
-    this.readings = new Map()
+  private load(): Promise<Map<string, ProviderRateLimits>> {
+    this.loading ??= this.readCache().then((readings) => (this.readings = readings))
+    return this.loading
+  }
+
+  private async readCache(): Promise<Map<string, ProviderRateLimits>> {
+    const readings = new Map<string, ProviderRateLimits>()
     const path = this.cachePath()
-    if (!path || !existsSync(path)) {
-      return this.readings
+    if (!path) {
+      return readings
     }
     try {
-      const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+      const parsed: unknown = JSON.parse(await readFile(path, 'utf8'))
       if (typeof parsed === 'object' && parsed !== null) {
         for (const [id, value] of Object.entries(parsed)) {
           if (isReading(this.provider, value)) {
-            this.readings.set(id, value)
+            readings.set(id, value)
           }
         }
       }
     } catch {
-      // A damaged cache only loses last readings; the next fetch rewrites it.
+      // A missing or damaged cache only loses last readings; the next fetch rewrites it.
     }
-    return this.readings
+    return readings
   }
 
-  private persist(readings: Map<string, ProviderRateLimits>, accounts: SavedAccountsSnapshot) {
+  private persist(
+    readings: Map<string, ProviderRateLimits>,
+    accounts: SavedAccountsSnapshot
+  ): Promise<void> {
     const saved = new Set(accounts.accounts.map((account) => account.id))
     for (const id of readings.keys()) {
       if (!saved.has(id)) {
@@ -181,14 +192,19 @@ export class SavedAccountUsageTracker {
     }
     const path = this.cachePath()
     if (!path) {
-      return
+      return Promise.resolve()
     }
-    try {
-      mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
-      writeFileAtomically(path, JSON.stringify(Object.fromEntries(readings)), { mode: 0o600 })
-    } catch (error) {
-      console.warn(`[rate-limits] Could not save ${this.provider} account usage:`, error)
-    }
+    const contents = JSON.stringify(Object.fromEntries(readings))
+    // One write at a time, so an older snapshot never lands after a newer one.
+    this.saving = this.saving.then(async () => {
+      try {
+        await mkdir(dirname(path), { recursive: true, mode: 0o700 })
+        await writeCredentialFileAtomic(path, Buffer.from(contents, 'utf8'))
+      } catch (error) {
+        console.warn(`[rate-limits] Could not save ${this.provider} account usage:`, error)
+      }
+    })
+    return this.saving
   }
 }
 

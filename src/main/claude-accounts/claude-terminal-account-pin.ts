@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdir, readFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-lifecycle/app-environment'
 import {
   CLAUDE_TERMINAL_ACCOUNT_PIN_ENV,
@@ -10,7 +10,7 @@ import {
   CLAUDE_INJECTED_CONFIG_DIR_ENV,
   CLAUDE_PROFILE_POINTER_ENV
 } from '../../shared/agent-accounts/claude/claude-profile-routing'
-import { writeFileAtomically } from '../filesystem/atomic-file-publication'
+import { writeCredentialFileAtomic } from '../credentials/integration-credential-file'
 import {
   getClaudeProfileRouter,
   withClaudeProfileTerminalEnv
@@ -27,12 +27,11 @@ export type ClaudeTerminalAccountPin = {
 
 // Why a pointer per pin: the shell's claude function re-reads its pointer on every run, so a
 // claude typed later in this terminal stays on the pinned account instead of the global one.
-function writePinnedPointer(name: string, home: string): string {
-  const dir = join(getAppEnvironment().getPath('userData'), 'claude-pinned-pointers')
-  const pointer = join(dir, name)
-  if (!existsSync(pointer) || readFileSync(pointer, 'utf8') !== home) {
-    mkdirSync(dir, { recursive: true, mode: 0o700 })
-    writeFileAtomically(pointer, home, { mode: 0o600 })
+async function writePinnedPointer(name: string, home: string): Promise<string> {
+  const pointer = join(getAppEnvironment().getPath('userData'), 'claude-pinned-pointers', name)
+  if ((await readFile(pointer, 'utf8').catch(() => null)) !== home) {
+    await mkdir(dirname(pointer), { recursive: true, mode: 0o700 })
+    await writeCredentialFileAtomic(pointer, Buffer.from(home, 'utf8'))
   }
   return pointer
 }
@@ -62,7 +61,10 @@ export async function prepareClaudeTerminalAccountPin(
     accountId === null || router.coveredBySystemDefault(accountId)
       ? null
       : await router.prepareAccount(accountId)
-  const pointer = writePinnedPointer(home && accountId ? accountId : 'system-default', home ?? '')
+  const pointer = await writePinnedPointer(
+    home && accountId ? accountId : 'system-default',
+    home ?? ''
+  )
   const routed = { ...withClaudeProfileTerminalEnv(stripped, target) }
   // Drop the global account's routing; the user's own CLAUDE_CONFIG_DIR stays for System default.
   if (routed[CLAUDE_INJECTED_CONFIG_DIR_ENV] === routed.CLAUDE_CONFIG_DIR) {

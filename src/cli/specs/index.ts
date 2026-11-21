@@ -1,5 +1,6 @@
 import type { CommandSpec } from '../discovery/command-spec'
 import { ACCOUNT_COMMAND_SPECS } from './account'
+import { DELEGATION_COMMAND_SPECS } from './delegation'
 import { AUTH_COMMAND_SPECS } from './auth'
 import { BROWSER_ADVANCED_COMMAND_SPECS } from './browser-advanced'
 import { BROWSER_BASIC_COMMAND_SPECS } from './browser-basic'
@@ -52,6 +53,8 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...REFERENCE_COMMAND_SPECS,
   ...ARTIFACT_COMMAND_SPECS,
   ...ACCOUNT_COMMAND_SPECS,
+  // Fork: cross-agent delegation.
+  ...DELEGATION_COMMAND_SPECS,
   ...AUTH_COMMAND_SPECS,
   ...PROJECT_COMMAND_SPECS,
   ...FILE_COMMAND_SPECS,

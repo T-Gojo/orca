@@ -5,6 +5,7 @@
 #   config/scripts/fork.sh dev      # run the custom build side by side with the installed Orca.app
 #   config/scripts/fork.sh build    # package Orca.app (macOS) from the current checkout into dist/
 #   config/scripts/fork.sh install  # replace /Applications/Orca.app with that build (quit Orca first)
+#   config/scripts/fork.sh skills   # install the fork's agent skills (fork/skills) for Claude Code
 set -euo pipefail
 
 FORK_BRANCH="${ORCA_FORK_BRANCH:-main}"
@@ -192,6 +193,18 @@ install_app() {
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH"
   killall Dock 2>/dev/null || true
   echo "Installed $(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString) to $APP_PATH"
+  install_fork_skills
+}
+
+# Fork-only agent skills (fork/skills/<name>/SKILL.md) go to Claude Code's user skills.
+install_fork_skills() {
+  local skills_root="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills" skill
+  for skill in "$REPO_ROOT"/fork/skills/*/; do
+    [[ -f "$skill/SKILL.md" ]] || continue
+    mkdir -p "$skills_root/$(basename "$skill")"
+    cp -R "$skill". "$skills_root/$(basename "$skill")/"
+    echo "Installed skill $(basename "$skill") to $skills_root"
+  done
 }
 
 case "${1:-}" in
@@ -199,8 +212,9 @@ case "${1:-}" in
   dev) shift; dev "$@" ;;
   build) build ;;
   install) install_app ;;
+  skills) install_fork_skills ;;
   *)
-    echo "usage: $0 {sync|dev|build|install}" >&2
+    echo "usage: $0 {sync|dev|build|install|skills}" >&2
     exit 2
     ;;
 esac

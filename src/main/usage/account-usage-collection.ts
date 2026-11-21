@@ -13,12 +13,13 @@ import type { LedgerSettings } from './account-usage-source-owners'
 type BackendCollector = (request: AccountUsageCollectRequest) => Promise<AccountSourceRollups>
 
 const FIRST_COLLECTION_DELAY_MS = 30_000
-const COLLECTION_INTERVAL_MS = 10 * 60_000
+const MIN_COLLECTION_GAP_MS = 10 * 60_000
 const SWITCH_COLLECTION_TIMEOUT_MS = 8_000
 
 let ledger: AccountUsageLedger | null = null
 let collector: BackendCollector | null = null
 let collecting: Promise<void> | null = null
+let lastCollectedAt = 0
 
 async function collectThroughBackend(request: AccountUsageCollectRequest): Promise<void> {
   if (!ledger || !collector) {
@@ -47,10 +48,29 @@ export function collectAccountUsage(
   if (!options.only) {
     collecting = run.finally(() => {
       collecting = null
+      lastCollectedAt = Date.now()
     })
     return collecting
   }
   return run
+}
+
+/**
+ * Collects again when Orca is in use: after a usage scan or when a window regains focus, at most
+ * once per gap. Why not a timer: an idle Orca has nothing new to credit. Scans the collection
+ * itself starts land while it runs or within the gap, so they never chain another one.
+ */
+export function collectAccountUsageAfterActivity(): void {
+  // lastCollectedAt 0: the startup collection has not run yet and owns the first one.
+  if (
+    !ledger ||
+    collecting ||
+    !lastCollectedAt ||
+    Date.now() - lastCollectedAt < MIN_COLLECTION_GAP_MS
+  ) {
+    return
+  }
+  void collectAccountUsage()
 }
 
 /**
@@ -94,10 +114,7 @@ export function installAccountUsageLedger(
     }
   })
   setBeforeAccountSwitchHook(collectAccountUsageBeforeSwitch)
-  setTimeout(() => {
-    void collectAccountUsage()
-    setInterval(() => void collectAccountUsage(), COLLECTION_INTERVAL_MS).unref()
-  }, FIRST_COLLECTION_DELAY_MS).unref()
+  setTimeout(() => void collectAccountUsage(), FIRST_COLLECTION_DELAY_MS).unref()
   return ledger
 }
 

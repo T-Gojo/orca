@@ -16,8 +16,8 @@ function bridgeHubFile(accounts: unknown[]): string {
 }
 
 describe('Bridge Hub Antigravity import', () => {
-  it('turns each saved account into an agy login and skips ones without a refresh token', () => {
-    const logins = readBridgeHubAntigravityLogins(
+  it('turns each saved account into an agy login and skips ones without a refresh token', async () => {
+    const logins = await readBridgeHubAntigravityLogins(
       bridgeHubFile([
         { email: 'one@example.invalid', refreshToken: 'r1', accessToken: 'a1', expiresAt: 1 },
         { email: 'two@example.invalid', refreshToken: '' }
@@ -32,7 +32,7 @@ describe('Bridge Hub Antigravity import', () => {
   it('saves new accounts once and leaves ones already saved alone', async () => {
     const h = harness()
     await h.service.addCurrentAccount().catch(() => undefined)
-    const logins = readBridgeHubAntigravityLogins(
+    const logins = await readBridgeHubAntigravityLogins(
       bridgeHubFile([
         { email: 'one@example.invalid', refreshToken: 'r1', accessToken: 'a1', expiresAt: 1 },
         { email: 'a@example.invalid', refreshToken: 'r-other', accessToken: 'a2', expiresAt: 1 }

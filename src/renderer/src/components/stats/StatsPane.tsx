@@ -177,8 +177,7 @@ function StatsPaneContent({
   const availableTabs = useAvailableUsageTabs()
   // Grok credits and the Kiro/Antigravity ledger are this computer's; a remote host has no such tabs.
   const usageOptions = USAGE_ANALYTICS_OPTIONS.filter(
-    (option) =>
-      availableTabs.has(option.id) && !(hostName && LOCAL_ONLY_USAGE_TABS.has(option.id))
+    (option) => availableTabs.has(option.id) && !(hostName && LOCAL_ONLY_USAGE_TABS.has(option.id))
   )
   // Why: a provider can drop out (disabled, signed out) while its page is open.
   const activeUsageOption =

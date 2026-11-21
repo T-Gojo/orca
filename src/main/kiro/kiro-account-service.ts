@@ -51,7 +51,7 @@ export class KiroAccountService {
       if (this.match(vault, current)) {
         return this.state({ vault, current })
       }
-      this.save(vault, current)
+      await this.save(vault, current)
       return this.state({ vault, current })
     })
   }
@@ -65,11 +65,11 @@ export class KiroAccountService {
       const { vault, current } = await this.reconcile()
       if (current) {
         if (!this.match(vault, current)) {
-          this.save(vault, current)
+          await this.save(vault, current)
         }
         await this.backend.write(null, current.contents)
       }
-      return this.state({ vault: this.store.read(), current: null })
+      return this.state({ vault: await this.store.read(), current: null })
     })
   }
 
@@ -84,12 +84,12 @@ export class KiroAccountService {
       if (!current || active?.id !== id) {
         // Why: the login being replaced exists nowhere else, so it is kept before switching away.
         if (current && !active) {
-          this.save(vault, current)
+          await this.save(vault, current)
         }
         await this.backend.write(selected.login, current?.contents ?? null)
       }
       const readback = await this.backend.read()
-      const latest = this.store.read()
+      const latest = await this.store.read()
       const account = latest.accounts.find((entry) => entry.id === id)
       if (
         !account ||
@@ -99,7 +99,7 @@ export class KiroAccountService {
         throw new Error('Kiro account switching could not be verified; refresh before retrying.')
       }
       latest.selectedAccountId = id
-      this.store.write(latest)
+      await this.store.write(latest)
       return this.state({
         vault: latest,
         current: {
@@ -124,7 +124,7 @@ export class KiroAccountService {
       if (vault.selectedAccountId === id) {
         vault.selectedAccountId = null
       }
-      this.store.write(vault)
+      await this.store.write(vault)
       return this.state({ vault, current })
     })
   }
@@ -132,14 +132,14 @@ export class KiroAccountService {
   /** A saved account's login, for reading its usage without switching kiro-cli to it. */
   readSavedLogin(id: string): Promise<string | null> {
     return this.serialize(async () => {
-      return this.store.read().accounts.find((account) => account.id === id)?.login ?? null
+      return (await this.store.read()).accounts.find((account) => account.id === id)?.login ?? null
     })
   }
 
   /** Keeps a saved login current after Orca refreshed its token for a usage read. */
   updateSavedLogin(id: string, previous: string, next: string): Promise<void> {
     return this.serialize(async () => {
-      const vault = this.store.read()
+      const vault = await this.store.read()
       const account = vault.accounts.find((entry) => entry.id === id)
       // Why: a concurrent save or a login kiro-cli now holds must never be overwritten.
       if (!account || account.login !== previous || (await this.backend.read()) === previous) {
@@ -148,14 +148,14 @@ export class KiroAccountService {
       decodeKiroCliLogin(next)
       account.login = next
       account.updatedAt = this.now()
-      this.store.write(vault)
+      await this.store.write(vault)
     })
   }
 
   private async reconcile(): Promise<{ vault: KiroAccountVault; current: CurrentLogin | null }> {
     const contents = await this.backend.read()
     if (contents === null) {
-      return { vault: this.store.read(), current: null }
+      return { vault: await this.store.read(), current: null }
     }
     const token = readKiroCliLoginToken(decodeKiroCliLogin(contents))
     let current: CurrentLogin = {
@@ -163,11 +163,11 @@ export class KiroAccountService {
       authMethod: token?.authMethod ?? 'odic',
       identity: null
     }
-    if (!this.match(this.store.read(), current) && token) {
+    if (!this.match(await this.store.read(), current) && token) {
       current = { ...current, identity: await this.identify(token) }
     }
     // Re-read after the identity lookup so a slow read never restores an older vault.
-    const vault = this.store.read()
+    const vault = await this.store.read()
     const account = this.match(vault, current)
     if (account) {
       current = { ...current, identity: current.identity ?? identityOf(account) }
@@ -176,13 +176,13 @@ export class KiroAccountService {
         account.login = contents
         account.email = current.identity?.email ?? account.email
         account.updatedAt = this.now()
-        this.store.write(vault)
+        await this.store.write(vault)
       }
     }
     return { vault, current }
   }
 
-  private save(vault: KiroAccountVault, current: CurrentLogin): void {
+  private async save(vault: KiroAccountVault, current: CurrentLogin): Promise<void> {
     if (!current.identity) {
       throw new Error(
         'Kiro could not confirm which account is signed in. Run kiro-cli once so it renews its sign-in, then try again.'
@@ -198,7 +198,7 @@ export class KiroAccountService {
       createdAt: timestamp,
       updatedAt: timestamp
     })
-    this.store.write(vault)
+    await this.store.write(vault)
   }
 
   private match(vault: KiroAccountVault, current: CurrentLogin): StoredKiroAccount | undefined {

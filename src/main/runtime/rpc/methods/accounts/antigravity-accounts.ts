@@ -236,7 +236,7 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
       if (target.runtime !== 'host') {
         throw new Error('Bridge Hub accounts can only be imported for this computer’s agy.')
       }
-      const logins = readBridgeHubAntigravityLogins()
+      const logins = await readBridgeHubAntigravityLogins()
       if (logins.length === 0) {
         throw new Error('No Bridge Hub Antigravity accounts were found on this computer.')
       }

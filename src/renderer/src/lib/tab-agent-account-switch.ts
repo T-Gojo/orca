@@ -40,10 +40,10 @@ export function resolveTabAgentAccountPane(
     ) {
       continue
     }
-    const entry = state.agentStatusByPaneKey?.[makePaneKey(tab.id, leafId)]
+    const entry = state.agentStatusByPaneKey?.get(makePaneKey(tab.id, leafId))
     const agent: AccountRestartAgent | null =
       entry?.agentType === 'claude' ? 'claude' : entry?.agentType === 'codex' ? 'codex' : null
-    if (!agent || entry?.structuredHostOwned) {
+    if (!entry || !agent || entry.structuredHostOwned) {
       continue
     }
     return {
