@@ -43,6 +43,14 @@ function refuseOnWindows(agent: DelegationAgent): void {
   }
 }
 
+/**
+ * HOME for the worker. On macOS Orca starts shells through `login`, which resets HOME; its
+ * trampoline restores it from ORCA_ACCOUNT_HOME (tcc-login-shell.ts).
+ */
+function accountHomeEnv(home: string): Record<string, string> {
+  return { HOME: home, ORCA_ACCOUNT_HOME: home }
+}
+
 function sameAgyGrant(a: string, b: string): boolean {
   try {
     return (
@@ -79,7 +87,7 @@ async function antigravityEnv(accountId: string): Promise<Record<string, string>
     await writeFile(tokenPath, saved, { mode: 0o600 })
     await chmod(tokenPath, 0o600)
   }
-  return { HOME: home, ...AGY_FILE_LOGIN_ENV }
+  return { ...accountHomeEnv(home), ...AGY_FILE_LOGIN_ENV }
 }
 
 function kiroRefreshToken(contents: string): string | null {
@@ -125,7 +133,7 @@ async function kiroEnv(accountId: string): Promise<Record<string, string>> {
       throw new Error(`Could not prepare kiro-cli for account ${accountId} (${written.status}).`)
     }
   }
-  return { HOME: home }
+  return accountHomeEnv(home)
 }
 
 /** The env a worker of `agent` needs to run on a saved account; null id is the agent's own login. */

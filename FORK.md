@@ -172,6 +172,14 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
   service, worker-account), `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`,
   `src/shared/delegation/delegation-types.ts`, `src/shared/rpc-contract/delegation-params.ts`,
   `src/cli/delegation/delegation-handlers.ts`, `src/cli/specs/delegation.ts`.
+- **macOS `login` resets HOME:** Orca starts shells through `/usr/bin/login` (`tcc-login-shell.ts`), which
+  resets `HOME`. The worker env also carries `ORCA_ACCOUNT_HOME`, and the login trampoline exports it as `HOME`
+  when set (one fork line in `tcc-login-shell.ts`). Linux shells get `HOME` directly.
+- **Verified end to end (2026-11-21, dev instance):** two Antigravity workers on two saved accounts in parallel
+  (by id and by email), a Kiro worker with `--account auto` and a Codex worker with `--account system` all
+  reported `worker_done`. The machine-wide agy login was unchanged, and each overlay token was refreshed by
+  its own run. Kiro still asks "Trust this workspace?" once per new folder; trust lives in `~/.kiro`, which the
+  overlay shares, so trust a folder in kiro once and workers inherit it.
 - **Hooks into upstream:** `account` in `orchestration-worker-start-params.ts`;
   `resolveWorkerStartAccount` + `workerAccountMode` in `worker-start-method.ts`;
   `workerAccountEnv` in `worker-start-agent-placement.ts`; `accountEnv` in
