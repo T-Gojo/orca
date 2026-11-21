@@ -59,7 +59,9 @@ ORCA orchestration worker-start --environment local --worktree current --agent <
 - `--account` needs an existing workspace (`--worktree current` or an exact one), not
   `new-child`/`new-top-level`.
 - Start independent workers together (up to about 4), then end your turn. Orca wakes you when
-  a worker reports. Never poll.
+  a worker reports. Never poll. If the user asks about it before you were woken, read the Run's
+  mail once with `ORCA orchestration inbox --terminal run:<run_id> --limit 20` (the start
+  receipt names the Run) and act on any `worker_done` there.
 
 ## 4. Verify, then retry or report
 
