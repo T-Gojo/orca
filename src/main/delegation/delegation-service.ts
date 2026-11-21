@@ -7,6 +7,8 @@ import type {
 import { isDelegationAgent } from '../../shared/delegation/delegation-types'
 import { getAntigravityAccountService } from '../antigravity/native-account-host'
 import { getKiroAccountService } from '../kiro/kiro-account-host'
+import { readKiroCliWhoamiEmail } from '../kiro/kiro-cli-whoami'
+import type { ProviderRateLimits } from '../../shared/agent-usage/rate-limits/rate-limit-types'
 import { buildDelegationUsage } from './delegation-usage'
 import { readDelegationPreferences } from './delegation-preferences'
 import { routeDelegation, type DelegationRouteRequest } from './delegation-route'
@@ -16,6 +18,28 @@ type DelegationRuntime = Pick<
   OrcaRuntimeService,
   'getAccountsSnapshot' | 'refreshAccountsForMobile'
 >
+
+const WHOAMI_REUSE_MS = 10 * 60_000
+let kiroWhoami: { login: string; email: string | null; readAt: number } | null = null
+let kiroWhoamiInFlight = false
+
+/** The email of kiro-cli's current login, read with `kiro-cli whoami` in the background and kept per
+ *  login, so a login switched outside Orca gets its own email without a prompt waiting on it. */
+function kiroLoginEmail(limits: ProviderRateLimits | null): string | null {
+  const login = limits?.usageMetadata?.authProvenance ?? 'unknown'
+  const known = kiroWhoami?.login === login ? kiroWhoami : null
+  if ((!known || Date.now() - known.readAt > WHOAMI_REUSE_MS) && limits && !kiroWhoamiInFlight) {
+    kiroWhoamiInFlight = true
+    void readKiroCliWhoamiEmail()
+      .then((email) => {
+        kiroWhoami = { login, email, readAt: Date.now() }
+      })
+      .finally(() => {
+        kiroWhoamiInFlight = false
+      })
+  }
+  return known?.email ?? null
+}
 
 /** Every delegation agent's accounts with their usage; `refresh` reads usage fresh first. */
 export async function readDelegationUsage(
@@ -44,6 +68,7 @@ export async function readDelegationUsage(
       codex: snapshot.codex,
       antigravity,
       kiro,
+      kiroLoginEmail: kiroLoginEmail(snapshot.rateLimits.kiro),
       maxUsedPercent: preferences.maxUsedPercent
     }),
     readAt: Date.now()

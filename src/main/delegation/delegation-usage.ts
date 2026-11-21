@@ -18,6 +18,8 @@ export type DelegationUsageInput = {
   codex: ManagedAccounts
   antigravity: readonly SavedAccount[]
   kiro: readonly SavedAccount[]
+  /** Email of kiro-cli's current login, when known; it may be an account Orca has not saved. */
+  kiroLoginEmail?: string | null
   maxUsedPercent: number
 }
 
@@ -115,12 +117,36 @@ function savedRows(
   })
 }
 
+/** kiro-cli's own login when it is not one of the saved accounts (the user switches it outside
+ *  Orca); workers run on it with `--account system`. Only a login with a real reading counts. */
+export function kiroLoginRow(
+  rateLimits: Pick<RateLimitState, 'kiro' | 'kiroAccounts'>,
+  email: string | null | undefined,
+  maxUsedPercent: number
+): DelegationAccountUsage[] {
+  const limits = rateLimits.kiro
+  const savedIsActive = (rateLimits.kiroAccounts ?? []).some((entry) => entry.active)
+  if (!limits || savedIsActive || !windowsOf(limits).length) {
+    return []
+  }
+  return [
+    row(
+      'kiro',
+      { accountId: null, label: email ?? 'kiro-cli login', active: true },
+      limits,
+      null,
+      maxUsedPercent
+    )
+  ]
+}
+
 /** Every account each delegation agent can run on, with the share of its plan it has used. */
 export function buildDelegationUsage(input: DelegationUsageInput): DelegationAccountUsage[] {
   const { rateLimits: state, maxUsedPercent } = input
   return [
     ...savedRows('antigravity', input.antigravity, state.antigravityAccounts, maxUsedPercent),
     ...savedRows('kiro', input.kiro, state.kiroAccounts ?? [], maxUsedPercent),
+    ...kiroLoginRow(state, input.kiroLoginEmail, maxUsedPercent),
     ...managedRows('codex', input.codex, state.codex, state.inactiveCodexAccounts, maxUsedPercent),
     ...managedRows(
       'claude',

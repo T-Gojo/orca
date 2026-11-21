@@ -187,6 +187,10 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     the session's last brief within 30 minutes, the CLI prints a one-line note instead (`--session`,
     keys in `$TMPDIR/orca-delegation-brief`). Stale readings trigger a throttled background refresh,
     so a prompt never waits on usage probes.
+  - Kiro's live login: kiro-cli is often switched to an account Orca has not saved. When its current
+    login is not a saved account, the table adds it as `kiro` `system` (usage from `rateLimits.kiro`,
+    plan plus active bonus credits; email from a background `kiro-cli whoami`, kept per login), and
+    workers run on it with `--account system` (no overlay).
   - Silent outside Orca, for workers (`ORCA_DELEGATION_WORKER=1` from `--account`, or a session whose
     first prompt was a dispatch brief), with `ORCA_AUTO_DELEGATION=off`, or with
     `autoDelegation.enabled: false`.
