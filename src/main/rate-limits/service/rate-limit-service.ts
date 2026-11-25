@@ -283,7 +283,9 @@ export class RateLimitService extends RateLimitServiceTargetUsageRead {
           ? this.antigravityAccountUsage.list(this.state.antigravity)
           : undefined
       ),
-      kiroAccounts: this.kiroAccountUsage.list(this.state.kiro)
+      kiroAccounts: this.kiroAccountUsage.list(this.state.kiro),
+      // Fork: probed quota readings of saved Mistral Vibe accounts (FORK.md §10).
+      mistralAccounts: this.mistralAccountUsage.list(null)
     }
   }
 }

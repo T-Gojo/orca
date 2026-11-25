@@ -108,10 +108,12 @@ login, rebuild the seeding from FORK.md history (`git log -- fork/FORK.md`).
     old `reuse` sidecar flag is gone (upstream's schema-7 `unchangedSourceCache` owns retention now).
 - **Removing a Codex account** runs the usage collection first (`accounts.removeCodex` wiring in
   `src/main/ipc/accounts/codex-accounts.ts` via the shared hook `src/main/usage/account-switch-usage-hook.ts`).
-- **Per-account ledger:** `src/main/usage/account-usage-*` keeps per-account totals for Claude, Codex, OpenCode, Kiro and
-  Antigravity. It only grows; removed accounts are kept and labelled **Removed**.
+- **Per-account ledger:** `src/main/usage/account-usage-*` keeps per-account totals for Claude, Codex, OpenCode, Kiro, Mistral
+  (Vibe) and Antigravity. It only grows; removed accounts are kept and labelled **Removed**.
 - **Kiro and Antigravity tokens:** estimated from their session logs and IDE conversation steps
   (`kiro-cli-session-usage.ts`, `antigravity-session-usage.ts`, `antigravity-ide-usage.ts`).
+- **Mistral tokens:** real cumulative counters from the Vibe session journals, never estimated
+  (`vibe-session-usage.ts`, section 10).
 
 ### 6. Usage Analytics UI
 
@@ -256,6 +258,27 @@ key per account in an encrypted vault; using one is per-terminal env pinning (re
   after this hook); if upstream grows it, the mistral spread must move into a combined fork method group to keep
   the two lines. `mistral-vibe`'s own key locations (`$VIBE_HOME/.env`, keychain `ai.mistral.vibe`) are external
   facts, not Orca files — re-verify on the next mistral-vibe release before touching `mistral-credential-source.ts`.
+- **Session usage (ledger `mistral` provider):** `src/main/mistral/vibe-session-usage.ts` reads
+  `$VIBE_HOME/logs/session/unified/<id>/` in the usage scan worker (result key `mistral` on
+  `collectAccountSources`, threaded through `usage-scan-worker-{protocol,client,spawn,entry}.ts`). Cumulative
+  `projection_delta` counters are real, so nothing is estimated: input excludes the cached share, `totalTokens`
+  = non-cached input + output + cached (mistral-vibe's own total leaves cached out), the day is the max record's
+  session `updatedAt`, `activity` counts metered records. Rollups carry `owner.json`'s `organizationId+userId`
+  so `account-usage-source-owners.ts` credits the saved account with that organization (`SingleLoginAccounts.organizationId`),
+  else the account whose key was active. Mirrors kiro: no scanner-side vanished-session retention — the ledger's
+  growth deltas keep history; mtime-keyed session cache like `kiro-cli-session-usage.ts`.
+- **Quota probe:** `src/main/rate-limits/mistral-account-usage-probe.ts` reads `GET api.mistral.ai/v1/billing/budget`
+  with a saved key (`vibe_budget.usage_percentage/reset_at` becomes the `monthly` window; `reset_at` only names the
+  reset, so the window length is the remaining time). 403 = the account lacks `see_org_inference_usage` → status
+  `unavailable`; `GET /v1/billing/subscription` (`plan_name`) is best-effort and never blocks the reading. Mistral
+  API keys never rotate, so the probe's `update` login hook is a documented no-op.
+- **Rate-limit wiring:** `saved-account-usage-wiring.ts` mistral block (`setMistralAccountsReader` + probe), the
+  fork-owned partial `rate-limits/service/service-mistral-accounts.ts` (tracker, cache
+  `userData/mistral-accounts/usage-cache.json`, setters, active-account probe) hooked with one
+  `service-fetch-control.ts` composition line, and one `service-full-cycle-preparation.ts` poll trigger — with no
+  live provider there is no `state.mistral`, readings publish as `mistralAccounts` (optional field beside
+  `kiroAccounts` in `rate-limit-types.ts`). `provider: 'mistral'` joins `ProviderRateLimits` (display name in
+  `usage-provider-windows.ts`; filtered from the polling plan in `service-polling.ts`; status-bar letter `V`).
 
 ### Upstream gate notes (main-process rules)
 

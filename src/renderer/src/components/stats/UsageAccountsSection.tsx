@@ -9,6 +9,8 @@ import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import type { AccountUsageLedgerRow } from '../../../../shared/account-usage-ledger-types'
+// Fork: maps the ledger's mistral provider onto the mistral-vibe agent (FORK.md §10).
+import type { TerminalAgent } from '../../../../shared/agent-status/identity/terminal-agent'
 import {
   SYSTEM_DEFAULT_ACCOUNT_KEY,
   UNATTRIBUTED_ACCOUNT_KEY
@@ -22,8 +24,15 @@ import { usageRangeLabel } from './UsageFilterBar'
 
 type Largest = { tokens: number; credits: number }
 
+// Fork: the ledger's mistral rows are the mistral-vibe agent in the catalog (FORK.md §10).
+function ledgerProviderAgent(provider: AccountUsageLedgerRow['provider']): TerminalAgent {
+  return provider === 'mistral' ? 'mistral-vibe' : provider
+}
+
 function providerLabel(provider: AccountUsageLedgerRow['provider']): string {
-  return getAgentCatalog().find((entry) => entry.id === provider)?.label ?? provider
+  return (
+    getAgentCatalog().find((entry) => entry.id === ledgerProviderAgent(provider))?.label ?? provider
+  )
 }
 
 function accountName(row: AccountUsageLedgerRow, t: Translate = translate): string {
@@ -225,7 +234,7 @@ function ProviderAccountGroup({ group }: { group: ProviderGroup }): React.JSX.El
               <ChevronRight
                 className={`size-3.5 shrink-0 transition-transform motion-reduce:transition-none ${open ? 'rotate-90' : ''}`}
               />
-              <AgentIcon agent={group.provider} size={14} />
+              <AgentIcon agent={ledgerProviderAgent(group.provider)} size={14} />
               <span className="truncate text-foreground">{providerLabel(group.provider)}</span>
               <span>
                 {t('stats.usageAccounts.accountCount', '{{count}} accounts', {

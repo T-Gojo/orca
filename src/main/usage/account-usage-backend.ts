@@ -57,12 +57,13 @@ export async function collectAccountUsageSources(
           )
         )
     ),
-    wanted('kiro') || wanted('antigravity')
+    wanted('kiro') || wanted('antigravity') || wanted('mistral') // Fork: mistral-vibe logs (FORK.md §10).
       ? collectAccountSourcesViaWorker()
-      : Promise.resolve({ kiro: [], antigravity: [] })
+      : Promise.resolve({ kiro: [], antigravity: [], mistral: [] })
   ])
   return {
     kiro: wanted('kiro') ? sources.kiro : [],
-    antigravity: wanted('antigravity') ? sources.antigravity : []
+    antigravity: wanted('antigravity') ? sources.antigravity : [],
+    mistral: wanted('mistral') ? sources.mistral : [] // Fork: (FORK.md §10).
   }
 }

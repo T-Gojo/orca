@@ -89,6 +89,7 @@ export type UsageScanWorkerValue =
       operation: 'collectAccountSources'
       kiro: UsageSourceRollup[]
       antigravity: UsageSourceRollup[]
+      mistral: UsageSourceRollup[] // Fork: Mistral Vibe session journals (FORK.md §10).
     }
 
 export type UsageScanWorkerResponse =

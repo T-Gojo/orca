@@ -111,6 +111,7 @@ export type ProviderRateLimits = {
     | 'zcode'
     | 'muse'
     | 'kiro'
+    | 'mistral' // Fork: Mistral Vibe saved-account probes only (FORK.md §10).
   /** 5-hour session window, null if not available. */
   session: RateLimitWindow | null
   /** 7-day weekly window, null if not available. */
@@ -229,6 +230,8 @@ export type RateLimitState = {
   antigravityAccounts: AntigravityAccountUsage[]
   /** Optional: hosts without saved Kiro accounts, or older hosts, omit it. */
   kiroAccounts?: SavedAccountUsage[]
+  /** Fork: optional, like kiroAccounts — saved Mistral Vibe accounts' probed quota readings (FORK.md §10). */
+  mistralAccounts?: SavedAccountUsage[]
 }
 
 export type RuntimeTargetUsageProvider = 'claude' | 'codex'

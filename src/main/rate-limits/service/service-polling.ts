@@ -84,13 +84,15 @@ export abstract class RateLimitServicePolling extends RateLimitServiceFetchQueue
       cursor: this.state.cursor,
       zcode: this.state.zcode,
       muse: this.state.muse,
-      kiro: this.state.kiro
+      kiro: this.state.kiro,
+      mistral: null // Fork: no live provider state; the tracker's readings publish as mistralAccounts (FORK.md §10).
     }
     // A hidden Muse meter keeps an idle snapshot, which must not force a full refresh on every focus.
     const museEnabled = this.museUsageEnabledResolver?.() ?? true
     return Object.entries(byProvider)
       .filter(([provider]) => provider !== 'muse' || museEnabled)
       .filter(([provider]) => provider !== 'claude' || this.isClaudeOAuthUsageEnabled())
+      .filter(([provider]) => provider !== 'mistral') // Fork: (FORK.md §10).
       .map(([provider, limits]) => ({
         provider: provider as ActiveRateLimitProvider,
         limits

@@ -174,6 +174,9 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       this.fetchKiroWithSavedAccounts(signal, options?.force === true)
     )
 
+    // Fork: saved Mistral Vibe accounts probe on the same poll; readings go to mistralAccounts (FORK.md §10).
+    void settleSiblingProviderFetch(this.fetchMistralWithSavedAccounts(options?.force === true))
+
     // Fork: saved Antigravity accounts probe beside the live one (FORK.md §2).
     const fetchAntigravity = (): Promise<ProviderRateLimits> =>
       fetchAntigravityRateLimits({

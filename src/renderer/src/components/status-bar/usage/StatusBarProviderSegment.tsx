@@ -176,6 +176,8 @@ function getProviderLetter(provider: ProviderRateLimits['provider']): string {
       return 'S'
     case 'codex':
       return 'X'
+    case 'mistral':
+      return 'V' // Fork: Mistral Vibe (FORK.md §10).
   }
 }
 

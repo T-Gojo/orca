@@ -24,6 +24,7 @@ import {
   readAntigravityCliStepCount
 } from '../../antigravity/antigravity-session-usage'
 import { collectAntigravityIdeUsage } from '../../antigravity/antigravity-ide-usage'
+import { collectMistralVibeUsage } from '../../mistral/vibe-session-usage' // Fork: Mistral Vibe (FORK.md §10).
 import {
   readClaudeUsageSourceCache,
   splitClaudeUsageCacheFile,
@@ -96,7 +97,8 @@ async function runRequest(
       operation: 'collectAccountSources',
       kiro: collectKiroCliUsage(),
       // The IDE logs steps, not tokens; without CLI logs to measure a rate it is left out.
-      antigravity: perStep ? [...antigravity, ...collectAntigravityIdeUsage(perStep)] : antigravity
+      antigravity: perStep ? [...antigravity, ...collectAntigravityIdeUsage(perStep)] : antigravity,
+      mistral: collectMistralVibeUsage() // Fork: cumulative journals, never estimates (FORK.md §10).
     }
   }
   return runScan(request, onFilesScanned)

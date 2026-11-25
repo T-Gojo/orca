@@ -31,7 +31,8 @@ const PROVIDER_DISPLAY_NAMES: Readonly<Record<string, string>> = {
   zcode: 'ZCode',
   cursor: 'Cursor',
   muse: 'Muse',
-  kiro: 'Kiro'
+  kiro: 'Kiro',
+  mistral: 'Mistral Vibe' // Fork: (FORK.md §10).
 } satisfies Record<ProviderRateLimits['provider'], string>
 
 // A provider id from a newer host falls back to the id itself.

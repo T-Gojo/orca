@@ -25,8 +25,11 @@ import {
   type SingleLoginAccounts
 } from './account-usage-source-owners'
 
+/** One-login-at-a-time agents the ledger reads account lists for. */
+type SingleLoginProvider = 'kiro' | 'antigravity' | 'mistral'
+
 export type SingleLoginAccountReaders = Record<
-  'kiro' | 'antigravity',
+  SingleLoginProvider,
   () => Promise<SingleLoginAccounts | null>
 >
 
@@ -46,7 +49,7 @@ export class AccountUsageLedger {
   private readonly loaded: Promise<void>
   private writes: Promise<void> = Promise.resolve()
   private records: Promise<void> = Promise.resolve()
-  private readonly savedSingleLogin: Partial<Record<'kiro' | 'antigravity', Set<string>>> = {}
+  private readonly savedSingleLogin: Partial<Record<SingleLoginProvider, Set<string>>> = {}
 
   constructor(
     private readonly getSettings: () => LedgerSettings,
@@ -68,7 +71,7 @@ export class AccountUsageLedger {
   }
 
   private async readSingleLogin(provider: AccountUsageProvider) {
-    if (provider !== 'kiro' && provider !== 'antigravity') {
+    if (provider !== 'kiro' && provider !== 'antigravity' && provider !== 'mistral') {
       return null
     }
     const accounts = await this.singleLogin[provider]().catch(() => null)
@@ -110,6 +113,7 @@ export class AccountUsageLedger {
         return settings.codexManagedAccounts.some((account) => account.id === accountKey)
       case 'kiro':
       case 'antigravity':
+      case 'mistral':
         // Unknown until the account list is read; never mark a row removed on a guess.
         return this.savedSingleLogin[provider]?.has(accountKey) ?? true
       case 'opencode':

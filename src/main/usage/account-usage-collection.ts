@@ -5,6 +5,7 @@ import type {
 } from '../../shared/account-usage-ledger-types'
 import { getKiroAccountService } from '../kiro/kiro-account-host'
 import { getAntigravityAccountService } from '../antigravity/native-account-host'
+import { getMistralAccountService } from '../mistral/mistral-account-host' // Fork: (FORK.md §10).
 import { AccountUsageLedger } from './account-usage-ledger'
 import { setBeforeAccountSwitchHook } from './account-switch-usage-hook'
 import type { LedgerSettings } from './account-usage-source-owners'
@@ -26,12 +27,16 @@ async function collectThroughBackend(request: AccountUsageCollectRequest): Promi
     return
   }
   const installed = ledger
-  const { kiro, antigravity } = await collector(request)
+  const { kiro, antigravity, mistral } = await collector(request)
   if (request.only === undefined || request.only === 'kiro') {
     await installed.record('kiro', kiro)
   }
   if (request.only === undefined || request.only === 'antigravity') {
     await installed.record('antigravity', antigravity)
+  }
+  if (request.only === undefined || request.only === 'mistral') {
+    // Fork: Mistral Vibe sessions (FORK.md §10).
+    await installed.record('mistral', mistral)
   }
 }
 
@@ -110,6 +115,23 @@ export function installAccountUsageLedger(
         accounts: state.accounts,
         activeAccountId: state.activeAccountId,
         currentEmail: state.currentAccount?.email ?? null
+      }
+    },
+    // Fork: Mistral accounts are named by their organization; sessions carry the same ids (FORK.md §10).
+    mistral: async () => {
+      const state = await getMistralAccountService().listAccounts()
+      return {
+        accounts: state.accounts.map((account) => ({
+          id: account.id,
+          email: account.customer,
+          organizationId: account.organizationId
+        })),
+        activeAccountId: state.currentAccount
+          ? (state.accounts.find(
+              (account) => account.keyFingerprint === state.currentAccount?.keyFingerprint
+            )?.id ?? null)
+          : null,
+        currentEmail: state.currentAccount?.customer ?? null
       }
     }
   })

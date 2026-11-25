@@ -63,10 +63,11 @@ export class UsageScanWorkerClient {
     return this.dispatch(body)
   }
 
-  /** Session usage from agents Orca has no token store for (kiro-cli, agy). */
+  /** Session usage from agents Orca has no token store for (kiro-cli, agy, mistral-vibe). */
   async collectAccountSources(): Promise<{
     kiro: UsageSourceRollup[]
     antigravity: UsageSourceRollup[]
+    mistral: UsageSourceRollup[]
   }> {
     const value = await this.dispatch({ operation: 'collectAccountSources' })
     if (value.operation !== 'collectAccountSources') {
@@ -74,7 +75,7 @@ export class UsageScanWorkerClient {
         `Usage scan worker answered ${value.operation}, expected collectAccountSources`
       )
     }
-    return { kiro: value.kiro, antigravity: value.antigravity }
+    return { kiro: value.kiro, antigravity: value.antigravity, mistral: value.mistral } // Fork: (FORK.md §10).
   }
 
   /** Split a cache that still carries its per-source records, so main parses only the report. */

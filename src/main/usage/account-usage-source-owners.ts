@@ -21,9 +21,9 @@ export type LedgerSettings = Pick<
   | 'activeCodexManagedAccountIdsByRuntime'
 >
 
-/** A saved single-login account (Kiro, Antigravity) and which one the CLI is signed in to now. */
+/** A saved single-login account (Kiro, Antigravity, Mistral Vibe) and which one the CLI is signed in to now. */
 export type SingleLoginAccounts = {
-  accounts: { id: string; email: string | null }[]
+  accounts: { id: string; email: string | null; organizationId?: string | null }[]
   activeAccountId: string | null
   currentEmail: string | null
 }
@@ -160,6 +160,27 @@ export async function createSourceResolver(
       label: rollup.session,
       certain: true
     })
+  }
+  // Fork: Mistral Vibe sessions carry owner.json's `${organizationId}+${userId}` in
+  // `session`; a matching saved account wins, sessions without an owner fall back to
+  // whoever's key was active when they first appeared (FORK.md §10).
+  if (provider === 'mistral') {
+    const byOrganization = new Map<string, { id: string; email: string | null }>()
+    for (const account of singleLogin?.accounts ?? []) {
+      if (account.organizationId) {
+        byOrganization.set(account.organizationId, { id: account.id, email: account.email })
+      }
+    }
+    const active = singleLogin?.accounts.find((entry) => entry.id === singleLogin.activeAccountId)
+    const fallbackKey = active?.id ?? SYSTEM_DEFAULT_ACCOUNT_KEY
+    const fallbackLabel = active?.email ?? singleLogin?.currentEmail ?? null
+    return (rollup) => {
+      const organizationId = rollup.session ? rollup.session.split('+')[0] : ''
+      const match = organizationId ? byOrganization.get(organizationId) : undefined
+      return match
+        ? { accountKey: match.id, label: match.email, certain: true }
+        : { accountKey: fallbackKey, label: fallbackLabel, certain: false }
+    }
   }
   // kiro-cli and agy keep one login at a time, so new usage belongs to whoever is signed in.
   const active = singleLogin?.accounts.find((entry) => entry.id === singleLogin.activeAccountId)

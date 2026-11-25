@@ -68,7 +68,8 @@ export abstract class RateLimitServiceState {
     cursor: 0,
     zcode: 0,
     muse: 0,
-    kiro: 0
+    kiro: 0,
+    mistral: 0 // Fork: (FORK.md §10).
   }
   // Failures increase activation backoff; success/unavailable resets it.
   protected activeFailureStreakByProvider: Record<ActiveRateLimitProvider, number> = {
@@ -82,7 +83,8 @@ export abstract class RateLimitServiceState {
     cursor: 0,
     zcode: 0,
     muse: 0,
-    kiro: 0
+    kiro: 0,
+    mistral: 0 // Fork: (FORK.md §10).
   }
   protected mainWindow: BrowserWindow | null = null
   /** Paired clients streaming usage (accounts.subscribe); headless hosts have no window to watch. */

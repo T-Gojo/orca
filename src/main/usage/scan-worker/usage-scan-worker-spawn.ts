@@ -131,6 +131,7 @@ export function scanMuseUsageFilesViaWorker(
 export function collectAccountSourcesViaWorker(): Promise<{
   kiro: UsageSourceRollup[]
   antigravity: UsageSourceRollup[]
+  mistral: UsageSourceRollup[] // Fork: Mistral Vibe session journals (FORK.md §10).
 }> {
   return getSharedClient().collectAccountSources()
 }

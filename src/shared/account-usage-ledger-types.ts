@@ -3,6 +3,7 @@ export const ACCOUNT_USAGE_PROVIDERS = [
   'codex',
   'antigravity',
   'kiro',
+  'mistral', // Fork: Mistral Vibe (FORK.md §10).
   'opencode'
 ] as const
 
@@ -94,8 +95,9 @@ export const ACCOUNT_USAGE_RECORD_METHOD = 'accountUsage.record'
 
 export type AccountUsageCollectRequest = { force?: boolean; only?: AccountUsageProvider }
 
-/** kiro-cli and agy usage; Orca has no token store for them, so a collection returns it. */
+/** kiro-cli, agy and mistral-vibe usage; Orca has no token store for them, so a collection returns it. */
 export type AccountSourceRollups = {
   kiro: UsageSourceRollup[]
   antigravity: UsageSourceRollup[]
+  mistral: UsageSourceRollup[] // Fork: Mistral Vibe session journals (FORK.md §10).
 }
