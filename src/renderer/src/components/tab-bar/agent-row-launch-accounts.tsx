@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import { useTranslate } from '@/i18n/use-translate'
 import { listAgentLaunchAccounts, type AgentLaunchAccount } from '@/lib/agent-launch-accounts'
 import { useSingleLoginLaunchAccounts } from '@/lib/single-login-launch-accounts'
+import { useMistralLaunchAccounts } from '@/lib/mistral-launch-accounts'
 import type { NewTabAgentMenuRow } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
 import type { AgentPickerMenuLaunch } from '@/components/agent/AgentLaunchPickerMenuRow'
 import { AccountLaunchRow } from './AccountLaunchRow'
@@ -32,6 +33,11 @@ export function useAgentRowLaunchAccounts(
   const singleLoginAccounts = useSingleLoginLaunchAccounts(
     rows.filter(isLocalLaunchRow).map((row) => row.agent)
   )
+  // Fork: mistral-vibe is pin-mode (FORK.md section 10): its saved accounts come from the vault
+  // RPC like a single-login agent's do, but the pick pins the terminal's env, never a login.
+  const mistralAccounts = useMistralLaunchAccounts(
+    rows.some((row) => isLocalLaunchRow(row) && row.agent === 'mistral-vibe')
+  )
   return (row) => {
     if (!isLocalLaunchRow(row)) {
       return null
@@ -52,6 +58,10 @@ export function useAgentRowLaunchAccounts(
     // Why terminals only: a pin is applied through the terminal's environment, which chats do not use.
     if (row.kind === 'chat') {
       return null
+    }
+    // Fork (FORK.md section 10): the mistral-vibe pick pins the launch's terminal env.
+    if (row.agent === 'mistral-vibe') {
+      return mistralAccounts.length === 0 ? null : { accounts: mistralAccounts }
     }
     const accounts = listAgentLaunchAccounts(
       row.agent,

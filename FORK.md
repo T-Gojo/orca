@@ -67,6 +67,7 @@ of that login for each account and swaps it in to switch accounts.
 
 - **New-tab "+" menu (new picker):** the agent setup panel has an **Account** row, rendered by the launch footer.
   - Claude and Codex pin the chosen account for terminal launches.
+  - Mistral Vibe pins the chosen account's saved API key into the terminal too (FORK.md section 10).
   - Kiro and Antigravity switch their single login first, so the choice also applies to chats.
 - **Files:** `src/renderer/src/components/agent/AgentLaunchAccountChoice.tsx`, `src/renderer/src/components/tab-bar/agent-row-launch-accounts.tsx`,
   `src/renderer/src/components/tab-bar/AccountLaunchRow.tsx`.
@@ -79,7 +80,9 @@ of that login for each account and swaps it in to switch accounts.
   - `launch-agent-in-new-tab.ts` applies the pin.
 - **Hand off to another agent:** the hand-off dialog's **Account** select (`ContinuationAccountSelect.tsx`) lists saved
   accounts for every multi-account agent on this computer. Claude/Codex pin it for terminal hand-offs; Antigravity and
-  Kiro switch their single login first (`prepare()`), for chat and terminal hand-offs alike.
+  Kiro switch their single login first (`prepare()`), for chat and terminal hand-offs alike. Mistral Vibe
+  joins the pin side there: its accounts pin terminal hand-offs, read from the vault RPC
+  (`mistral-launch-accounts.ts`).
 - **Import rule:** `AgentLaunchAccountChoice.tsx` must not import `AgentLaunchPickerMenu.tsx`. That import is circular
   and breaks the picker tests' mocks.
 
@@ -234,7 +237,7 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
 ### 10. Multiple accounts for Mistral Vibe
 
 Mistral Vibe keeps one API key at a time, read from env, `~/.vibe/.env` or the macOS keychain. Orca saves a
-key per account in an encrypted vault; using one is per-terminal env pinning (renderer + launch wiring: next phase).
+key per account in an encrypted vault; using one is per-terminal env pinning, never switching.
 
 - **Ground truth (verified vs mistral-vibe 3.1.4):** credential priority is env `MISTRAL_API_KEY` >
   `$VIBE_HOME/.env` (env relocates the config, default `~/.vibe`) > macOS keychain (service `ai.mistral.vibe`,
@@ -250,7 +253,11 @@ key per account in an encrypted vault; using one is per-terminal env pinning (re
 - **Files:** `src/shared/mistral-account-types.ts`, `src/shared/rpc-contract/mistral-account-params.ts`,
   `src/main/mistral/mistral-account-store.ts`, `mistral-credential-source.ts`, `mistral-whoami.ts`,
   `mistral-account-service.ts`, `mistral-account-host.ts` (+ `mistral-account-service.test.ts`),
-  `src/main/runtime/rpc/methods/accounts/mistral-accounts.ts`.
+  `src/main/runtime/rpc/methods/accounts/mistral-accounts.ts`, plus the renderer pin files
+  `src/renderer/src/runtime/runtime-mistral-accounts-client.ts`,
+  `src/renderer/src/lib/mistral-launch-accounts.ts`, `MistralAccountsSection.tsx` (+ the
+  `accounts-pane-mistral-section.tsx` / `accounts-mistral-search.ts` wrappers) and
+  `src/main/mistral/mistral-terminal-account-pin.ts`.
 - **Hooks into:** `rpc-method-registry.ts` (import + one `...MISTRAL_ACCOUNT_METHODS` spread, exactly two lines),
   `account-runtime-capabilities.ts` (`MISTRAL_ACCOUNTS_RUNTIME_CAPABILITY = 'accounts.mistral-vibe.v1'`),
   and regenerated `rpc-params-catalog.generated.ts` (don't hand-merge).
@@ -279,6 +286,16 @@ key per account in an encrypted vault; using one is per-terminal env pinning (re
   live provider there is no `state.mistral`, readings publish as `mistralAccounts` (optional field beside
   `kiroAccounts` in `rate-limit-types.ts`). `provider: 'mistral'` joins `ProviderRateLimits` (display name in
   `usage-provider-windows.ts`; filtered from the polling plan in `service-polling.ts`; status-bar letter `V`).
+- **Per-terminal pinning (pin-mode, like Claude/Codex — not switch-mode like Kiro):** the picker and hand-off
+  offer saved accounts through `useMistralLaunchAccounts` (`mistral-launch-accounts.ts`, kiro's >=2-accounts
+  rule, System default first), wired on the pin side in `agent-row-launch-accounts.tsx` (terminal rows only)
+  and `ContinuationAccountSelect.tsx` (terminal hand-offs; `prepare` has nothing to switch, the pick rides
+  `launchInput.launchAccountId` like Claude/Codex). The launch encodes `ORCA_PIN_MISTRAL_ACCOUNT` with the
+  shared `agent-terminal-account-pin.ts` helpers (one fork branch in `agent-terminal-account-pins.ts`), and
+  main consumes it at the codex pin's site in `ipc/pty/host-env/spawn-host-env.ts`:
+  `applyMistralTerminalAccountPin` injects `MISTRAL_API_KEY=<saved key>` and strips the hint; WSL drops it,
+  an unresolvable id refuses like Claude's pin. Accounts pane + search hooks: `AccountsPane.tsx` (+1 import,
+  +1 render after Kiro) and `settings-navigation-capability-sections.ts` (+1 search-entries merge).
 
 ### Upstream gate notes (main-process rules)
 

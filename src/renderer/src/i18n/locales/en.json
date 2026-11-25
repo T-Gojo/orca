@@ -25813,6 +25813,30 @@
         "kiroCli": "kiro-cli"
       },
       "thisComputer": "this computer"
+    },
+    "mistral": {
+      "title": "Mistral Vibe",
+      "scope": "Save a Mistral Vibe API key per account on {{host}}. Picking an account uses it for the next Mistral Vibe terminal you start.",
+      "retry": "Retry",
+      "signedInAs": "mistral-vibe is using the key of account {{customer}}.",
+      "identityUnknown": "mistral-vibe has an API key, but Mistral could not confirm which account it belongs to yet.",
+      "signedOut": "mistral-vibe has no API key on this host.",
+      "save": "Save current account",
+      "refresh": "Refresh accounts",
+      "usage": "Refresh usage",
+      "working": "Updating account",
+      "quotaUsed": "Vibe quota: {{percent}}% used",
+      "empty": "No saved Mistral Vibe accounts. Sign in with `vibe --setup` or set MISTRAL_API_KEY, then save the current account.",
+      "active": "In use",
+      "remove": "Remove",
+      "sessions": "A picked account is injected into the next Mistral Vibe terminal you start. Running terminals keep their key until restarted.",
+      "searchTitle": "Mistral Vibe Accounts",
+      "searchDescription": "Save Mistral Vibe API keys and pick which one each new Mistral Vibe terminal uses, with each account’s quota usage.",
+      "keyword": {
+        "mistralVibe": "mistral vibe",
+        "vibe": "vibe"
+      },
+      "thisComputer": "this computer"
     }
   },
   "fileSearch": {

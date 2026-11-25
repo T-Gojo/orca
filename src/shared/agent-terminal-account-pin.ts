@@ -4,10 +4,14 @@
  */
 export const CLAUDE_TERMINAL_ACCOUNT_PIN_ENV = 'ORCA_PIN_CLAUDE_ACCOUNT'
 export const CODEX_TERMINAL_ACCOUNT_PIN_ENV = 'ORCA_PIN_CODEX_ACCOUNT'
+// Fork: pins a Mistral Vibe terminal to a saved account's API key (FORK.md section 10).
+export const MISTRAL_TERMINAL_ACCOUNT_PIN_ENV = 'ORCA_PIN_MISTRAL_ACCOUNT'
 
 export type TerminalAccountPinEnvKey =
   | typeof CLAUDE_TERMINAL_ACCOUNT_PIN_ENV
   | typeof CODEX_TERMINAL_ACCOUNT_PIN_ENV
+  // Fork: (FORK.md section 10) env injection for Mistral Vibe terminals.
+  | typeof MISTRAL_TERMINAL_ACCOUNT_PIN_ENV
 
 const SYSTEM_DEFAULT_PIN = 'system-default'
 

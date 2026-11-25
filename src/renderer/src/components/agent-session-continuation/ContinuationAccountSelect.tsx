@@ -17,6 +17,7 @@ import {
 } from '@/lib/agent-launch-accounts'
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import { useSingleLoginLaunchAccounts } from '@/lib/single-login-launch-accounts'
+import { useMistralLaunchAccounts } from '@/lib/mistral-launch-accounts'
 
 const SYSTEM_DEFAULT_ACCOUNT_KEY = 'system-default'
 
@@ -61,15 +62,23 @@ export function useContinuationAccount<TRequest>({
   const localTerminal = choice?.route === 'terminal-tui' && local
   const singleLoginFor = useSingleLoginLaunchAccounts(choice && local ? [agent] : [])
   const singleLogin = agent && choice && local ? singleLoginFor(agent) : null
+  // Fork: mistral-vibe joins the multi-account agents here on the pin side (FORK.md section 10):
+  // its saved accounts come from the vault RPC, and the pick pins the terminal hand-off's env —
+  // `launchInput` carries it, `prepare` has no login to switch.
+  const mistralAccounts = useMistralLaunchAccounts(
+    agent === 'mistral-vibe' && Boolean(localTerminal)
+  )
   const accounts = singleLogin
     ? singleLogin.accounts
-    : agent && localTerminal
-      ? listAgentLaunchAccounts(
-          agent,
-          settings,
-          t('auto.components.status.bar.StatusBar.c676918adc', 'System default')
-        )
-      : []
+    : mistralAccounts.length > 0
+      ? mistralAccounts
+      : agent && localTerminal
+        ? listAgentLaunchAccounts(
+            agent,
+            settings,
+            t('auto.components.status.bar.StatusBar.c676918adc', 'System default')
+          )
+        : []
   const current =
     picked?.request === request && picked.agent === agent && accounts.length > 0 ? picked : null
   return {
