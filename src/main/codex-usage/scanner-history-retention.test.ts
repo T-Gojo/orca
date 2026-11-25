@@ -117,7 +117,7 @@ describe('scanCodexUsageFiles history retention', () => {
     expect(second.processedFiles).toEqual(first.processedFiles)
   })
 
-  it('counts a deleted legacy copy\'s own event as history after bridge markers go', async () => {
+  it("counts a deleted legacy copy's own event as history after bridge markers go", async () => {
     const runtimeSessionsDir = join(userDataDir, 'codex-runtime-home', 'home', 'sessions')
     const runtimeBridgeMarkerDir = join(
       userDataDir,
