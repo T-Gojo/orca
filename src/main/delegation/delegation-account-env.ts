@@ -11,6 +11,8 @@ import type { DelegationAgent } from '../../shared/delegation/delegation-types'
 import { getAntigravityAccountService } from '../antigravity/native-account-host'
 import { parseAntigravityNativeCredential } from '../antigravity/native-credential-codec'
 import { getKiroAccountService } from '../kiro/kiro-account-host'
+// Fork: mistral-vibe workers run on a per-terminal env pin, no overlay home (FORK.md §8).
+import { getMistralAccountService } from '../mistral/mistral-account-host'
 import { decodeKiroCliLogin, readKiroCliLoginToken } from '../kiro/kiro-cli-login'
 import {
   readKiroCliLogin,
@@ -136,6 +138,19 @@ async function kiroEnv(accountId: string): Promise<Record<string, string>> {
   return accountHomeEnv(home)
 }
 
+/**
+ * Fork: a mistral-vibe worker's account is the saved API key in `MISTRAL_API_KEY` — env outranks
+ * `$VIBE_HOME/.env` and the keychain, and each worker gets its own spawn env, so parallel workers
+ * on different accounts are isolated with no overlay home (and no Windows refusal; see FORK.md §8).
+ */
+async function mistralEnv(accountId: string): Promise<Record<string, string>> {
+  const key = await getMistralAccountService().readAccountApiKey(accountId)
+  if (!key) {
+    throw new Error(`Mistral account ${accountId} is not saved in Orca.`)
+  }
+  return { MISTRAL_API_KEY: key }
+}
+
 /** The env a worker of `agent` needs to run on a saved account; null id is the agent's own login. */
 export async function delegationAccountEnv(
   agent: DelegationAgent,
@@ -148,7 +163,14 @@ export async function delegationAccountEnv(
     return { [CODEX_TERMINAL_ACCOUNT_PIN_ENV]: encodeTerminalAccountPin(accountId) }
   }
   if (accountId === null) {
+    // Fork: `--account system` on mistral-vibe injects nothing; the machine default key wins.
     return {}
   }
-  return agent === 'antigravity' ? antigravityEnv(accountId) : kiroEnv(accountId)
+  if (agent === 'antigravity') {
+    return antigravityEnv(accountId)
+  }
+  if (agent === 'kiro') {
+    return kiroEnv(accountId)
+  }
+  return mistralEnv(accountId)
 }

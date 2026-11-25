@@ -19,7 +19,7 @@ export type AccountLimitRow = {
 
 type SingleAccountProvider = Exclude<
   ProviderRateLimits['provider'],
-  'claude' | 'codex' | 'antigravity' | 'kiro'
+  'claude' | 'codex' | 'antigravity' | 'kiro' | 'mistral' // Fork: saved accounts (FORK.md §7).
 >
 
 const SINGLE_ACCOUNT_PROVIDERS: readonly {
@@ -40,7 +40,7 @@ function isConfigured(limits: ProviderRateLimits | null): limits is ProviderRate
 }
 
 function savedAccountRows(
-  provider: 'antigravity' | 'kiro',
+  provider: 'antigravity' | 'kiro' | 'mistral',
   saved: SavedAccountUsage[] | undefined,
   live: ProviderRateLimits | null,
   savedAccountLabel: string
@@ -126,7 +126,9 @@ function collectAccountLimitRows(
       rateLimits.antigravity,
       labels.savedAccount
     ),
-    ...savedAccountRows('kiro', rateLimits.kiroAccounts, rateLimits.kiro, labels.savedAccount)
+    ...savedAccountRows('kiro', rateLimits.kiroAccounts, rateLimits.kiro, labels.savedAccount),
+    // Fork: Mistral Vibe has no live provider meter; its saved accounts carry the readings (FORK.md §7).
+    ...savedAccountRows('mistral', rateLimits.mistralAccounts, null, labels.savedAccount)
   )
   for (const { provider, read } of SINGLE_ACCOUNT_PROVIDERS) {
     const live = read(rateLimits)

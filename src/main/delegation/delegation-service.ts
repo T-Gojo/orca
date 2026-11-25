@@ -8,6 +8,9 @@ import { isDelegationAgent } from '../../shared/delegation/delegation-types'
 import { getAntigravityAccountService } from '../antigravity/native-account-host'
 import { getKiroAccountService } from '../kiro/kiro-account-host'
 import { readKiroCliWhoamiEmail } from '../kiro/kiro-cli-whoami'
+// Fork: mistral-vibe joins the delegation tables (FORK.md §8).
+import { getMistralAccountService } from '../mistral/mistral-account-host'
+import type { MistralAccountState } from '../../shared/mistral-account-types'
 import type { ProviderRateLimits } from '../../shared/agent-usage/rate-limits/rate-limit-types'
 import { buildDelegationUsage } from './delegation-usage'
 import { readDelegationPreferences } from './delegation-preferences'
@@ -22,6 +25,28 @@ type DelegationRuntime = Pick<
 const WHOAMI_REUSE_MS = 10 * 60_000
 let kiroWhoami: { login: string; email: string | null; readAt: number } | null = null
 let kiroWhoamiInFlight = false
+
+/**
+ * Fork: mistral-vibe's saved accounts for the delegation table — the whoami customer label is the
+ * account's "email" — plus the machine's own key as the `--account system` row when it matches no
+ * saved account (the delegation usage input takes both).
+ */
+function mistralUsageInput(state: MistralAccountState): {
+  accounts: readonly { id: string; email: string | null }[]
+  systemLogin: { label: string | null } | null
+} {
+  const machineKey = state.currentAccount
+  const matched =
+    machineKey &&
+    state.accounts.some((account) => account.keyFingerprint === machineKey.keyFingerprint)
+  return {
+    accounts: state.accounts.map((account) => ({ id: account.id, email: account.customer })),
+    systemLogin:
+      machineKey && !matched
+        ? { label: machineKey.identityKnown ? machineKey.customer : null }
+        : null
+  }
+}
 
 /** The email of kiro-cli's current login, read with `kiro-cli whoami` in the background and kept per
  *  login, so a login switched outside Orca gets its own email without a prompt waiting on it. */
@@ -49,7 +74,7 @@ export async function readDelegationUsage(
   if (options.refresh) {
     await runtime.refreshAccountsForMobile()
   }
-  const [snapshot, preferences, antigravity, kiro] = await Promise.all([
+  const [snapshot, preferences, antigravity, kiro, mistral] = await Promise.all([
     runtime.getAccountsSnapshot(),
     readDelegationPreferences(),
     getAntigravityAccountService({ runtime: 'host' })
@@ -59,8 +84,12 @@ export async function readDelegationUsage(
     getKiroAccountService()
       .listAccounts()
       .then((state) => state.accounts)
-      .catch(() => [])
+      .catch(() => []),
+    getMistralAccountService()
+      .listAccounts()
+      .catch(() => null)
   ])
+  const mistralUsage = mistral ? mistralUsageInput(mistral) : { accounts: [], systemLogin: null }
   return {
     usage: buildDelegationUsage({
       rateLimits: snapshot.rateLimits,
@@ -69,6 +98,8 @@ export async function readDelegationUsage(
       antigravity,
       kiro,
       kiroLoginEmail: kiroLoginEmail(snapshot.rateLimits.kiro),
+      mistral: mistralUsage.accounts,
+      mistralSystemLogin: mistralUsage.systemLogin,
       maxUsedPercent: preferences.maxUsedPercent
     }),
     readAt: Date.now()
@@ -114,7 +145,8 @@ export async function resolveDelegationAccount(
 ): Promise<{ agent: DelegationAgent; accountId: string | null; label: string | null }> {
   if (!isDelegationAgent(agent)) {
     throw new Error(
-      `--account works with claude, codex, antigravity and kiro workers, not ${agent}.`
+      // Fork: mistral-vibe joins the --account agents (FORK.md §8).
+      `--account works with claude, codex, antigravity, kiro and mistral-vibe workers, not ${agent}.`
     )
   }
   if (reference === 'auto') {

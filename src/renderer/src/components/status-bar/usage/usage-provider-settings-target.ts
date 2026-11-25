@@ -22,9 +22,11 @@ export function getUsageProviderAccountsSectionId(
     case 'antigravity':
     case 'kimi':
     case 'muse':
-    case 'mistral': // Fork: Mistral accounts have no settings section yet (FORK.md §10).
       // These CLIs keep their own credentials; Orca has no account settings for them.
       return null
+    case 'mistral':
+      // Fork: Mistral is pin-mode (FORK.md §10); its saved accounts live in Settings → Accounts.
+      return 'accounts-mistral'
     case 'zcode':
       return 'accounts-zcode'
   }

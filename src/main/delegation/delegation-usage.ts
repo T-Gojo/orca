@@ -20,6 +20,10 @@ export type DelegationUsageInput = {
   kiro: readonly SavedAccount[]
   /** Email of kiro-cli's current login, when known; it may be an account Orca has not saved. */
   kiroLoginEmail?: string | null
+  /** Saved Mistral Vibe accounts; the label is the whoami customer id's short form. */
+  mistral?: readonly SavedAccount[]
+  /** The machine's own mistral-vibe key when it matches no saved account, for `--account system`. */
+  mistralSystemLogin?: { label: string | null } | null
   maxUsedPercent: number
 }
 
@@ -95,7 +99,7 @@ function managedRows(
 }
 
 function savedRows(
-  agent: 'antigravity' | 'kiro',
+  agent: 'antigravity' | 'kiro' | 'mistral-vibe',
   accounts: readonly SavedAccount[],
   readings: readonly {
     accountId: string
@@ -140,6 +144,28 @@ export function kiroLoginRow(
   ]
 }
 
+/**
+ * Fork: the machine's own mistral-vibe key (env, `$VIBE_HOME/.env` or keychain) when it is not one
+ * of the saved accounts; workers run on it with `--account system`, which injects no
+ * `MISTRAL_API_KEY`. Its usage is unread (Orca probes saved keys only), so it counts as usable.
+ */
+export function mistralSystemRow(
+  login: { label: string | null } | null | undefined,
+  maxUsedPercent: number
+): DelegationAccountUsage[] {
+  return login
+    ? [
+        row(
+          'mistral-vibe',
+          { accountId: null, label: login.label ?? 'System default', active: true },
+          null,
+          null,
+          maxUsedPercent
+        )
+      ]
+    : []
+}
+
 /** Every account each delegation agent can run on, with the share of its plan it has used. */
 export function buildDelegationUsage(input: DelegationUsageInput): DelegationAccountUsage[] {
   const { rateLimits: state, maxUsedPercent } = input
@@ -154,6 +180,9 @@ export function buildDelegationUsage(input: DelegationUsageInput): DelegationAcc
       state.claude,
       state.inactiveClaudeAccounts,
       maxUsedPercent
-    )
+    ),
+    // Fork: mistral-vibe rows go last, matching its append-only spot in DELEGATION_AGENTS.
+    ...savedRows('mistral-vibe', input.mistral ?? [], state.mistralAccounts ?? [], maxUsedPercent),
+    ...mistralSystemRow(input.mistralSystemLogin, maxUsedPercent)
   ]
 }

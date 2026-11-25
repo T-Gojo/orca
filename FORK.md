@@ -138,22 +138,28 @@ login, rebuild the seeding from FORK.md history (`git log -- fork/FORK.md`).
 ### 7. Status bar and terminals
 
 - **Status bar:** shows usage rows for every saved account (`SavedAccountUsageRows.tsx`, `UsageRosterPanel.tsx`,
-  `use-status-bar-controller.ts`).
+  `use-status-bar-controller.ts`). Mistral Vibe's saved accounts ride the same saved-accounts path
+  (`mistralAccounts` in the controller → `usage-roster-saved-accounts.tsx`), one row per account (FORK.md §10).
 - **Terminals:** Claude and Codex terminals can open on a chosen account. The pin env lives in
   `src/shared/agent-terminal-account-pin.ts`; the spawn-side hooks are `claude-accounts/claude-terminal-account-pin.ts`,
   `codex-accounts/runtime-home/routing/runtime-home-service-launch.ts` and `codex/configuration/homes/codex-pane-account-registry*`,
   plus the right-click "Change account" menu in `ChangeAccountMenuItems.tsx`.
 
-### 8. Cross-agent delegation (Claude → Antigravity, Kiro, Codex) with usage-aware accounts
+### 8. Cross-agent delegation (Claude → Antigravity, Kiro, Codex, Mistral Vibe) with usage-aware accounts
 
 A coordinator agent (usually Claude Code in an Orca terminal) hands self-contained tasks to other
 agents as Orca orchestration workers, on whichever saved account has usage left, then verifies the
 result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `send`, retries).
 
-- **`worker-start --account <id|email|system|auto>`** (agents: claude, codex, antigravity, kiro;
+- **`worker-start --account <id|email|system|auto>`** (agents: claude, codex, antigravity, kiro, mistral-vibe;
   existing workspaces only, not `--on`/`--terminal`/`new-child`/`new-top-level`):
   - claude/codex: the existing per-terminal pin env (`ORCA_PIN_CLAUDE_ACCOUNT` /
     `ORCA_PIN_CODEX_ACCOUNT`).
+  - mistral-vibe: same pin-mode idea, env instead of overlay — the saved account's API key is injected
+    as `MISTRAL_API_KEY`, which mistral-vibe ranks above `$VIBE_HOME/.env` and the keychain, so parallel
+    workers on different accounts are isolated with no overlay home (and no Windows refusal). `system`
+    injects nothing: the machine default key (env, `.env`, keychain) wins. `ORCA_DELEGATION_WORKER=1`
+    is added for mistral workers like every other agent.
   - antigravity/kiro keep ONE machine-wide login, so a worker gets a private `HOME` overlay
     (`userData/delegation-homes/<agent>/<accountId>/home`): symlinks to every entry of the real
     home except the agent's login location, which holds that account's saved login —
@@ -169,6 +175,12 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
   preferences and prints the worker-start flags plus fallbacks, and the preferences file
   `userData/orca-delegation.json` (`agentOrder`, `models`, `maxUsedPercent`, `kinds`, `profiles`, `autoDelegation`; defaults
   written on first use).
+  - mistral-vibe rows: one per saved account (label = the whoami customer short form, matched by it
+    for `--account <email>` semantics), used % and the `monthly` reset from the billing probe
+    (`rateLimits.mistralAccounts`), plus a `system` row only when the machine's own key matches no
+    saved account (unread usage, no env injected). Profile tier `standard` like kiro. Preferences
+    files saved before mistral-vibe keep their own `agentOrder`: add `"mistral-vibe"` to it (or delete
+    `agentOrder`) to delegate to it; its profile tier merges in on read.
 - **Auto-delegation (on by default):** `fork/hooks/orca-auto-delegation.sh` is a Claude Code
   `UserPromptSubmit` hook (registered in `~/.claude/settings.json` by `fork.sh install` or
   `fork.sh hooks`, next to Orca's own hook entries, which Orca's installer leaves alone). In an Orca
@@ -182,7 +194,7 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     rate since the window started projects when it runs out. Windows resetting within 20 minutes
     count as nothing at risk; a reading older than its reset counts as a fresh window.
   - Routing (`delegation-route.ts`): agents at or above the task's `--tier` (preferences `profiles`:
-    antigravity light, kiro standard, codex and claude strong), quota that resets unused first, then
+    antigravity light, kiro and mistral-vibe standard, codex and claude strong), quota that resets unused first, then
     usable share; exact tier and preferred order break near-ties. A Claude Code session's own
     account (from `CLAUDE_CONFIG_DIR` = `claude-profiles/<id>`) is never offered; the user's other
     Claude accounts are strong workers.
@@ -286,6 +298,12 @@ key per account in an encrypted vault; using one is per-terminal env pinning, ne
   live provider there is no `state.mistral`, readings publish as `mistralAccounts` (optional field beside
   `kiroAccounts` in `rate-limit-types.ts`). `provider: 'mistral'` joins `ProviderRateLimits` (display name in
   `usage-provider-windows.ts`; filtered from the polling plan in `service-polling.ts`; status-bar letter `V`).
+- **Saved-account roster/stats hooks:** the status bar's saved-accounts path carries `mistralAccounts`
+  (`use-status-bar-controller.ts` → `usage-roster-saved-accounts.tsx`, the same single-login row shape and
+  `SavedAccountUsageRows.tsx` rows as Kiro), and the Stats page's plan-limits list gains a
+  `savedAccountRows('mistral', ...)` entry in `usage-account-limits-model.ts` — with no live provider meter
+  there is no fallback row, only the saved accounts' readings (FORK.md §7). Mistral Vibe also joins cross-agent
+  delegation (`--agent mistral-vibe --account`, tier standard, monthly reset) — see section 8.
 - **Per-terminal pinning (pin-mode, like Claude/Codex — not switch-mode like Kiro):** the picker and hand-off
   offer saved accounts through `useMistralLaunchAccounts` (`mistral-launch-accounts.ts`, kiro's >=2-accounts
   rule, System default first), wired on the pin side in `agent-row-launch-accounts.tsx` (terminal rows only)

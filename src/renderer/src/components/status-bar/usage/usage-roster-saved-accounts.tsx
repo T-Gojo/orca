@@ -22,6 +22,8 @@ export type UsageRosterSavedAccounts = {
   /** Saved Antigravity and Kiro accounts; each opens its own usage beside the panel. */
   antigravity?: SavedAccountUsage[]
   kiro?: SavedAccountUsage[]
+  /** Fork: saved Mistral Vibe accounts, same row shape as Kiro (FORK.md §7). */
+  mistral?: SavedAccountUsage[]
   mode: StatusBarUsageMode
   display: UsagePercentageDisplay
 }
@@ -39,6 +41,7 @@ export function getUsageRosterSavedAccounts(c: StatusBarController): UsageRoster
         byProvider: c.rosterAccounts,
         antigravity: c.antigravityAccounts,
         kiro: c.kiroAccounts,
+        mistral: c.mistralAccounts, // Fork: Mistral Vibe saved accounts (FORK.md §7).
         ...view
       }
 }
@@ -51,7 +54,10 @@ function singleLoginAccounts(
     ? saved.antigravity
     : provider === 'kiro'
       ? saved.kiro
-      : undefined
+      : // Fork: Mistral Vibe saved accounts ride the same single-login shape (FORK.md §7).
+        provider === 'mistral'
+        ? saved.mistral
+        : undefined
 }
 
 function UsageAccountBlocks({
