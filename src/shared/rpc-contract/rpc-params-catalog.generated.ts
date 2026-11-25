@@ -388,6 +388,11 @@ import {
   ConnectorSlackMirrorStatus
 } from './connectors/connector-params'
 import {
+  DelegationAdviceParams,
+  DelegationRouteParams,
+  DelegationUsageParams
+} from './delegation-params'
+import {
   AttachParams as AttachParamsOfEmulatorParams,
   AxParams,
   ButtonParams,
@@ -611,6 +616,7 @@ import {
 } from './jira/jira-params'
 import { JiraQuickFilterStateParam } from './jira/jira-quick-filter-params'
 import { JiraSavedFilterMutationParam } from './jira/jira-saved-filter-params'
+import { KiroAccountMutationParams } from './kiro-accounts-params'
 import {
   AgentIssueContext,
   AgentSearchIssues,
@@ -1133,6 +1139,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.antigravityChatSignInComplete': AntigravityChatSignInCompleteParams,
   'accounts.antigravityChatSignInStart': AntigravityChatSignInStartParams,
   'accounts.antigravityChatSignInSubscribe': null,
+  'accounts.antigravityImportBridgeHub': AntigravityAccountTargetParams,
   'accounts.antigravityList': AntigravityAccountTargetParams,
   'accounts.antigravityRemove': AntigravityAccountMutationParams,
   'accounts.antigravitySelect': AntigravityAccountMutationParams,
@@ -1144,6 +1151,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.hostSignInStart': HostAccountSignInStartParams,
   'accounts.hostSignInSubmitCode': HostAccountSignInCodeParams,
   'accounts.hostSignInWait': HostAccountSignInWaitParams,
+  'accounts.kiroAddCurrent': null,
+  'accounts.kiroBeginSignIn': null,
+  'accounts.kiroList': null,
+  'accounts.kiroRemove': KiroAccountMutationParams,
+  'accounts.kiroSelect': KiroAccountMutationParams,
   'accounts.list': ListAccountsParams,
   'accounts.listData': null,
   'accounts.minimaxClearApiKey': null,
@@ -1561,6 +1573,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'connector.slackMirror.post': ConnectorSlackMirrorPost,
   'connector.slackMirror.set': ConnectorSlackMirrorSet,
   'connector.slackMirror.status': ConnectorSlackMirrorStatus,
+  'delegation.advice': DelegationAdviceParams,
+  'delegation.preferences': null,
+  'delegation.route': DelegationRouteParams,
+  'delegation.usage': DelegationUsageParams,
   'desktop.openWindowInBackground': null,
   'desktopBrowserBridge.attach': DesktopBrowserBridgeAttachParams,
   'desktopBrowserBridge.downloadAbort': DesktopBrowserBridgeDownloadAbortParams,

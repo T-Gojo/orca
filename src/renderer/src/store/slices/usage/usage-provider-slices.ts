@@ -23,8 +23,8 @@ export const createClaudeUsageSlice = createUsageProviderSlice<
 >({
   prefix: 'claude',
   name: 'Claude',
-  initialScope: 'orca',
-  initialRange: '30d',
+  initialScope: 'all',
+  initialRange: 'all',
   getApi: (host) => usageApiForHost(host, 'claudeUsage'),
   hasCachedData: (state) => state.hasAnyClaudeData
 })
@@ -32,8 +32,8 @@ export const createClaudeUsageSlice = createUsageProviderSlice<
 export const createCodexUsageSlice = createUsageProviderSlice<'codex', 'Codex', CodexUsageTypes>({
   prefix: 'codex',
   name: 'Codex',
-  initialScope: 'orca',
-  initialRange: '30d',
+  initialScope: 'all',
+  initialRange: 'all',
   getApi: (host) => usageApiForHost(host, 'codexUsage'),
   hasCachedData: (state) => state.hasAnyCodexData
 })
@@ -45,8 +45,8 @@ export const createOpenCodeUsageSlice = createUsageProviderSlice<
 >({
   prefix: 'openCode',
   name: 'OpenCode',
-  initialScope: 'orca',
-  initialRange: '30d',
+  initialScope: 'all',
+  initialRange: 'all',
   getApi: (host) => usageApiForHost(host, 'openCodeUsage'),
   hasCachedData: (state) => state.hasAnyOpenCodeData
 })
@@ -54,8 +54,8 @@ export const createOpenCodeUsageSlice = createUsageProviderSlice<
 export const createMuseUsageSlice = createUsageProviderSlice<'muse', 'Muse', MuseUsageTypes>({
   prefix: 'muse',
   name: 'Muse',
-  initialScope: 'orca',
-  initialRange: '30d',
+  initialScope: 'all',
+  initialRange: 'all',
   getApi: (host) => usageApiForHost(host, 'museUsage'),
   hasCachedData: (state) => state.hasAnyMuseData
 })

@@ -72,6 +72,8 @@ export const ORCHESTRATION_WORKER_LAUNCH_HANDLER: Record<string, CommandHandler>
       comment: getOptionalStringFlag(flags, 'comment'),
       setup: getOptionalStringFlag(flags, 'setup'),
       agent: getOptionalStringFlag(flags, 'agent'),
+      // Fork: run the worker on a saved account (id, email, system or auto).
+      account: getOptionalStringFlag(flags, 'account'),
       model,
       effort,
       terminal,

@@ -24,6 +24,8 @@ import { resolveInactiveCodexAccounts } from '../../rate-limits/inactive-codex-a
 import { normalizeClaudeRuntimeSelection } from '../../claude-accounts/selection/runtime-selection'
 import { HOST_SYSTEM_DEFAULT_USAGE_IDS } from '../../../shared/agent-accounts/host-system-default-usage'
 import type { ClaudeStatusLineRateLimits } from '../../../shared/agent-usage/rate-limits/claude-statusline-rate-limits'
+// Fork: per-saved-account Kiro and Antigravity usage wiring (FORK.md sections 1 and 2).
+import { wireSavedAccountUsage } from '../../rate-limits/saved-account-usage-wiring'
 import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-wire/host/structured-agent-session-registry'
 import { releaseIdleChatsOnOtherAccount } from '../../native-chat/agent-session-wire/host/structured-agent-session-account-switch'
 
@@ -162,6 +164,8 @@ export function createProviderAccountServices(
   )
   // Hidden Muse meters must not spawn the Muse CLI.
   rateLimits.setMuseUsageEnabledResolver(() => store.getUI().statusBarItems.includes('muse'))
+  // Fork: per-saved-account Kiro and Antigravity usage (FORK.md sections 1 and 2).
+  wireSavedAccountUsage(rateLimits)
   setAntigravityNativeCredentialChangeListener(() =>
     rateLimits.invalidateAntigravityCredentialState()
   )

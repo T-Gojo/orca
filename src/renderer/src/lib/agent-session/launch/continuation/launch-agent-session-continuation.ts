@@ -34,6 +34,8 @@ type LaunchAgentSessionContinuationArgs = {
   launchChoice?: AgentLaunchChoice
   launchSource: LaunchSource
   signal?: AbortSignal
+  /** A saved account for a local terminal hand-off; null is System default. */
+  launchAccountId?: string | null
   sessionOptions?: Readonly<Record<string, string>>
   chatSessionOptions?: Readonly<Record<string, string>>
   agentArgs?: string | null
@@ -106,6 +108,7 @@ export async function launchAgentSessionContinuation({
   launchChoice,
   launchSource,
   signal,
+  launchAccountId,
   sessionOptions,
   chatSessionOptions,
   agentArgs
@@ -174,7 +177,11 @@ export async function launchAgentSessionContinuation({
   const workspace = state.getKnownWorktreeById(worktreeId, executionHostId)
   const workspaceName =
     (workspace && resolveWorktreeDisplayName(workspace)) || initialCwd || worktreeId
-  const result = launchAgentInNewTabWithOutcome({ ...delivery, agentSessionLaunchPlan: plan })
+  const result = launchAgentInNewTabWithOutcome({
+    ...delivery,
+    agentSessionLaunchPlan: plan,
+    ...(launchAccountId !== undefined ? { launchAccountId } : {})
+  })
   if (!result || 'refused' in result) {
     return false
   }

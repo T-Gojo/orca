@@ -9,6 +9,8 @@ import {
 import { BackendPortRpc } from '../../shared/backend/backend-port-rpc'
 import { setAppEnvironment } from '../../shared/app-lifecycle/app-environment'
 import { agentTokenUsageDailySchema } from '../../shared/telemetry/schemas/telemetry-agent-token-usage-schema'
+// Fork: main keeps the per-account usage ledger.
+import { ACCOUNT_USAGE_RECORD_METHOD } from '../../shared/account-usage-ledger-types'
 import { backendMessagePort, type BackendNativePort } from './backend-message-port'
 import { createDesktopBackendEnvironment } from './node-service-environment'
 import { BackendDocumentPeers } from './backend-document-peers'
@@ -189,7 +191,10 @@ async function bootstrap(raw: unknown, port: BackendNativePort): Promise<void> {
               'usage.telemetry.captureDaily',
               agentTokenUsageDailySchema.parse(totals)
             )) === true
-        }
+        },
+        // Fork: main keeps the per-account usage ledger.
+        recordAccountUsage: (provider, rollups) =>
+          call(ACCOUNT_USAGE_RECORD_METHOD, { provider, rollups })
       })
       registerCleanup(() => usage!.stop())
       await usage.ready

@@ -8,6 +8,9 @@ import { GrokUsagePane } from './GrokUsagePane'
 import { OpenCodeUsagePane } from './OpenCodeUsagePane'
 import { MuseUsagePane } from './MuseUsagePane'
 import { UsageOverviewPane } from './UsageOverviewPane'
+import { UsageFilterBar } from './UsageFilterBar'
+import { LedgerProviderUsagePane } from './LedgerProviderUsagePane'
+import { useAvailableUsageTabs } from './use-available-usage-tabs'
 import {
   StatsHostCaption,
   StatsHostScope,
@@ -67,7 +70,15 @@ function formatTrackingSince(
   })
 }
 
-type UsageTab = 'overview' | 'claude' | 'codex' | 'opencode' | 'muse' | 'grok'
+type UsageTab =
+  | 'overview'
+  | 'claude'
+  | 'codex'
+  | 'opencode'
+  | 'muse'
+  | 'grok'
+  | 'kiro'
+  | 'antigravity'
 
 const USAGE_ANALYTICS_OPTIONS = [
   {
@@ -95,6 +106,18 @@ const USAGE_ANALYTICS_OPTIONS = [
     }
   },
   {
+    id: 'kiro',
+    get label() {
+      return translate('auto.lib.agent.catalog.e0247254f2', 'Kiro')
+    }
+  },
+  {
+    id: 'antigravity',
+    get label() {
+      return translate('auto.lib.agent.catalog.691dd11789', 'Antigravity')
+    }
+  },
+  {
     id: 'muse',
     get label() {
       return translate('auto.lib.agent.catalog.muse_label', 'Muse')
@@ -114,6 +137,8 @@ function UsageAnalyticsOptionIcon({ tab }: { tab: UsageTab }): React.JSX.Element
   }
   return <AgentIcon agent={tab} size={14} />
 }
+
+const LOCAL_ONLY_USAGE_TABS: ReadonlySet<UsageTab> = new Set(['grok', 'kiro', 'antigravity'])
 
 const LOCAL_STATS_HOST: StatsHost = { target: { kind: 'local' }, name: null }
 
@@ -148,13 +173,16 @@ function StatsPaneContent({
   const summary = useAppStore((s) => s.statsSummary)
   const fetchStatsSummary = useAppStore((s) => s.fetchStatsSummary)
   const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
-  const [activeUsageTab, setActiveUsageTab] = useState<UsageTab>('overview')
-  // Grok credits come from this computer's status bar, so a remote host has no Grok tab.
-  const usageOptions = hostName
-    ? USAGE_ANALYTICS_OPTIONS.filter((option) => option.id !== 'grok')
-    : USAGE_ANALYTICS_OPTIONS
+  const [selectedUsageTab, setActiveUsageTab] = useState<UsageTab>('overview')
+  const availableTabs = useAvailableUsageTabs()
+  // Grok credits and the Kiro/Antigravity ledger are this computer's; a remote host has no such tabs.
+  const usageOptions = USAGE_ANALYTICS_OPTIONS.filter(
+    (option) => availableTabs.has(option.id) && !(hostName && LOCAL_ONLY_USAGE_TABS.has(option.id))
+  )
+  // Why: a provider can drop out (disabled, signed out) while its page is open.
   const activeUsageOption =
-    usageOptions.find((option) => option.id === activeUsageTab) ?? usageOptions[0]
+    usageOptions.find((option) => option.id === selectedUsageTab) ?? USAGE_ANALYTICS_OPTIONS[0]
+  const activeUsageTab = activeUsageOption.id
 
   useEffect(() => {
     recordFeatureInteraction('usage-tracking')
@@ -206,48 +234,56 @@ function StatsPaneContent({
       ) : null}
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-foreground">
             {t('auto.components.stats.StatsPane.c79f073d4c', 'Usage Analytics')}
           </h3>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-testid="usage-provider-select"
-                aria-label={t(
-                  'auto.components.stats.StatsPane.42d3e0bdf7',
-                  'Usage analytics provider: {{value0}}',
-                  { value0: activeUsageOption.label }
-                )}
-                className="min-w-36 justify-between"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <UsageAnalyticsOptionIcon tab={activeUsageOption.id} />
-                  <span className="truncate">{activeUsageOption.label}</span>
-                </span>
-                <ChevronDown className="ml-1 size-3.5 text-muted-foreground" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              {usageOptions.map((option) => (
-                <DropdownMenuItem key={option.id} onSelect={() => setActiveUsageTab(option.id)}>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeUsageTab !== 'grok' ? (
+              // Kiro and Antigravity logs carry no workspace, so only the range applies to them.
+              <UsageFilterBar
+                showScope={activeUsageTab !== 'kiro' && activeUsageTab !== 'antigravity'}
+              />
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  data-testid="usage-provider-select"
+                  aria-label={t(
+                    'auto.components.stats.StatsPane.42d3e0bdf7',
+                    'Usage analytics provider: {{value0}}',
+                    { value0: activeUsageOption.label }
+                  )}
+                  className="min-w-36 justify-between"
+                >
                   <span className="flex min-w-0 items-center gap-2">
-                    <UsageAnalyticsOptionIcon tab={option.id} />
-                    <span className="truncate">{option.label}</span>
+                    <UsageAnalyticsOptionIcon tab={activeUsageOption.id} />
+                    <span className="truncate">{activeUsageOption.label}</span>
                   </span>
-                  <Check
-                    className={`ml-auto size-3.5 ${
-                      activeUsageTab === option.id ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    aria-hidden
-                  />
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <ChevronDown className="ml-1 size-3.5 text-muted-foreground" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {usageOptions.map((option) => (
+                  <DropdownMenuItem key={option.id} onSelect={() => setActiveUsageTab(option.id)}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <UsageAnalyticsOptionIcon tab={option.id} />
+                      <span className="truncate">{option.label}</span>
+                    </span>
+                    <Check
+                      className={`ml-auto size-3.5 ${
+                        activeUsageTab === option.id ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      aria-hidden
+                    />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Mount only the active panel to avoid hidden layout/focus churn jittering the scroll-tracked settings page. */}
@@ -267,6 +303,8 @@ function StatsPaneContent({
             <OpenCodeUsagePane />
           ) : activeUsageTab === 'muse' ? (
             <MuseUsagePane />
+          ) : activeUsageTab === 'kiro' || activeUsageTab === 'antigravity' ? (
+            <LedgerProviderUsagePane provider={activeUsageTab} label={activeUsageOption.label} />
           ) : (
             <GrokUsagePane />
           )}

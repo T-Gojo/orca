@@ -25,15 +25,15 @@ import { ORCA_SESSION_ADDRESS_PREFIX } from '../../../../../../shared/agent-sess
 import { ORCHESTRATION_SESSION_CALLER_ERROR_CODES as SESSION_CODES } from '../../../../../../shared/orchestration/orchestration-session-caller-codes'
 import { resolveDispatchCreator } from '../runs/dispatch-creator'
 import { checkedWorkerOrigin } from '../../bots-items-worker-origin'
+import {
+  resolveWorkerStartAccount,
+  workerAccountMode
+} from '../../../../../delegation/worker-account'
 import { decideStartMode, noteTerminalFallbackOnItem } from './start/worker-chat-lineage'
 import { withKeepOpenDefault } from './start/worker-keep-open-default'
 import { withTerminalUsage } from './start/worker-start-terminal-usage'
-import {
-  linkWorkerToQuestion,
-  openQuestionReminder,
-  withOpenQuestion,
-  withQuestionLink
-} from './start/worker-question-link'
+// Fork: the question-link glue lives in its own module so this file stays within the max-lines gate.
+import { bindWorkerQuestion } from './start/worker-question-link'
 
 type WorkerStartContext = Pick<
   RpcContext,
@@ -82,25 +82,27 @@ export async function startWorker(
     startParams.origin !== undefined
       ? await checkedWorkerOrigin(startParams.origin, ctx, startFollowUp?.of)
       : undefined
+  // Fork: resolve --account before anything starts.
+  const accountParams = await resolveWorkerStartAccount(startParams, runtime)
   const prepared = await prepareWorkerStart(
-    checked ? { ...startParams, origin: checked.origin } : startParams,
+    checked ? { ...accountParams, origin: checked.origin } : accountParams,
     ctx,
     startFollowUp
   )
   const { params, followUp, coordinator, bindRun, helperCreator, taskDeps, existingTask, withRun } =
     prepared
   const db = runtime.getOrchestrationDb()
-  const questionLink =
-    params.forQuestion !== undefined
-      ? linkWorkerToQuestion(db, params.forQuestion, coordinator, params.on !== undefined)
-      : undefined
-  const linkedParams =
-    questionLink && !questionLink.linked ? { ...params, forQuestion: undefined } : params
-  const reminder =
-    params.forQuestion === undefined ? openQuestionReminder(db, coordinator) : undefined
-  const withLink = <T>(started: T): T =>
-    withOpenQuestion(reminder, withQuestionLink(questionLink, started))
-  const { mode, chatLineage } = decideStartMode(runtime, db, params, orchestrationCaller, followUp)
+  // Fork: the question-link glue lives in worker-question-link.ts (max-lines gate).
+  const { linkedParams, withLink } = bindWorkerQuestion(db, params, coordinator)
+  const { mode: decidedMode, chatLineage } = decideStartMode(
+    runtime,
+    db,
+    params,
+    orchestrationCaller,
+    followUp
+  )
+  // Fork: an --account worker always runs in a terminal, on its requested account.
+  const mode = workerAccountMode(params) ?? decidedMode
   if (params.on) {
     // Remote workers are terminal-only; carry the mode receipt to explain structured-preference fallback.
     const receipt = await startFederatedWorker({

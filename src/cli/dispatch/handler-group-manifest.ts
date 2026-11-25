@@ -44,6 +44,12 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('../accounts/account.js')).ACCOUNT_HANDLERS
   },
   AUTH_HANDLER_GROUP,
+  // Fork: cross-agent delegation.
+  {
+    name: 'delegation',
+    keys: ['delegation usage', 'delegation route', 'delegation advice', 'delegation preferences'],
+    load: async () => (await import('../delegation/delegation-handlers.js')).DELEGATION_HANDLERS
+  },
   {
     name: 'artifacts',
     keys: [

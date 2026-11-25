@@ -110,6 +110,7 @@ export type ProviderRateLimits = {
     | 'cursor'
     | 'zcode'
     | 'muse'
+    | 'kiro'
   /** 5-hour session window, null if not available. */
   session: RateLimitWindow | null
   /** 7-day weekly window, null if not available. */
@@ -174,6 +175,9 @@ export type AntigravityAccountUsage = {
   rateLimits: ProviderRateLimits | null
 }
 
+/** A saved Antigravity or Kiro account's usage: live for the active one, its last reading otherwise. */
+export type SavedAccountUsage = AntigravityAccountUsage
+
 export type GrokAccountStatus = {
   signedIn: boolean
   email: string | null
@@ -204,6 +208,7 @@ export type RateLimitState = {
   cursor: ProviderRateLimits | null
   zcode: ProviderRateLimits | null
   muse: ProviderRateLimits | null
+  kiro: ProviderRateLimits | null
   /** Cookie is stored outside GlobalSettings; this durable flag keeps MiniMax visible across reloads/snapshot refreshes. */
   minimaxCookieConfigured: boolean
   /** Expose API-key presence only; main retains the secret. Combined with cookie presence, keeps MiniMax visible across reloads. */
@@ -220,8 +225,10 @@ export type RateLimitState = {
   codexTarget: RateLimitRuntimeTarget
   inactiveClaudeAccounts: InactiveAccountUsage[]
   inactiveCodexAccounts: InactiveAccountUsage[]
-  /** Saved Antigravity accounts; agy has one shared login, so only the active one is ever read. */
+  /** Saved Antigravity accounts: the active login's verified reading, plus probed readings of the others. */
   antigravityAccounts: AntigravityAccountUsage[]
+  /** Optional: hosts without saved Kiro accounts, or older hosts, omit it. */
+  kiroAccounts?: SavedAccountUsage[]
 }
 
 export type RuntimeTargetUsageProvider = 'claude' | 'codex'

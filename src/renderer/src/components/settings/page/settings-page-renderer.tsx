@@ -161,7 +161,11 @@ export function renderSettingsPage(
             className={cn(
               'mx-auto flex w-full flex-col gap-6 px-8 pt-6',
               view.isFocusedShortcutsPane ? 'h-full pb-6' : 'pb-24',
-              view.isFocusedSetupGuidePane || view.isWidePluginsPane ? 'max-w-6xl' : 'max-w-[784px]'
+              view.isFullWidthStatsPane
+                ? 'max-w-none'
+                : view.isFocusedSetupGuidePane || view.isWidePluginsPane
+                  ? 'max-w-6xl'
+                  : 'max-w-[784px]'
             )}
           >
             {navigation.visibleNavSections.length === 0 ? (

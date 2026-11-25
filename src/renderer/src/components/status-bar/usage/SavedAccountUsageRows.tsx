@@ -1,0 +1,196 @@
+import React from 'react'
+import {
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger
+} from '@/components/ui/dropdown-menu'
+import { useResetCountdownClock } from './useResetCountdownClock'
+import { translate } from '@/i18n/i18n'
+import { useTranslate, type Translate } from '@/i18n/use-translate'
+import { formatWindowLabel } from './rate-limit-window-localized-label'
+import type {
+  SavedAccountUsage,
+  ProviderRateLimits,
+  RateLimitBucket
+} from '../../../../../shared/agent-usage/rate-limits/rate-limit-types'
+import {
+  clampUsedPercent,
+  type UsagePercentageDisplay
+} from '../../../../../shared/agent-usage/display/usage-percentage-display'
+import { formatTimeAgo, ProviderRateLimitWindowSection } from './provider-usage-panel'
+import { getProviderUsageStatusLabel } from '../../../../../shared/agent-usage/status-copy/usage-error-copy'
+import { UsageMetric } from './usage-roster-metrics'
+
+type BucketGroup = { name: string; buckets: RateLimitBucket[] }
+
+// Why a fallback: Kiro reports one monthly credit pool rather than named buckets.
+function windowBuckets(
+  limits: ProviderRateLimits | null,
+  t: Translate = translate
+): RateLimitBucket[] {
+  if (!limits || (limits.buckets?.length ?? 0) > 0) {
+    return limits?.buckets ?? []
+  }
+  const credits = t('auto.components.status.bar.savedAccounts.credits', 'Credits')
+  return [limits.session, limits.weekly, limits.monthly].flatMap((window) =>
+    window ? [{ ...window, name: credits }] : []
+  )
+}
+
+// Why grouped: agy reports one pool per model family, and each family has its own windows.
+function groupBuckets(limits: ProviderRateLimits | null, t?: Translate): BucketGroup[] {
+  const groups: BucketGroup[] = []
+  for (const bucket of windowBuckets(limits, t)) {
+    const name = bucket.group ?? bucket.name
+    const group = groups.find((entry) => entry.name === name)
+    if (group) {
+      group.buckets.push(bucket)
+    } else {
+      groups.push({ name, buckets: [bucket] })
+    }
+  }
+  return groups
+}
+
+function windowTitle(bucket: RateLimitBucket, t: Translate = translate): string {
+  if (bucket.windowMinutes === 10080) {
+    return t('auto.components.status.bar.tooltip.252c096536', 'Weekly')
+  }
+  if (bucket.windowMinutes === 300) {
+    return t('auto.components.status.bar.antigravityAccounts.fiveHours', '5 hours')
+  }
+  return bucket.windowName ?? formatWindowLabel(bucket.windowMinutes)
+}
+
+function tightestBucket(limits: ProviderRateLimits | null, t?: Translate): RateLimitBucket | null {
+  const buckets = windowBuckets(limits, t)
+  return buckets.length === 0
+    ? null
+    : buckets.reduce((tightest, bucket) =>
+        clampUsedPercent(bucket.usedPercent) > clampUsedPercent(tightest.usedPercent)
+          ? bucket
+          : tightest
+      )
+}
+
+function accountLabel(account: SavedAccountUsage, t: Translate = translate): string {
+  return account.email ?? t('auto.components.status.bar.savedAccounts.unnamed', 'Saved account')
+}
+
+function readingCaption(account: SavedAccountUsage, t: Translate = translate): string {
+  const limits = account.rateLimits
+  if (!limits || !limits.updatedAt) {
+    return account.active
+      ? t('auto.components.status.bar.antigravityAccounts.notRead', 'Refresh to read usage')
+      : t(
+          'auto.components.status.bar.antigravityAccounts.neverRead',
+          'No reading yet. Refresh to read it.'
+        )
+  }
+  const ago = formatTimeAgo(limits.updatedAt, t)
+  return account.active
+    ? t(
+        'auto.components.status.bar.antigravityAccounts.activeUpdated',
+        'Active · Updated {{value0}}',
+        {
+          value0: ago
+        }
+      )
+    : t('auto.components.status.bar.antigravityAccounts.lastReading', 'Last reading {{value0}}', {
+        value0: ago
+      })
+}
+
+function AccountUsagePanel({
+  account,
+  display
+}: {
+  account: SavedAccountUsage
+  display: UsagePercentageDisplay
+}): React.JSX.Element {
+  const t = useTranslate()
+  const groups = groupBuckets(account.rateLimits, t)
+  const now = useResetCountdownClock(
+    groups.flatMap((group) => group.buckets.map((bucket) => bucket.resetsAt))
+  )
+  const limits = account.rateLimits
+  return (
+    <div className="w-[280px] space-y-3 p-2 text-xs">
+      <div>
+        <div className="truncate text-[13px] font-medium text-foreground">
+          {accountLabel(account, t)}
+        </div>
+        <div className="text-muted-foreground">{readingCaption(account, t)}</div>
+      </div>
+      {groups.length === 0 && limits && limits.status !== 'ok' ? (
+        <div className="text-muted-foreground">{getProviderUsageStatusLabel(limits, t)}</div>
+      ) : null}
+      {groups.map((group) => (
+        <div key={group.name} className="space-y-2 border-t border-border/70 pt-3">
+          <div className="font-medium text-foreground">{group.name}</div>
+          {group.buckets.map((bucket) => (
+            <ProviderRateLimitWindowSection
+              key={bucket.name}
+              window={bucket}
+              label={windowTitle(bucket, t)}
+              textClass="text-muted-foreground"
+              mutedClass="text-muted-foreground"
+              emptyBarClass="bg-muted"
+              usagePercentageDisplay={display}
+              now={now}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** One row per saved Antigravity or Kiro account; hovering one opens its usage by pool. */
+export function SavedAccountUsageRows({
+  accounts,
+  display
+}: {
+  accounts: SavedAccountUsage[]
+  display: UsagePercentageDisplay
+}): React.JSX.Element {
+  const t = useTranslate()
+  return (
+    <div data-saved-accounts className="pb-1.5">
+      {accounts.map((account) => {
+        const tightest = tightestBucket(account.rateLimits, t)
+        return (
+          <div key={account.accountId} className="mx-2 border-t border-border/60 first:border-t-0">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <span className="flex min-w-0 flex-1 items-center gap-2 pl-[22px]">
+                  <span
+                    className={`min-w-0 flex-1 truncate ${account.active ? 'text-foreground' : 'text-muted-foreground'}`}
+                  >
+                    {accountLabel(account, t)}
+                  </span>
+                  {account.active ? (
+                    <span className="shrink-0 rounded-sm bg-secondary px-1.5 text-[10px] font-medium text-foreground">
+                      {t('auto.components.status.bar.StatusBar.ff0fbe9311', 'Active')}
+                    </span>
+                  ) : null}
+                  {tightest ? (
+                    <UsageMetric
+                      section={{ label: tightest.name, window: tightest }}
+                      label={formatWindowLabel(tightest.windowMinutes)}
+                      display={display}
+                      showBar={false}
+                    />
+                  ) : null}
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <AccountUsagePanel account={account} display={display} />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

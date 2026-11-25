@@ -56,12 +56,12 @@ function isUsageAuthError(message: string | null): boolean {
 
 function getDelegatedCliRefreshProvider(
   p: UsageStatusCopySource
-): Extract<ProviderRateLimits['provider'], 'grok' | 'kimi'> | null {
+): Extract<ProviderRateLimits['provider'], 'grok' | 'kimi' | 'kiro'> | null {
   if (p.usageMetadata?.failureKind !== 'delegated-refresh-required') {
     return null
   }
   // Only these providers require a CLI-run credential rotation; Claude reports the same kind in-app.
-  return p.provider === 'grok' || p.provider === 'kimi' ? p.provider : null
+  return p.provider === 'grok' || p.provider === 'kimi' || p.provider === 'kiro' ? p.provider : null
 }
 
 export { isClaudeUsageWaitingForClaude, isCodexUsageWaitingForCodex }
@@ -83,6 +83,10 @@ export function getProviderUsageStatusLabel(
   }
   if (delegatedCliProvider === 'kimi') {
     return t('auto.components.status.bar.tooltip.f90b3d7a16', 'Run Kimi to refresh')
+  }
+  // Fork: Kiro reports delegated CLI refresh like grok/kimi (FORK.md §1).
+  if (delegatedCliProvider === 'kiro') {
+    return t('auto.components.status.bar.tooltip.kiroRunToRefresh', 'Run Kiro to refresh')
   }
   if (isCodexUsageWaitingForCodex(p)) {
     return t('auto.components.status.bar.tooltip.codex.waiting.label', 'Updates when Codex runs')

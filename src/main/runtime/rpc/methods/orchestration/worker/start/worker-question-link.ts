@@ -150,3 +150,32 @@ export function withOpenQuestion<T>(reminder: string | undefined, started: T): T
     ? { ...started, openQuestion: reminder }
     : started
 }
+
+// Fork: the glue that used to sit in startWorker (worker-start-method.ts); moved here so that file
+// stays within the max-lines gate while the fork's --account hooks live in it.
+export type WorkerQuestionParams = {
+  forQuestion?: string
+  on?: string
+}
+
+/** The start's `--for` binding: the params that don't take an already-taken question, and the
+ *  wrapper that stamps the link (or why it isn't linked) plus the caller's open-question reminder. */
+export function bindWorkerQuestion<P extends WorkerQuestionParams>(
+  db: OrchestrationDb,
+  params: P,
+  caller: OrchestrationCallerIdentity | null
+): { linkedParams: P; withLink: <T>(started: T) => T } {
+  const questionLink =
+    params.forQuestion !== undefined
+      ? linkWorkerToQuestion(db, params.forQuestion, caller, params.on !== undefined)
+      : undefined
+  const linkedParams =
+    questionLink && !questionLink.linked
+      ? // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: only `forQuestion` is cleared, and its absence is what every caller expects.
+        ({ ...params, forQuestion: undefined } as P)
+      : params
+  const reminder = params.forQuestion === undefined ? openQuestionReminder(db, caller) : undefined
+  const withLink = <T>(started: T): T =>
+    withOpenQuestion(reminder, withQuestionLink(questionLink, started))
+  return { linkedParams, withLink }
+}

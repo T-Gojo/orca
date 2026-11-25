@@ -32,6 +32,8 @@ import {
   AntigravityAgyAccountRows,
   type AntigravityAccountAction
 } from './AntigravityAgyAccountRows'
+// Fork: the Import from Bridge Hub row (FORK.md section 2).
+import { AntigravityBridgeHubImportRow } from './AntigravityBridgeHubImportRow'
 
 function usageMatchesTarget(provenance: string, target: AntigravityAccountTarget): boolean {
   if (target.runtime === 'host' || target.wslDistro) {
@@ -68,7 +70,9 @@ export function AntigravityAccountsSection({
   const [usage, setUsage] = useState<ProviderRateLimits | null>(null)
   const [error, setError] = useState<string | null>(null)
   const mounted = useRef(true)
-  const { busy, run } = useAntigravityAccountRun(perform, mounted)
+  // Fork: Bridge Hub import busy flag; the shared pending ref still serializes it with account runs.
+  const [importBusy, setImportBusy] = useState(false)
+  const { busy, pending, run } = useAntigravityAccountRun(perform, mounted)
   const ownerKind = owner.kind
   const environmentId = owner.kind === 'environment' ? owner.environmentId : null
   const windowsHost = ownerPlatform === 'win32' && target.runtime === 'host'
@@ -278,6 +282,12 @@ export function AntigravityAccountsSection({
           windowsHost={windowsHost}
           run={(action, accountId) => void run(action, accountId)}
           {...(signInControls ? { signIn: signInControls } : {})}
+        />
+        <AntigravityBridgeHubImportRow
+          owner={owner}
+          target={target}
+          busy={busy || importBusy}
+          guard={{ pending, mounted, setBusy: setImportBusy, setError, setState }}
         />
         {runtimeRow}
       </SettingsGroup>

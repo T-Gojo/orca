@@ -50,6 +50,7 @@ const USAGE_PROVIDER_IDS: Record<UsageProviderKey, ProviderRateLimits['provider'
   grok: 'grok',
   cursor: 'cursor',
   zcode: 'zcode',
+  kiro: 'kiro',
   muse: 'muse'
 }
 

@@ -11,6 +11,7 @@ export const DEFAULT_STATUS_BAR_ITEMS: StatusBarItem[] = [
   'grok',
   'cursor',
   'zcode',
+  'kiro',
   'muse',
   'ssh',
   'resource-usage',
@@ -27,6 +28,7 @@ const DEFAULT_ON_STATUS_BAR_ITEMS = [
   ['_grokStatusBarDefaultAdded', 'grok'],
   ['_cursorStatusBarDefaultAdded', 'cursor'],
   ['_zcodeStatusBarDefaultAdded', 'zcode'],
+  ['_kiroStatusBarDefaultAdded', 'kiro'],
   ['_museStatusBarDefaultAdded', 'muse'],
   ['_gitBlameStatusBarDefaultAdded', 'git-blame']
 ] as const satisfies readonly (readonly [keyof PersistedUIState, StatusBarItem])[]

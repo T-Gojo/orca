@@ -154,6 +154,16 @@ export function StatusBarVisibilityMenu({
           {t('auto.components.status.bar.StatusBar.cursorUsageMenu', 'Cursor Usage')}
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
+          checked={statusBarItems.includes('kiro')}
+          onCheckedChange={() => {
+            recordFeatureInteraction('usage-tracking')
+            toggleStatusBarItem('kiro')
+          }}
+        >
+          <AgentIcon agent="kiro" size={14} />
+          {t('auto.components.status.bar.StatusBar.kiroUsageMenu', 'Kiro Usage')}
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
           checked={statusBarItems.includes('ssh')}
           onCheckedChange={() => {
             recordFeatureInteraction('ssh')

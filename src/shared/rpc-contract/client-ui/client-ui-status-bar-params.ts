@@ -10,6 +10,8 @@ export const StatusBarItem = z.enum([
   'grok',
   'cursor',
   'zcode',
+  // Fork: the Kiro meter is a saved status-bar item (FORK.md §7).
+  'kiro',
   'muse',
   'ssh',
   'resource-usage',

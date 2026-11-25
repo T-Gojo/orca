@@ -133,17 +133,18 @@ export abstract class CodexRuntimeHomeManagedHome extends CodexRuntimeHomeSync {
     this.lastHostAccountUsedSelfContainedHome = true
     this.sharedAuthRefreshBlockedByManagedTransition = true
     this.markSharedRuntimeAuthManaged(account.id)
-    syncSystemCodexResourcesIntoManagedHome(perAccountHome)
-    const mirrorHomes = {
-      runtimeHomePath: perAccountHome,
-      systemHomePath: getSystemCodexHomePath()
-    }
-    if (deferConfigSync) {
-      deferConfigSync(mirrorHomes)
+    this.mirrorSystemInto(perAccountHome, deferConfigSync)
+    return perAccountHome
+  }
+
+  protected mirrorSystemInto(home: string, defer?: CodexHomeLaunchOptions['deferConfigSync']) {
+    syncSystemCodexResourcesIntoManagedHome(home)
+    const mirrorHomes = { runtimeHomePath: home, systemHomePath: getSystemCodexHomePath() }
+    if (defer) {
+      defer(mirrorHomes)
     } else {
       syncSystemConfigIntoManagedCodexHome(mirrorHomes)
     }
-    return perAccountHome
   }
 
   /** Links this home's history into ~/.codex (fresh private folders when sharing is off). */

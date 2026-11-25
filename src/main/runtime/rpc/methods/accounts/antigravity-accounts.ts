@@ -31,6 +31,8 @@ import {
   antigravityHostCatalogFingerprints,
   readyAntigravityHostAcpVersion
 } from '../../../../antigravity/antigravity-host-acp'
+// Fork: Bridge Hub import method (FORK.md section 2).
+import { ANTIGRAVITY_IMPORT_BRIDGE_HUB_METHOD } from './antigravity-import-bridge-hub-method'
 import {
   cancelAntigravityChatSignIn,
   completeAntigravityChatSignIn,
@@ -44,6 +46,7 @@ import {
   countStructuredAgentChats,
   stopStructuredAgentChats
 } from '../../../agent-session/lifecycle/structured-agent-chat-stop'
+import { beforeAccountSwitch } from '../../../../usage/account-switch-usage-hook'
 
 import {
   readAntigravityChatAuthConfig,
@@ -194,6 +197,8 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
     permission: 'accounts-admin',
     params: AntigravityAccountMutationParams,
     handler: async ({ target, accountId }, ctx) => {
+      // Fork: the usage ledger credits the signed-in account before its login changes.
+      await beforeAccountSwitch('antigravity')
       const service = await getAntigravityAccountService(target)
       let switched = false
       const state = await service.selectAccount(accountId, () => (switched = true))
@@ -315,5 +320,7 @@ export const ANTIGRAVITY_ACCOUNT_METHODS = [
       await restartLiveChats()
       return apiKeyStatus(ctx.runtime)
     }
-  })
+  }),
+  // Fork: kept last so the upstream methods keep their positions in this list.
+  ANTIGRAVITY_IMPORT_BRIDGE_HUB_METHOD
 ] as const

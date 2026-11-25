@@ -80,6 +80,7 @@ export type RuntimePtySpawnState = {
   requestedAgentTeamsPath: string | undefined
   selectedCodexHomePath: string | null
   codexResumeHomeSelected: boolean
+  codexHomePinned: boolean
   agentResumeUnavailable: boolean
   codexResumeArgvDropped: boolean
   /** The dropped resume owes the user a notice: the pane runs a fresh session. */
@@ -221,6 +222,7 @@ export function createRuntimePtySpawnState(
     requestedAgentTeamsPath: undefined,
     selectedCodexHomePath: null,
     codexResumeHomeSelected: false,
+    codexHomePinned: false,
     agentResumeUnavailable: false,
     codexResumeArgvDropped: false,
     codexResumeUnavailable: false,

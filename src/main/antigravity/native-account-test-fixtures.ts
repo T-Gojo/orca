@@ -1,8 +1,6 @@
 import { vi } from 'vitest'
-import {
-  AntigravityAccountService,
-  type AntigravityCredentialBackend
-} from './native-account-service'
+import { ForkAntigravityAccountService } from './native-account-fork-service'
+import type { AntigravityCredentialBackend } from './native-account-service'
 import type { AntigravityAccountStore, AntigravityAccountVault } from './native-account-store'
 import {
   parseAntigravityNativeCredential,
@@ -69,7 +67,7 @@ export function harness(initial: string | null = credential('a')) {
     store,
     backend,
     lookupIdentity,
-    service: new AntigravityAccountService(store, backend, Date.now, lookupIdentity),
+    service: new ForkAntigravityAccountService(store, backend, Date.now, lookupIdentity),
     setNative: (contents: string | null) => {
       native = contents
     },

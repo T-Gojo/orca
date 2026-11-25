@@ -13,6 +13,10 @@ import { normalizeCodexRuntimeSelection } from '../../account-management/runtime
 import type { CodexAccountSelectionTarget } from '../../../../shared/agent-accounts/codex/codex-selection-lane'
 import { hasCustomCodexHomeOverrideForLaunch } from '../../../codex/configuration/homes/codex-real-home-path'
 import {
+  CODEX_TERMINAL_ACCOUNT_PIN_ENV,
+  readTerminalAccountPin
+} from '../../../../shared/agent-terminal-account-pin'
+import {
   markCodexSessionBackfillMarkerNeedsFullScan,
   markCodexSessionBackfillMarkerPending
 } from '../../../codex/history/backfill/codex-session-backfill-marker'
@@ -49,6 +53,10 @@ export abstract class CodexRuntimeHomeLaunch extends CodexRuntimeHomeRouting {
       this.finishWslLaunchPreparation(wslTarget, homePath)
       void this.prepareWslAccountHistory(wslTarget, homePath)
       return homePath
+    }
+    const pinned = this.preparePinnedHostCodexLaunch(launchEnv)
+    if (pinned !== undefined) {
+      return pinned
     }
     const selfContainedAccount = this.getSelfContainedManagedHostAccount()
     if (selfContainedAccount) {
@@ -89,6 +97,36 @@ export abstract class CodexRuntimeHomeLaunch extends CodexRuntimeHomeRouting {
       )
     }
     return this.getRuntimeHomePath()
+  }
+
+  /**
+   * Fork: a terminal opened for a specific account gets its own home, leaving the global selection
+   * and its bookkeeping untouched. undefined when the launch is not pinned or names the selection.
+   */
+  private preparePinnedHostCodexLaunch(launchEnv?: NodeJS.ProcessEnv): string | null | undefined {
+    const accountId = readTerminalAccountPin(launchEnv, CODEX_TERMINAL_ACCOUNT_PIN_ENV)
+    const settings = this.store.getSettings()
+    if (accountId === undefined || accountId === normalizeCodexRuntimeSelection(settings).host) {
+      return undefined
+    }
+    if (accountId === null) {
+      // System default is the user's own login in their real Codex home.
+      return null
+    }
+    const account = this.getActiveAccount(settings.codexManagedAccounts, accountId)
+    if (!account || this.getWslManagedHomePath(account)) {
+      throw new Error('That Codex account is no longer saved in Orca.')
+    }
+    const resolved = this.resolveSelfContainedManagedHome(account)
+    if (resolved.kind === 'indeterminate') {
+      throw new ManagedCodexHomeTemporarilyUnavailableError()
+    }
+    if (resolved.kind === 'untrusted') {
+      throw new Error(`Sign in to ${account.email} again in Settings before opening it.`)
+    }
+    this.mirrorSystemInto(resolved.homePath)
+    void this.prepareAccountHistoryForPinnedHome(resolved.homePath)
+    return resolved.homePath
   }
 
   /** Resolve the launch home without side effects for catalog reads; null means real ~/.codex. */

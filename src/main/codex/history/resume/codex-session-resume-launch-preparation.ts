@@ -23,6 +23,10 @@ import {
 import { normalizeRuntimePathForComparison } from '../../../../shared/file-access/cross-platform-path'
 import type { CodexRuntimeHomeService } from '../../../codex-accounts/runtime-home-service'
 import type { GlobalSettings } from '../../../../shared/settings/global-settings-types'
+import {
+  CODEX_TERMINAL_ACCOUNT_PIN_ENV,
+  readTerminalAccountPin
+} from '../../../../shared/agent-terminal-account-pin'
 
 export function createCodexSessionResumeLaunchPreparation(deps: {
   getRuntimeHome: () => CodexRuntimeHomeService | null
@@ -69,7 +73,12 @@ export function createCodexSessionResumeLaunchPreparation(deps: {
     const systemHomePath = getSystemCodexHomePath()
     const trustedHomes = trustedCodexResumeHomes(runtimeHome, systemHomePath)
     // Refuse unreadable selections before provenance matching can choose another account.
-    const selectedAccountCodexHome = runtimeHome.resolveSelectedHostAccountCodexHomePathForResume()
+    // Fork: a terminal pinned to an account resumes in that account's home.
+    const pinnedAccountId = readTerminalAccountPin(args.launchEnv, CODEX_TERMINAL_ACCOUNT_PIN_ENV)
+    const selectedAccountCodexHome =
+      pinnedAccountId === undefined
+        ? runtimeHome.resolveSelectedHostAccountCodexHomePathForResume()
+        : runtimeHome.resolvePinnedHostAccountCodexHomePathForResume(pinnedAccountId)
     await settleLegacySessionCopyBeforeResume(
       args.providerSession.transcriptPath,
       resolveOrcaManagedCodexHomePath()

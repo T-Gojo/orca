@@ -53,6 +53,7 @@ function matches(
   return account.credentials === current.contents
 }
 
+// Fork: members are protected so ForkAntigravityAccountService (native-account-fork-service.ts) can extend it.
 export class AntigravityAccountService {
   private mutation: Promise<unknown> = Promise.resolve()
   private readonly rewrittenLogins = new AntigravityRewrittenLoginIdentity(
@@ -60,10 +61,10 @@ export class AntigravityAccountService {
   )
 
   constructor(
-    private readonly store: AntigravityAccountStore,
-    private readonly backend: AntigravityCredentialBackend,
-    private readonly now: () => number = Date.now,
-    private readonly lookupIdentity = fetchGoogleIdentity,
+    protected readonly store: AntigravityAccountStore,
+    protected readonly backend: AntigravityCredentialBackend,
+    protected readonly now: () => number = Date.now,
+    protected readonly lookupIdentity = fetchGoogleIdentity,
     private readonly target: RateLimitRuntimeTarget = ANTIGRAVITY_USAGE_HOST_TARGET
   ) {}
 
@@ -229,14 +230,14 @@ export class AntigravityAccountService {
     }))
   }
 
-  private matches(
+  protected matches(
     account: StoredAntigravityAccount,
     current: AntigravityNativeCredential
   ): boolean {
     return matches(account, current, this.backend.parse)
   }
 
-  private async reconcile(selectedId?: string) {
+  protected async reconcile(selectedId?: string) {
     const current = await this.rewrittenLogins.identify(
       await this.backend.read(),
       (await this.store.read()).accounts,
@@ -272,7 +273,7 @@ export class AntigravityAccountService {
     return true
   }
 
-  private state({
+  protected state({
     vault,
     current
   }: {
@@ -301,7 +302,7 @@ export class AntigravityAccountService {
     }
   }
 
-  private serialize<T>(operation: () => Promise<T>): Promise<T> {
+  protected serialize<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.mutation.then(operation, operation)
     this.mutation = next.catch(() => undefined)
     return next

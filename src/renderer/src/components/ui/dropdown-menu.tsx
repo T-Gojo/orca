@@ -266,6 +266,10 @@ function DropdownMenuSub({ ...props }: React.ComponentProps<typeof DropdownMenuP
   return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
 }
 
+// Why: an agent row that opens an account submenu must match the launch rows beside it.
+const LAUNCH_SUB_TRIGGER_CLASS =
+  'min-h-9 rounded-[7px] px-2 py-1.5 text-[13px] leading-4 font-medium'
+
 function DropdownMenuSubTrigger({
   className,
   inset,
@@ -279,7 +283,7 @@ function DropdownMenuSubTrigger({
   density?: MenuDensity
   // Why: collision-flipped submenus open leftward, where a right-pointing chevron misleads.
   hideChevron?: boolean
-  variant?: 'default' | 'launch-row' | 'header-chip' | 'icon-row'
+  variant?: 'default' | 'launch' | 'launch-row' | 'header-chip' | 'icon-row'
 }) {
   const rowDensity = useMenuDensity(density)
   return (
@@ -290,9 +294,10 @@ function DropdownMenuSubTrigger({
       className={cn(
         menuSubTriggerVariants({
           density: rowDensity,
-          variant,
+          variant: variant === 'launch' ? 'default' : variant,
           menu: 'dropdown'
         }),
+        variant === 'launch' && LAUNCH_SUB_TRIGGER_CLASS,
         className
       )}
       {...props}

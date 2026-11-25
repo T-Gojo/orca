@@ -25,6 +25,7 @@ import {
 import type { AppState } from '@/store/types'
 import type { RuntimeClientTarget } from '../../../../../../shared/remote-runtime/host-catalog/runtime-client-target'
 import type { TerminalTab } from '../../../../../../shared/workspace-layout/terminal-tab-types'
+import { isAgentTerminalTabAccountPinned } from '@/lib/agent-terminal-account-pins'
 
 export type ClaudeSessionMoveCandidate = {
   ptyId: string
@@ -101,6 +102,10 @@ export function* localClaudePanes(
   const isLaneInScope = getCodexAccountSwitchLaneMatcher({ owner, target })
   for (const [worktreeId, tabs] of Object.entries(state.tabsByWorktree)) {
     for (const tab of tabs) {
+      // A terminal opened for a specific account stays there when the selection moves.
+      if (isAgentTerminalTabAccountPinned(tab.id)) {
+        continue
+      }
       const boundPtyIds = new Set(state.ptyIdsByTabId[tab.id] ?? [])
       const leaves = Object.entries(state.terminalLayoutsByTabId[tab.id]?.ptyIdsByLeafId ?? {})
       const launchAgent = leaves.length === 1 ? tab.launchAgent : undefined

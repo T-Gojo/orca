@@ -203,6 +203,8 @@ export function recordCodexPaneAccountForSpawn(args: {
   isDaemonHostSpawn: boolean
   isReattach: boolean
   pinnedByResume: boolean
+  /** Opened for a specific account, so a later account switch must not call it stale. */
+  pinnedByLaunch?: boolean
   launchCodexHomePath: string | null
   target: CodexAccountSelectionTarget
   settings: GlobalSettings | undefined
@@ -223,7 +225,10 @@ export function recordCodexPaneAccountForSpawn(args: {
     forgetCodexPaneAccount(args.ptyId)
     return
   }
-  recordCodexPaneAccount(args.ptyId, record)
+  recordCodexPaneAccount(
+    args.ptyId,
+    args.pinnedByLaunch ? { ...record, pinnedByLaunch: true } : record
+  )
 }
 
 export function snapshotCodexPaneHomeRoutes(
