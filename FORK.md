@@ -229,6 +229,34 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
   `src/main/runtime/rpc/methods/accounts/antigravity-import-bridge-hub-method.ts`, still **last** in
   `ANTIGRAVITY_ACCOUNT_METHODS` (upstream tests index into that array).
 
+### 10. Multiple accounts for Mistral Vibe
+
+Mistral Vibe keeps one API key at a time, read from env, `~/.vibe/.env` or the macOS keychain. Orca saves a
+key per account in an encrypted vault; using one is per-terminal env pinning (renderer + launch wiring: next phase).
+
+- **Ground truth (verified vs mistral-vibe 3.1.4):** credential priority is env `MISTRAL_API_KEY` >
+  `$VIBE_HOME/.env` (env relocates the config, default `~/.vibe`) > macOS keychain (service `ai.mistral.vibe`,
+  `MISTRAL_API_KEY`; a browser sign-in provisions a subscription-scoped key). `MISTRAL_API_KEY` in the spawn env
+  outranks the keyring, and the keychain item is only ever read, never written.
+- **Identity:** `GET https://console.mistral.ai/api/vibe/whoami` with the Bearer key returns
+  `{plan_type, plan_name, customer_id, ...}`. An account = a saved API key, deduped by the first 32 hex chars of
+  sha256(key); whoami names it (customer id short form — it returns no email). Saving is refused while whoami
+  cannot name the account.
+- **RPC (no select method):** `accounts.mistralList` (`workspace`), `accounts.mistralAddCurrent`,
+  `accounts.mistralRemove` (`accounts-admin`). Raw keys never cross RPC; the service exposes
+  `readAccountApiKey` for main-process launch env injection only.
+- **Files:** `src/shared/mistral-account-types.ts`, `src/shared/rpc-contract/mistral-account-params.ts`,
+  `src/main/mistral/mistral-account-store.ts`, `mistral-credential-source.ts`, `mistral-whoami.ts`,
+  `mistral-account-service.ts`, `mistral-account-host.ts` (+ `mistral-account-service.test.ts`),
+  `src/main/runtime/rpc/methods/accounts/mistral-accounts.ts`.
+- **Hooks into:** `rpc-method-registry.ts` (import + one `...MISTRAL_ACCOUNT_METHODS` spread, exactly two lines),
+  `account-runtime-capabilities.ts` (`MISTRAL_ACCOUNTS_RUNTIME_CAPABILITY = 'accounts.mistral-vibe.v1'`),
+  and regenerated `rpc-params-catalog.generated.ts` (don't hand-merge).
+- **Merge gotchas:** `rpc-method-registry.ts` runs at the oxlint max-lines gate (279/300 non-blank non-comment
+  after this hook); if upstream grows it, the mistral spread must move into a combined fork method group to keep
+  the two lines. `mistral-vibe`'s own key locations (`$VIBE_HOME/.env`, keychain `ai.mistral.vibe`) are external
+  facts, not Orca files — re-verify on the next mistral-vibe release before touching `mistral-credential-source.ts`.
+
 ### Upstream gate notes (main-process rules)
 
 - Fork main-process code uses only `fs/promises` (upstream's `main-sync-fs` ratchet). The Kiro vault store is

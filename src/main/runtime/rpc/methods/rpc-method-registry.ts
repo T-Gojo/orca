@@ -34,6 +34,7 @@ import { TERMINAL_DAEMON_METHODS } from './terminal/terminal-daemon'
 import { ACCOUNT_METHODS } from './accounts/accounts'
 import { ANTIGRAVITY_ACCOUNT_METHODS } from './accounts/antigravity-accounts'
 import { KIRO_ACCOUNT_METHODS } from './accounts/kiro-accounts'
+import { MISTRAL_ACCOUNT_METHODS } from './accounts/mistral-accounts'
 import { DELEGATION_METHODS } from './delegation/delegation-methods'
 import { ORCA_ACCOUNT_METHODS } from './orca-account'
 import { GOOGLE_METHODS } from './google'
@@ -222,6 +223,7 @@ const SERVICE_RPC_METHODS = [
   ...ACCOUNT_METHODS,
   ...ANTIGRAVITY_ACCOUNT_METHODS,
   ...KIRO_ACCOUNT_METHODS,
+  ...MISTRAL_ACCOUNT_METHODS,
   // Fork: cross-agent delegation.
   ...DELEGATION_METHODS,
   ...ORCA_ACCOUNT_METHODS,

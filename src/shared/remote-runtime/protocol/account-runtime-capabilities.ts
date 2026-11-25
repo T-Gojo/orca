@@ -17,6 +17,8 @@ export const ANTIGRAVITY_CHAT_KEY_AND_ADC_AUTH_RUNTIME_CAPABILITY =
 export const ANTIGRAVITY_CHAT_AUTH_DETECT_RUNTIME_CAPABILITY =
   'accounts.antigravity-chat-auth-detect.v1' as const
 export const KIRO_ACCOUNTS_RUNTIME_CAPABILITY = 'accounts.kiro-native.v1' as const
+// Fork: Mistral Vibe accounts (saved API keys, per-terminal env injection).
+export const MISTRAL_ACCOUNTS_RUNTIME_CAPABILITY = 'accounts.mistral-vibe.v1' as const
 export const DATA_ACCOUNT_RUNTIME_CAPABILITY = 'accounts.managed-data-profiles.v1' as const
 // Why: MiniMax and GLM Coding Plan keys saved on the host its usage poller reads.
 export const USAGE_CREDENTIALS_RUNTIME_CAPABILITY = 'accounts.usage-credentials.v1' as const
@@ -35,6 +37,7 @@ export const ACCOUNT_RUNTIME_CAPABILITIES = [
   ANTIGRAVITY_CHAT_KEY_AND_ADC_AUTH_RUNTIME_CAPABILITY,
   ANTIGRAVITY_CHAT_AUTH_DETECT_RUNTIME_CAPABILITY,
   KIRO_ACCOUNTS_RUNTIME_CAPABILITY,
+  MISTRAL_ACCOUNTS_RUNTIME_CAPABILITY, // Fork:
   DATA_ACCOUNT_RUNTIME_CAPABILITY,
   CODEX_RESET_CREDIT_RUNTIME_CAPABILITY,
   USAGE_CREDENTIALS_RUNTIME_CAPABILITY,

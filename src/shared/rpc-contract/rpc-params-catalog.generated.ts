@@ -679,6 +679,7 @@ import {
   McpServerUpdate,
   McpServersList
 } from './mcp-servers-params'
+import { MistralAccountMutationParams } from './mistral-account-params'
 import { NativeChatSession, NativeChatUnsubscribe } from './native-chat/native-chat-params'
 import {
   NotificationGetMissedSinceParams,
@@ -1163,6 +1164,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'accounts.minimaxCredentialsStatus': null,
   'accounts.minimaxSaveApiKey': UsageCredentialApiKeyParams,
   'accounts.minimaxSaveSessionCookie': UsageCredentialSessionCookieParams,
+  'accounts.mistralAddCurrent': null,
+  'accounts.mistralList': null,
+  'accounts.mistralRemove': MistralAccountMutationParams,
   'accounts.removeClaude': RemoveAccountParams,
   'accounts.removeCodex': RemoveAccountParams,
   'accounts.removeData': RemoveDataAccountParams,
