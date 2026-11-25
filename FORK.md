@@ -134,9 +134,10 @@ login, rebuild the seeding from FORK.md history (`git log -- fork/FORK.md`).
 
 - **Status bar:** shows usage rows for every saved account (`SavedAccountUsageRows.tsx`, `UsageRosterPanel.tsx`,
   `use-status-bar-controller.ts`).
-- **Terminals:** Claude and Codex terminals can open on a chosen account. That touches the pty spawn files in
-  `src/main/ipc/pty/*`, `codex-pane-account-registry*`, and the right-click "Change account" menu in
-  `ChangeAccountMenuItems.tsx`.
+- **Terminals:** Claude and Codex terminals can open on a chosen account. The pin env lives in
+  `src/shared/agent-terminal-account-pin.ts`; the spawn-side hooks are `claude-accounts/claude-terminal-account-pin.ts`,
+  `codex-accounts/runtime-home/routing/runtime-home-service-launch.ts` and `codex/configuration/homes/codex-pane-account-registry*`,
+  plus the right-click "Change account" menu in `ChangeAccountMenuItems.tsx`.
 
 ### 8. Cross-agent delegation (Claude → Antigravity, Kiro, Codex) with usage-aware accounts
 
@@ -205,9 +206,10 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
   service, worker-account), `fork/hooks/orca-auto-delegation.sh`, `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`,
   `src/shared/delegation/delegation-types.ts`, `src/shared/rpc-contract/delegation-params.ts`,
   `src/cli/delegation/delegation-handlers.ts`, `src/cli/specs/delegation.ts`.
-- **macOS `login` resets HOME:** Orca starts shells through `/usr/bin/login` (`tcc-login-shell.ts`), which
-  resets `HOME`. The worker env also carries `ORCA_ACCOUNT_HOME`, and the login trampoline exports it as `HOME`
-  when set (one fork line in `tcc-login-shell.ts`). Linux shells get `HOME` directly.
+- **macOS `login` resets HOME:** Orca starts shells through `/usr/bin/login`
+  (`src/main/providers/shell-launch/macos/tcc-login-shell.ts`), which resets `HOME`. The worker env also carries
+  `ORCA_ACCOUNT_HOME`, and the login trampoline exports it as `HOME` when set (one fork line in `tcc-login-shell.ts`).
+  Linux shells get `HOME` directly.
 - **Verified end to end (2026-11-21, dev instance):** two Antigravity workers on two saved accounts in parallel
   (by id and by email), a Kiro worker with `--account auto` and a Codex worker with `--account system` all
   reported `worker_done`. The machine-wide agy login was unchanged, and each overlay token was refreshed by
@@ -252,7 +254,7 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
    - `src/renderer/src/components/stats/*` (Overview, panes, sections)
    - `src/main/claude-usage/scanner.ts`, `src/main/codex-usage/scanner.ts`
    - `src/main/usage/usage-scan-worker-*`, `src/main/rate-limits/service/*`
-   - `src/main/ipc/pty/*` (account pins)
+   - `src/main/ipc/pty/*` or wherever the terminal account pins move to upstream
    - `src/renderer/src/components/ui/dropdown-menu.tsx` (SubTrigger `variant`: default, launch, launch-row)
    - `src/renderer/src/i18n/locales/en.json` (keep both key sets)
    - `src/shared/rpc-contract/rpc-params-catalog.generated.ts`: regenerate; don't hand-merge
