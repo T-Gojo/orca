@@ -472,6 +472,24 @@ and worker stop controls.
   `delegation-methods.ts`, regenerated `rpc-params-catalog.generated.ts`, and `en.json`
   (`rightSidebar.backgroundTasks.*`).
 
+### 14. External Browser Use, Dusk, and Computer Use MCP (all 6 CLIs)
+
+Disables Orca's internal browser for agent/CLI flows so agents use external browser and desktop MCP servers (`dusk`, `browser-use`, and `background-computer-use`) across all six CLIs instead of spawning Orca browser tabs.
+
+- **Internal-browser agent policy (`src/main/browser/fork-external-browser-policy.ts` + `.test.ts`):**
+  - Electron-free helper `shouldBlockAgentInternalBrowser(caller?)` and `assertInternalBrowserAllowedForAgent(caller?)`.
+  - Blocks agent/CLI internal browser tab opens (`browser.tabCreate`, `browser.openUrl`) and prevents PTY host-env assembly from setting `BROWSER` to Orca's internal browser launcher, throwing a `BrowserError` pointing to `dusk`, `browser-use`, and `background-computer-use`.
+  - Leaves manual desktop "+ Browser" (renderer store), mobile screencast (`caller.clientKind === 'mobile'`), offscreen page links (`caller.opensPageLink === true`), and upstream Vitest suites (`VITEST` set unless `ORCA_BLOCK_INTERNAL_BROWSER=1`) unaffected.
+  - **Escape hatch:** set `ORCA_ALLOW_INTERNAL_BROWSER=1` (or `ORCA_BLOCK_INTERNAL_BROWSER=0`) to re-enable Orca's internal browser for agent flows.
+- **Cross-CLI MCP installer (`fork/scripts/install-browser-use-mcp.mjs` + `config/scripts/fork.sh mcp`):**
+  - Pure Node ESM, zero external deps, idempotent, preserves existing servers, comments, and symlinks (`~/.gemini/antigravity/mcp_config.json`), and never prints auth headers or tokens.
+  - Discovers `$HOME/.local/bin/browser-use` (or `PATH`, falling back to `uvx --from browser-use[cli] browser-use --cli-mcp`), `$HOME/.local/bin/computer-use-mcp` (`serve`), and any existing local `dusk` entry from Claude/Kiro/Gemini/Antigravity configs (or `http://127.0.0.1:8797/mcp` if `/Applications/Dusk.app` exists).
+  - Configures all 6 CLIs: Claude Code (`~/.claude.json` + Orca managed profiles `$orcaData/claude-profiles/*/home/.claude.json`), Codex (`~/.codex/config.toml`), Kiro (`~/.kiro/settings/mcp.json`), Antigravity (`~/.gemini/antigravity/mcp_config.json` and `~/.gemini/settings.json`), Mistral Vibe (`~/.vibe/config.toml` `[[mcp_servers]]` + `[mcp_servers.auth]`), and OpenCode (`~/.config/opencode/opencode.json`).
+  - `config/scripts/fork.sh mcp` upgrades `browser-use[cli]` via `uv` unless `ORCA_SKIP_BROWSER_USE_UPGRADE=1` (warning-only on offline failure) and runs the installer; also invoked automatically by `config/scripts/fork.sh install`.
+  - Fixed `ensure_vibe_skill_paths()` in `config/scripts/fork.sh` to define `config` and `dir` and `mkdir -p "$HOME/.vibe"` before invoking `node`.
+- **Skill (`fork/skills/external-browser-mcp/SKILL.md`):** installed to all 6 CLIs by `config/scripts/fork.sh skills`, instructing agents when to pick `dusk`, `browser-use`, or `background-computer-use` and not to open Orca internal browser tabs.
+- **Hooks into:** `src/main/runtime/browser/tabs/browser-tab-creation.ts` (`assertInternalBrowserAllowedForAgent` in `browserTabCreate` and `browserOpenUrlOnClient`), `src/main/ipc/pty/host-env/assembly.ts` (`!shouldBlockAgentInternalBrowser()` guard on `baseEnv.BROWSER`).
+
 ### Upstream gate notes (main-process rules)
 
 - Fork main-process code uses only `fs/promises` (upstream's `main-sync-fs` ratchet). The Kiro vault store is

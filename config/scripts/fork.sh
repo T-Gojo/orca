@@ -8,6 +8,7 @@
 #   config/scripts/fork.sh skills   # install the fork's agent skills (fork/skills) for every CLI
 #   config/scripts/fork.sh hooks    # install the auto-delegation hooks (fork/hooks: Claude Code,
 #                                   # Codex and Kiro; Antigravity/Vibe/OpenCode have no hook yet)
+#   config/scripts/fork.sh mcp      # configure browser-use, dusk, and computer-use MCP for all 6 CLIs
 set -euo pipefail
 
 FORK_BRANCH="${ORCA_FORK_BRANCH:-main}"
@@ -197,6 +198,7 @@ install_app() {
   echo "Installed $(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString) to $APP_PATH"
   install_fork_skills
   install_fork_hooks
+  install_fork_mcp
 }
 
 # Adds a UserPromptSubmit group (Claude-shaped hooks file) filtered-and-appended: every previous
@@ -222,6 +224,8 @@ NODE
 # dirs; a plain ~/.vibe/skills is not autoloaded. Appends only when absent, inserted before the
 # first [table] header so the key can never land inside a table.
 ensure_vibe_skill_paths() {
+  local config="$HOME/.vibe/config.toml" dir="$HOME/.vibe/skills"
+  mkdir -p "$HOME/.vibe"
   node - "$config" "$dir" <<'NODE'
 const fs = require('node:fs')
 const [file, dir] = process.argv.slice(2)
@@ -321,6 +325,16 @@ install_fork_skills() {
   ensure_vibe_skill_paths
 }
 
+# Installs/upgrades browser-use[cli] and registers browser-use, dusk, and computer-use MCP across all 6 CLIs.
+install_fork_mcp() {
+  if command -v uv >/dev/null 2>&1 && [[ "${ORCA_SKIP_BROWSER_USE_UPGRADE:-0}" != "1" ]]; then
+    if ! uv tool install --upgrade "browser-use[cli]"; then
+      echo "Warning: failed to upgrade browser-use[cli] (offline?); continuing with existing install." >&2
+    fi
+  fi
+  node "$REPO_ROOT/fork/scripts/install-browser-use-mcp.mjs"
+}
+
 case "${1:-}" in
   sync) sync ;;
   dev) shift; dev "$@" ;;
@@ -328,8 +342,9 @@ case "${1:-}" in
   install) install_app ;;
   skills) install_fork_skills ;;
   hooks) install_fork_hooks ;;
+  mcp) install_fork_mcp ;;
   *)
-    echo "usage: $0 {sync|dev|build|install|skills|hooks}" >&2
+    echo "usage: $0 {sync|dev|build|install|skills|hooks|mcp}" >&2
     exit 2
     ;;
 esac

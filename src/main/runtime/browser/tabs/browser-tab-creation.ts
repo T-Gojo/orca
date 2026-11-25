@@ -9,6 +9,7 @@ import {
 } from './browser-tab-create-publication'
 import { browserSessionRegistry } from '../../../browser/sessions/profiles/browser-session-registry'
 import { BrowserError } from '../../../browser/browser-error'
+import { assertInternalBrowserAllowedForAgent } from '../../../browser/fork-external-browser-policy' // Fork:
 import { waitForTabRegistration } from '../../../ipc/browser/browser-tab-registration-wait'
 import type { RuntimeBrowserCommandHost } from '../commands/browser-command-contracts'
 import type { RuntimeBrowserCommandTargets } from '../commands/browser-command-targets'
@@ -68,6 +69,7 @@ export class RuntimeBrowserTabCreation {
     requested: BrowserTabCreateRequest,
     caller?: BrowserTabCreateCaller
   ): Promise<{ browserPageId: string }> {
+    assertInternalBrowserAllowedForAgent(caller) // Fork:
     // A host with no window has no layout to split: its tab opens plain, here or on a paired desktop.
     const params =
       requested.split &&
@@ -232,6 +234,7 @@ export class RuntimeBrowserTabCreation {
     },
     options?: { signal?: AbortSignal }
   ): Promise<{ browserPageId: string }> {
+    assertInternalBrowserAllowedForAgent() // Fork:
     return openBrowserUrlOnClient(this.host, params, options?.signal)
   }
 }

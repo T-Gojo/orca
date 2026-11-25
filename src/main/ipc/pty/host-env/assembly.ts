@@ -36,6 +36,7 @@ import { AGENT_HOOK_RUNTIME_ENV_KEYS } from './spawn-env-keys'
 import { applyManagedDataAccountEnvironment } from '../../../managed-data-accounts/launch-environment'
 import { applyOpenCodeStatusPluginEnv, captureOpenCodeSourceConfig } from './opencode-config'
 import { applyRemoteViewerClipboardEnv } from './remote-viewer-clipboard-env'
+import { shouldBlockAgentInternalBrowser } from '../../../browser/fork-external-browser-policy' // Fork:
 
 /** Mutate host-local PTY environment only for local execution; SSH cannot use these loopback endpoints or filesystem paths. */
 export function buildPtyHostEnv(
@@ -300,6 +301,7 @@ export function buildPtyHostEnv(
 
   if (
     opts.routeBrowserOpensToClient === true &&
+    !shouldBlockAgentInternalBrowser() && // Fork:
     baseEnv.BROWSER === undefined &&
     process.env.BROWSER === undefined
   ) {
