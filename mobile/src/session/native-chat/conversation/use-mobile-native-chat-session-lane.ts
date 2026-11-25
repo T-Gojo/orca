@@ -5,6 +5,8 @@ import type { RpcClient } from '../../../transport/rpc/rpc-client-contract'
 import { useMobileWorkerApprovals } from '../input/prompts/use-mobile-worker-approvals'
 import { useMobilePairedServerAsks } from '../input/prompts/use-mobile-paired-server-asks'
 import { useMobileWorkerDock } from '../input/tasks/use-mobile-worker-dock'
+// Fork: mobile worker dock Stop & Clear actions (FORK.md §15).
+import { useMobileWorkerDockActions } from '../input/tasks/use-mobile-worker-dock-actions'
 import type { MobileNativeChatController } from '../mobile-native-chat-controller-contract'
 import type { StructuredAgentSessionHostSupport } from '../agent-session/mobile-structured-agent-session-host-support'
 import type { ConnectionState } from '../../../transport/connection/connection-state'
@@ -55,7 +57,10 @@ export function useMobileNativeChatSessionLane({
   /** What the chat's controller shows from this lane as is. */
   controllerFields: Pick<
     MobileNativeChatController,
-    'nativeChatSessionCommands' | 'nativeChatWorkerApprovals' | 'nativeChatWorkerDock'
+    | 'nativeChatSessionCommands'
+    | 'nativeChatWorkerApprovals'
+    | 'nativeChatWorkerDock'
+    | 'nativeChatWorkerDockActions'
   >
 } {
   const appendComposerText: MobileComposerWriter = Object.assign(
@@ -115,6 +120,12 @@ export function useMobileNativeChatSessionLane({
     sessionId: structured ? sessionId : null,
     presence: structured ? structuredSession.backgroundTasks.view.workerDock : undefined
   })
+  // Fork: owner Stop & Clear actions for mobile worker dock (FORK.md §15).
+  const workerDockActions = useMobileWorkerDockActions({
+    client,
+    connState,
+    sessionId: structured ? sessionId : null
+  })
   // Asks from paired servers' agents wait in this agent's Home chat on its host.
   const pairedServerAsks = useMobilePairedServerAsks({
     client,
@@ -129,7 +140,8 @@ export function useMobileNativeChatSessionLane({
     controllerFields: {
       nativeChatSessionCommands: sessionCommands,
       nativeChatWorkerApprovals: { ...workerApprovals, pairedServerAsks },
-      nativeChatWorkerDock: workerDock
+      nativeChatWorkerDock: workerDock,
+      nativeChatWorkerDockActions: workerDockActions
     }
   }
 }

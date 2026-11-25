@@ -44,6 +44,8 @@ import { NavBarButton } from '../components/nav-bar/NavBarButton'
 import { ListGroup, SectionHeader, ListRow } from '../components/list/ListGroup'
 import { useRouteHandoff } from '../navigation/route-handoff'
 import { useMobileAccountsSnapshot } from './use-mobile-accounts-snapshot'
+// Fork: Kiro, Antigravity, and Mistral Vibe saved accounts on mobile (FORK.md §15).
+import { MobileForkProviderAccountsSection } from './MobileForkProviderAccountsSection'
 import {
   getManagedAccountInlineLabel,
   getManagedAccountPrimaryLabel
@@ -370,6 +372,13 @@ export function MobileAccountsScreen() {
             {renderProviderSection('claude')}
             {renderProviderSection('codex')}
             {renderOtherProviders()}
+            {/* Fork: Kiro, Antigravity, and Mistral Vibe saved accounts (FORK.md §15). */}
+            <MobileForkProviderAccountsSection
+              client={client}
+              connected={live && connState === 'connected'}
+              refreshToken={accounts.readAt ?? 0}
+              onNotice={setNotice}
+            />
             <View style={styles.footerHint}>
               <User size={14} color={colors.textMuted} />
               <Text style={styles.footerHintText}>

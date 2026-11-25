@@ -14,6 +14,8 @@ import type { TextInputInstance } from 'react-native'
 import { MobileNativeChatBackgroundTasks } from '../../input/tasks/MobileNativeChatBackgroundTasks'
 import { MobileNativeChatDockedTaskList } from '../../input/tasks/MobileNativeChatDockedTaskList'
 import { MobileNativeChatWorkerDock } from '../../input/tasks/MobileNativeChatWorkerDock'
+// Fork: mobile worker dock Stop/Clear actions (FORK.md §15).
+import type { MobileWorkerDockActions } from '../../input/tasks/use-mobile-worker-dock-actions'
 import type { WorkerDockEntry } from '../../../../../../src/shared/orchestration/dock/worker-dock'
 import type { MobileWorkerApproval } from '../../input/prompts/use-mobile-worker-approvals'
 import type { NativeChatMessage } from '../../../../../../src/shared/native-chat/native-chat-types'
@@ -65,6 +67,7 @@ export function useMobileNativeChatComposerTray({
   taskList,
   backgroundTasks,
   workerDock,
+  workerDockActions,
   workerApprovals
 }: {
   queued: MobileNativeChatQueuedMessagesProps & {
@@ -77,6 +80,7 @@ export function useMobileNativeChatComposerTray({
   taskList: NativeChatTaskList | null
   backgroundTasks: MobileStructuredBackgroundTasks | null
   workerDock: readonly WorkerDockEntry[]
+  workerDockActions?: MobileWorkerDockActions
   /** Open worker approvals, which mark their workers in the strip as waiting on you. */
   workerApprovals: readonly MobileWorkerApproval[]
 }): MobileNativeChatComposerTray {
@@ -162,7 +166,8 @@ export function useMobileNativeChatComposerTray({
         createElement(MobileNativeChatWorkerDock, {
           key: `${sessionKey}:worker-dock`,
           rows: workerDock,
-          approvals: workerApprovals
+          approvals: workerApprovals,
+          actions: workerDockActions
         }),
         createElement(MobileNativeChatQueuedMessages, {
           key: sessionKey,
@@ -209,6 +214,7 @@ export function useMobileNativeChatComposerTray({
       taskList,
       backgroundTasks,
       workerDock,
+      workerDockActions,
       workerApprovals,
       cards,
       steerOrder,

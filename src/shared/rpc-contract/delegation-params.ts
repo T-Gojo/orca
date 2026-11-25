@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ACCOUNT_USAGE_WINDOWS } from '../account-usage-windows-types'
 import { DELEGATION_AGENTS, DELEGATION_TIERS } from '../delegation/delegation-types'
 
 /** Fork: params of the cross-agent delegation RPC methods. */
@@ -33,6 +34,13 @@ export const DelegationBackgroundTasksParams = z
   .object({
     /** Include settled workers finished within this many minutes (default 60). */
     recentMinutes: z.number().int().min(1).max(1440).optional()
+  })
+  .strict()
+  .optional()
+
+export const DelegationUsageWindowsParams = z
+  .object({
+    window: z.enum(ACCOUNT_USAGE_WINDOWS).optional()
   })
   .strict()
   .optional()

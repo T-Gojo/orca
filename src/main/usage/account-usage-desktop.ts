@@ -18,6 +18,8 @@ import {
   getAccountUsageLedger,
   installAccountUsageLedger
 } from './account-usage-collection'
+// Fork: expose usage windows snapshot to runtime RPC without importing Electron in runtime (FORK.md §15).
+import { setAccountUsageWindowsReader } from './account-usage-windows-bridge'
 import type { LedgerSettings } from './account-usage-source-owners'
 
 // Fork: main's half of the account ledger (FORK.md section 5). The token stores and the scan
@@ -138,7 +140,8 @@ export function installDesktopAccountUsage(
       return accountUsageSnapshot(args.range)
     }
   )
-  // Fork: usage windows ledger IPC handlers (FORK.md §12).
+  // Fork: usage windows ledger IPC + runtime RPC bridge (FORK.md §12, §15).
+  setAccountUsageWindowsReader((window) => accountUsageWindowsSnapshot(window))
   ipcMain.handle('accountUsage:getWindowsSnapshot', (_event, rawArgs: unknown) => {
     const { window } = WindowArgsSchema.parse(rawArgs)
     return accountUsageWindowsSnapshot(window)

@@ -36,6 +36,8 @@ import { homeListStyles } from '../home-list-styles'
 import { MobileHomeSectionHeading } from '../MobileHomeSectionHeading'
 import type { MobileHomeData } from '../use-mobile-home-data'
 import { AgentsDesktopFilter } from './MobileHomeAgentsDesktopFilter'
+// Fork: orchestration background-task fleet card with ETA & Stop (FORK.md §15).
+import { MobileForkBackgroundTasksSection } from './MobileForkBackgroundTasksSection'
 import { MobileHomeTabEmpty } from './MobileHomeTabEmpty'
 import { MobileHomeTabHeader, MobileHomeTabHeaderButton } from './MobileHomeTabHeader'
 
@@ -277,6 +279,15 @@ export function MobileHomeAgentsTab(props: {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        {/* Fork: delegated background-task workers with ETA and Stop controls (FORK.md §15). */}
+        <MobileForkBackgroundTasksSection
+          hosts={hosts}
+          hostFilter={hostFilter}
+          hostStates={data.hostStates}
+          allClients={data.allClients}
+          now={now}
+          first={list.sections.length === 0}
+        />
         {body}
       </ScrollView>
       <PullDownMenu

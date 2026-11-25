@@ -25,6 +25,7 @@ import { colors, spacing } from '../../theme/mobile-theme'
 import '../../theme/themed-styles'
 import { useMobileColorScheme } from '../../theme/use-mobile-color-scheme'
 import { useHostClient } from '../../transport/connection/host-client-hooks'
+import type { RpcClient } from '../../transport/rpc/rpc-client-contract'
 import type { ConnectionState } from '../../transport/connection/connection-state'
 import type { HostProfile } from '../../host-catalog/host-profile'
 import { useHostDisplay } from '../../host-descriptors/use-host-display'
@@ -37,6 +38,8 @@ import { selectHomeUsageSections, type HomeUsageCard } from './home-usage-cards'
 import { MobileHomeHostPill, useHomeTabHost } from './MobileHomeHostPill'
 import { MobileHomeTabHeader, MobileHomeTabHeaderButton } from './MobileHomeTabHeader'
 import { mobileHomeUsageStyles as styles } from './mobile-home-usage-styles'
+// Fork: token windows (1h/5h/7d/all) and multi-CLI quotas (FORK.md §15).
+import { MobileForkUsageWindowsSection } from './MobileForkUsageWindowsSection'
 import { getManagedAccountPrimaryLabel } from '../../../../src/shared/agent-accounts/managed-account-display-names'
 
 const PROVIDER_TITLES: Record<ProviderKey, string> = { claude: 'Claude Code', codex: 'Codex' }
@@ -58,6 +61,7 @@ export function MobileHomeUsageTab(props: {
   const { client } = useHostClient(host?.id)
   const connected = host != null && props.hostStates[host.id] === 'connected'
   const [refreshingHostId, setRefreshingHostId] = useState<string | null>(null)
+  const [forkRefreshToken, setForkRefreshToken] = useState(0)
   const refreshing = host != null && refreshingHostId === host.id
 
   // Why: the host pushes the refreshed usage over accounts.subscribe too, so the reply goes unread.
@@ -66,6 +70,7 @@ export function MobileHomeUsageTab(props: {
       return
     }
     setRefreshingHostId(host.id)
+    setForkRefreshToken((n) => n + 1)
     try {
       await client.sendRequest('accounts.list', { refreshUsage: true })
     } catch {
@@ -111,8 +116,10 @@ export function MobileHomeUsageTab(props: {
         {host ? (
           <HostUsage
             host={host}
+            client={client}
             connected={connected}
             snapshot={props.accountsByHost[host.id] ?? null}
+            refreshToken={forkRefreshToken}
             first={!props.stats}
             onOpenAccounts={props.onOpenAccounts}
           />
@@ -128,8 +135,10 @@ export function MobileHomeUsageTab(props: {
 
 function HostUsage(props: {
   host: HostProfile
+  client: RpcClient | null
   connected: boolean
   snapshot: AccountsSnapshot | null
+  refreshToken: number
   first: boolean
   onOpenAccounts: (hostId: string) => void
 }) {
@@ -159,11 +168,25 @@ function HostUsage(props: {
     )
   }
   const sections = selectHomeUsageSections(props.snapshot)
+  // Fork: token windows and multi-CLI quotas render alongside or without Claude/Codex sections (FORK.md §15).
+  const forkUsage = (
+    <MobileForkUsageWindowsSection
+      hostId={props.host.id}
+      client={props.client}
+      connected={props.connected}
+      refreshToken={props.refreshToken}
+      now={now}
+      onOpenAccounts={() => props.onOpenAccounts(props.host.id)}
+    />
+  )
   if (sections.length === 0) {
     return (
-      <UsageEmpty
-        message={t('home.usage.addAccounts', 'Add accounts from desktop Settings → Accounts.')}
-      />
+      <View>
+        {forkUsage}
+        <UsageEmpty
+          message={t('home.usage.addAccounts', 'Add accounts from desktop Settings → Accounts.')}
+        />
+      </View>
     )
   }
   return (
@@ -201,6 +224,7 @@ function HostUsage(props: {
           </View>
         </View>
       ))}
+      {forkUsage}
     </Animated.View>
   )
 }

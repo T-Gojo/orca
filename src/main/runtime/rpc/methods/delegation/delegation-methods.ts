@@ -3,7 +3,8 @@ import {
   DelegationAdviceParams,
   DelegationBackgroundTasksParams,
   DelegationRouteParams,
-  DelegationUsageParams
+  DelegationUsageParams,
+  DelegationUsageWindowsParams
 } from '../../../../../shared/rpc-contract/delegation-params'
 import {
   delegationPreferencesPath,
@@ -16,6 +17,7 @@ import {
 } from '../../../../delegation/delegation-service'
 import { buildDelegationAdvice } from '../../../../delegation/delegation-advice'
 import { queryBackgroundTasksSnapshot } from '../../../../delegation/background-tasks-query'
+import { readAccountUsageWindowsSnapshot } from '../../../../usage/account-usage-windows-bridge'
 
 /** Fork: usage-aware routing of work to other agents and their saved accounts. */
 export const DELEGATION_METHODS = [
@@ -74,5 +76,11 @@ export const DELEGATION_METHODS = [
         runtime,
         params?.recentMinutes !== undefined ? { recentMinutes: params.recentMinutes } : undefined
       )
+  }),
+  defineMethod({
+    name: 'delegation.usageWindows',
+    permission: 'workspace',
+    params: DelegationUsageWindowsParams,
+    handler: async (params) => readAccountUsageWindowsSnapshot(params?.window ?? '5h')
   })
 ] as const

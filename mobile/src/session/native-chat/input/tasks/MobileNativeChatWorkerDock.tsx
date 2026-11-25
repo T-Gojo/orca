@@ -23,6 +23,12 @@ import { MobileAgentMessageOpenContext } from '../../transcript/agent-messages/m
 import { dispatchOpener } from '../prompts/MobileNativeChatWorkerApproval'
 import type { MobileWorkerApproval } from '../prompts/use-mobile-worker-approvals'
 import { trayStripStyles as strip } from './mobile-native-chat-tray-strip-styles'
+// Fork: mobile worker dock Stop & Clear controls (FORK.md §15).
+import type { MobileWorkerDockActions } from './use-mobile-worker-dock-actions'
+import {
+  MobileWorkerDockRowAction,
+  MobileWorkerDockSheetFooter
+} from './MobileWorkerDockRowActions'
 
 type DockRow = WorkerDockEntry & { question?: string }
 
@@ -128,11 +134,14 @@ function treeWorker(row: DockRow): BotChatTreeWorker {
 
 function MobileNativeChatWorkerDockImpl({
   rows,
-  approvals
+  approvals,
+  actions
 }: {
   rows: readonly WorkerDockEntry[]
   /** Open worker approvals: their workers read as waiting on you, and the card answers them. */
   approvals: readonly MobileWorkerApproval[]
+  // Fork: owner Stop / Clear actions on mobile (FORK.md §15).
+  actions?: MobileWorkerDockActions
 }): React.JSX.Element | null {
   useMobileColorScheme()
   const t = useMobileTranslation()
@@ -197,26 +206,27 @@ function MobileNativeChatWorkerDockImpl({
                 : null
             const reason = row.state === 'failed' || row.state === 'unexpected' ? row.reason : null
             return (
-              <MobileBotWorkerRow
-                key={row.id}
-                bot={NO_BOT}
-                worker={treeWorker(row)}
-                nested={false}
-                subtitle={row.question ?? reason ?? stateLabel(t, row.state)}
-                onOpen={() => {
-                  afterClose.current = openWorker
-                  close()
-                }}
-              />
+              <View key={row.id} style={styles.dockRow}>
+                <View style={styles.dockRowMain}>
+                  <MobileBotWorkerRow
+                    bot={NO_BOT}
+                    worker={treeWorker(row)}
+                    nested={false}
+                    subtitle={row.question ?? reason ?? stateLabel(t, row.state)}
+                    onOpen={() => {
+                      afterClose.current = openWorker
+                      close()
+                    }}
+                  />
+                </View>
+                {/* Fork: per-worker Stop / Clear button (FORK.md §15). */}
+                {actions ? <MobileWorkerDockRowAction row={row} actions={actions} /> : null}
+              </View>
             )
           })}
         </ListGroup>
-        <Text style={styles.footer}>
-          {t(
-            'components.native-chat.workerDock.stopOnComputer',
-            'Stop or clear workers on the computer they run on'
-          )}
-        </Text>
+        {/* Fork: footer hint + Clear all action (FORK.md §15). */}
+        <MobileWorkerDockSheetFooter rows={shown} actions={actions} />
       </View>
     </BottomDrawer>
   )
@@ -258,6 +268,8 @@ const styles = themedStyleSheet(() => ({
     fontWeight: '500'
   },
   body: { paddingBottom: spacing.lg },
+  dockRow: { flexDirection: 'row', alignItems: 'center' },
+  dockRowMain: { flex: 1, minWidth: 0 },
   footer: {
     fontSize: 12,
     color: colors.textMuted,

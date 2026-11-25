@@ -391,7 +391,8 @@ import {
   DelegationAdviceParams,
   DelegationBackgroundTasksParams,
   DelegationRouteParams,
-  DelegationUsageParams
+  DelegationUsageParams,
+  DelegationUsageWindowsParams
 } from './delegation-params'
 import {
   AttachParams as AttachParamsOfEmulatorParams,
@@ -1583,6 +1584,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'delegation.preferences': null,
   'delegation.route': DelegationRouteParams,
   'delegation.usage': DelegationUsageParams,
+  'delegation.usageWindows': DelegationUsageWindowsParams,
   'desktop.openWindowInBackground': null,
   'desktopBrowserBridge.attach': DesktopBrowserBridgeAttachParams,
   'desktopBrowserBridge.downloadAbort': DesktopBrowserBridgeDownloadAbortParams,

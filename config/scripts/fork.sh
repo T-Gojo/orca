@@ -8,7 +8,9 @@
 #   config/scripts/fork.sh skills   # install the fork's agent skills (fork/skills) for every CLI
 #   config/scripts/fork.sh hooks    # install the auto-delegation hooks (fork/hooks: Claude Code,
 #                                   # Codex and Kiro; Antigravity/Vibe/OpenCode have no hook yet)
-#   config/scripts/fork.sh mcp      # configure browser-use, dusk, and computer-use MCP for all 6 CLIs
+#   config/scripts/fork.sh mcp            # configure browser-use, dusk, and computer-use MCP for all 6 CLIs
+#   config/scripts/fork.sh mobile-build   # build standalone Android release APK (mobile/android/.../app-release.apk)
+#   config/scripts/fork.sh mobile-install # install built Android APK over ADB (--serial <id>, --remove-old)
 set -euo pipefail
 
 FORK_BRANCH="${ORCA_FORK_BRANCH:-main}"
@@ -335,6 +337,97 @@ install_fork_mcp() {
   node "$REPO_ROOT/fork/scripts/install-browser-use-mcp.mjs"
 }
 
+ANDROID_RELEASE_APK="$REPO_ROOT/mobile/android/app/build/outputs/apk/release/app-release.apk"
+
+configure_android_env() {
+  export ANDROID_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
+  export ANDROID_SDK_ROOT="$ANDROID_HOME"
+  if [[ -d "$ANDROID_HOME/platform-tools" ]]; then
+    export PATH="$ANDROID_HOME/platform-tools:$PATH"
+  fi
+  local java17=""
+  for candidate in \
+    /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
+    /usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home; do
+    if [[ -x "$candidate/bin/java" ]]; then
+      java17="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$java17" && -x /usr/libexec/java_home ]]; then
+    java17="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+  fi
+  if [[ -n "$java17" ]]; then
+    export JAVA_HOME="$java17"
+    export PATH="$JAVA_HOME/bin:$PATH"
+  fi
+}
+
+mobile_build() {
+  configure_android_env
+  (cd mobile && pnpm install --frozen-lockfile && npx expo prebuild --platform android --no-install)
+  (cd mobile/android && ./gradlew assembleRelease)
+  if [[ ! -f "$ANDROID_RELEASE_APK" ]]; then
+    echo "Expected release APK not found at $ANDROID_RELEASE_APK" >&2
+    exit 1
+  fi
+  echo "Built Android release APK:"
+  ls -lh "$ANDROID_RELEASE_APK"
+}
+
+mobile_install() {
+  configure_android_env
+  local serial="" remove_old=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --serial)
+        if [[ $# -lt 2 ]]; then
+          echo "Missing value for --serial" >&2
+          exit 2
+        fi
+        serial="$2"
+        shift 2
+        ;;
+      --remove-old)
+        remove_old=1
+        shift
+        ;;
+      *)
+        echo "Unknown option for mobile-install: $1" >&2
+        echo "usage: $0 mobile-install [--serial <id>] [--remove-old]" >&2
+        exit 2
+        ;;
+    esac
+  done
+  if [[ ! -f "$ANDROID_RELEASE_APK" ]]; then
+    echo "No Android release APK at $ANDROID_RELEASE_APK; run: $0 mobile-build" >&2
+    exit 1
+  fi
+  if [[ -z "$serial" ]]; then
+    local devices=()
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && devices+=("$line")
+    done < <(adb devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+    if [[ ${#devices[@]} -eq 0 ]]; then
+      echo "No connected ADB devices found. Connect a phone or pass --serial <id>." >&2
+      exit 1
+    fi
+    if [[ ${#devices[@]} -gt 1 ]]; then
+      echo "Multiple ADB devices connected (${devices[*]}). Pass --serial <id>." >&2
+      exit 1
+    fi
+    serial="${devices[0]}"
+  fi
+  if [[ "$remove_old" == "1" ]]; then
+    if adb -s "$serial" shell pm list packages com.stably.orca.mobile | grep -q "package:com.stably.orca.mobile"; then
+      echo "Uninstalling old com.stably.orca.mobile on $serial..."
+      adb -s "$serial" uninstall com.stably.orca.mobile
+    fi
+  fi
+  echo "Installing $ANDROID_RELEASE_APK to $serial..."
+  adb -s "$serial" install -r -d "$ANDROID_RELEASE_APK"
+}
+
 case "${1:-}" in
   sync) sync ;;
   dev) shift; dev "$@" ;;
@@ -343,8 +436,10 @@ case "${1:-}" in
   skills) install_fork_skills ;;
   hooks) install_fork_hooks ;;
   mcp) install_fork_mcp ;;
+  mobile-build) mobile_build ;;
+  mobile-install) shift; mobile_install "$@" ;;
   *)
-    echo "usage: $0 {sync|dev|build|install|skills|hooks|mcp}" >&2
+    echo "usage: $0 {sync|dev|build|install|skills|hooks|mcp|mobile-build|mobile-install}" >&2
     exit 2
     ;;
 esac

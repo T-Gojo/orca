@@ -12,6 +12,8 @@ import type {
 import type { AskPrompt } from '../../../../src/shared/native-chat/input/questions/native-chat-ask-types'
 import type { MobileChatPermission } from './input/prompts/mobile-native-chat-permission'
 import type { MobileWorkerApprovals } from './input/prompts/use-mobile-worker-approvals'
+// Fork: mobile worker dock Stop/Clear actions (FORK.md §15).
+import type { MobileWorkerDockActions } from './input/tasks/use-mobile-worker-dock-actions'
 import type { MobileNativeChatCollapsedPrompt } from './input/prompts/MobileNativeChatPromptStrip'
 import type { MobileChatQuestion } from './input/prompts/mobile-native-chat-question'
 import type {
@@ -82,6 +84,8 @@ export type MobileNativeChatController = {
   nativeChatWorkerApprovals: MobileWorkerApprovals
   /** Its current workers, for the strip above the message box. */
   nativeChatWorkerDock: readonly WorkerDockEntry[]
+  // Fork: owner Stop & Clear actions for mobile worker dock (FORK.md §15).
+  nativeChatWorkerDockActions?: MobileWorkerDockActions
   // A new prompt occurrence resets local card submission state only.
   nativeChatPromptKey: string | null
   /** Only a structured chat's journal question; a terminal chat's questions are asks. */

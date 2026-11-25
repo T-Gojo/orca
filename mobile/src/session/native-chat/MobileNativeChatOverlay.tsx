@@ -162,6 +162,7 @@ function MobileNativeChatOverlayContent({
     taskList,
     backgroundTasks: controller.nativeChatBackgroundTasks,
     workerDock: controller.nativeChatWorkerDock,
+    workerDockActions: controller.nativeChatWorkerDockActions,
     workerApprovals: controller.nativeChatWorkerApprovals.open
   })
   const visuals = useMobileNativeChatVisualRenderer(controller.nativeChatVisualSource)

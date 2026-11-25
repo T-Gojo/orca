@@ -3,6 +3,8 @@ import { PAIRED_DESKTOP_METHODS } from './runtime-rpc-mobile-paired-desktop-meth
 import { MOBILE_BOT_RPC_METHODS } from './runtime-rpc-mobile-bot-methods'
 import { MOBILE_MCP_SERVER_RPC_METHODS } from './runtime-rpc-mobile-mcp-server-methods'
 import { DEFAULT_SCOPE_HOST_METHODS } from './runtime-rpc-mobile-tracker-methods'
+// Fork: mobile full-control orchestration methods (FORK.md §15).
+import { MOBILE_FORK_EXECUTION_HOST_METHODS } from './runtime-rpc-mobile-fork-methods'
 
 // Execution-host routes follow the configured target; paired-desktop routes stay with the relaying Mac;
 // default-scope-host routes follow the target, else the Mac's default host. This table also defines mobile allowlisting.
@@ -221,6 +223,8 @@ export const EXECUTION_HOST_METHODS = [
   // Read-only: the chat's worker strip. Stop and Clear stay on the desktop (the host refuses a phone).
   'orchestration.workerDockRead',
   'orchestration.workerDockSubscribe',
+  // Fork: mobile orchestration worker & task control (FORK.md §15).
+  ...MOBILE_FORK_EXECUTION_HOST_METHODS,
   // Asks from agents on paired servers wait on this computer for its person, as on its phone. The phone
   // reads and removes Always allow choices; adding one without a card stays on the desktop.
   'pairedServerAsks.list',

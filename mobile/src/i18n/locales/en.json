@@ -8663,5 +8663,49 @@
     "workspacesAllButCount": "All but {{count}}",
     "headerMissing": "Fill in {{header}} to add this server.",
     "servers": "Servers"
+  },
+  "fork": {
+    "accounts": {
+      "kiro": "Kiro",
+      "antigravity": "Antigravity",
+      "mistral": "Mistral Vibe",
+      "pinnedPerLaunch": "Per-launch pin"
+    },
+    "backgroundTasks": {
+      "heading": "Background tasks",
+      "refresh": "Refresh",
+      "etaLeft": "~{{time}} left (est.)",
+      "etaOverrun": "Over typical (est.)",
+      "etaStalled": "Stalled? (est.)",
+      "failed": "Failed",
+      "done": "Done",
+      "untitled": "Delegated worker",
+      "stopWorker": "Stop {{title}}",
+      "stop": "Stop"
+    },
+    "usageWindows": {
+      "window1h": "1h",
+      "window5h": "5h",
+      "window7d": "7d",
+      "windowAll": "All",
+      "heading": "Token windows",
+      "totalTokens": "{{total}} tokens",
+      "tokenSplit": "In {{input}} · Out {{output}} · Cache {{cache}}",
+      "noActivity": "No recorded token usage in this window.",
+      "removedAccount": "Removed",
+      "rowSplit": "In {{input}} · Out {{output}} · Cache {{cache}}",
+      "multiCliQuotas": "Other CLI quotas",
+      "manageAccounts": "Accounts",
+      "resetsIn": "Resets in {{time}}",
+      "monthlyShort": "30d"
+    },
+    "workerDock": {
+      "stop": "Stop",
+      "clear": "Clear",
+      "stopWorker": "Stop {{name}}",
+      "clearWorker": "Clear {{name}}",
+      "controlsHint": "Tap Stop or Clear to manage workers directly.",
+      "clearAll": "Clear all ({{count}})"
+    }
   }
 }

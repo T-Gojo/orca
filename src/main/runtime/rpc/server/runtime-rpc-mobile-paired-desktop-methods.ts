@@ -1,4 +1,6 @@
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../shared/sidebar-list/feed/sidebar-inputs-switch'
+// Fork: mobile delegation, usage windows, and multi-provider accounts (FORK.md §15).
+import { MOBILE_FORK_PAIRED_DESKTOP_METHODS } from './runtime-rpc-mobile-fork-methods'
 
 /** Phone methods the relaying Mac always answers itself, even when the call names a server. */
 export const PAIRED_DESKTOP_METHODS = [
@@ -78,5 +80,7 @@ export const PAIRED_DESKTOP_METHODS = [
   // The desktop's own repo icons, as small data URLs.
   'sidebarInputs.repoIcons',
   // Per-section collapse and the sidebar feed exist only with ORCA_SIDEBAR_INPUTS=main.
-  ...(ORCA_SIDEBAR_INPUTS_IS_MAIN ? (['ui.setCollapsed', 'sidebarInputs.read'] as const) : [])
+  ...(ORCA_SIDEBAR_INPUTS_IS_MAIN ? (['ui.setCollapsed', 'sidebarInputs.read'] as const) : []),
+  // Fork: mobile delegation, usage windows, and multi-provider accounts (FORK.md §15).
+  ...MOBILE_FORK_PAIRED_DESKTOP_METHODS
 ] as const

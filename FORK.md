@@ -490,6 +490,25 @@ Disables Orca's internal browser for agent/CLI flows so agents use external brow
 - **Skill (`fork/skills/external-browser-mcp/SKILL.md`):** installed to all 6 CLIs by `config/scripts/fork.sh skills`, instructing agents when to pick `dusk`, `browser-use`, or `background-computer-use` and not to open Orca internal browser tabs.
 - **Hooks into:** `src/main/runtime/browser/tabs/browser-tab-creation.ts` (`assertInternalBrowserAllowedForAgent` in `browserTabCreate` and `browserOpenUrlOnClient`), `src/main/ipc/pty/host-env/assembly.ts` (`!shouldBlockAgentInternalBrowser()` guard on `baseEnv.BROWSER`).
 
+### 15. Mobile full control and Android wireless build
+
+Extends both the desktop-bundled mobile web UI and the standalone Android app with full orchestration control, background task monitoring with ETA estimates, token usage windows (`1h`/`5h`/`7d`/`all`), multi-CLI quota bars, and Kiro/Antigravity/Mistral Vibe account management, plus local release APK build/install commands.
+
+- **Usage windows runtime RPC (`delegation.usageWindows`):**
+  - Electron-free bridge `src/main/usage/account-usage-windows-bridge.ts` registers a module-level reader callback wired in `src/main/usage/account-usage-desktop.ts`, so `src/main/runtime/**` stays Electron-free.
+  - Added `DelegationUsageWindowsParams` in `src/shared/rpc-contract/delegation-params.ts` and appended `delegation.usageWindows` at the end of `DELEGATION_METHODS` in `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`.
+- **Mobile RPC allowlists (`src/main/runtime/rpc/server/runtime-rpc-mobile-fork-methods.ts`):**
+  - Execution-host allowlist (`EXECUTION_HOST_METHODS` in `runtime-rpc-mobile-method-routing.ts`): `orchestration.workerDockStop`, `orchestration.workerDockAcknowledge`, `orchestration.workerDockResult`, `orchestration.workerStop`, `orchestration.workerList`, `orchestration.runList`, `orchestration.runShow`, `orchestration.taskList`, `orchestration.taskCreate`, `orchestration.taskUpdate`, `orchestration.send`.
+  - Paired-desktop allowlist (`PAIRED_DESKTOP_METHODS` in `runtime-rpc-mobile-paired-desktop-methods.ts`): `delegation.usage`, `delegation.route`, `delegation.preferences`, `delegation.backgroundTasks`, `delegation.usageWindows`, `accounts.kiroList`, `accounts.kiroSelect`, `accounts.antigravityList`, `accounts.antigravitySelect`, `accounts.mistralList`, `accounts.listData`.
+- **Mobile UI (fork-owned components + minimal `// Fork:` hooks):**
+  - **Worker Dock Stop & Clear:** `mobile/src/session/native-chat/input/tasks/use-mobile-worker-dock-actions.ts` and `MobileWorkerDockRowActions.tsx` hooked into `MobileNativeChatOverlay.tsx`, `use-mobile-native-chat-composer-tray.ts`, and `MobileNativeChatWorkerDock.tsx` for per-worker Stop (`orchestration.workerDockStop`), Clear (`orchestration.workerDockAcknowledge`), and Clear all.
+  - **Background tasks & ETA card:** `mobile/src/home/tabs/mobile-fork-background-tasks-rpc.ts` and `MobileForkBackgroundTasksSection.tsx` hooked into `MobileHomeAgentsTab.tsx` to poll `delegation.backgroundTasks` across connected hosts, render elapsed time + labeled estimated ETA (`est.`) across all 6 CLIs, and expose Stop (`orchestration.workerStop`).
+  - **Token windows & multi-CLI quotas:** `mobile/src/home/tabs/mobile-fork-usage-rpc.ts` and `MobileForkUsageWindowsSection.tsx` hooked into `MobileHomeUsageTab.tsx` to display `1h`/`5h`/`7d`/`all` token windows (`In · Out · Cache`, expandable per-model breakdown) and saved-account quota bars for Kiro, Antigravity, Mistral Vibe, and OpenCode.
+  - **Multi-provider accounts:** `mobile/src/accounts/mobile-fork-accounts-rpc.ts` and `MobileForkProviderAccountsSection.tsx` hooked into `MobileAccountsScreen.tsx` to list Kiro, Antigravity, and Mistral Vibe saved accounts and switch Kiro/Antigravity logins from mobile.
+- **Standalone Android APK workflow (`config/scripts/fork.sh`):**
+  - `config/scripts/fork.sh mobile-build`: configures `ANDROID_HOME` and Java 17, runs `expo prebuild --platform android --no-install`, and builds `mobile/android/app/build/outputs/apk/release/app-release.apk` via `./gradlew assembleRelease`.
+  - `config/scripts/fork.sh mobile-install [--serial <id>] [--remove-old]`: installs the built release APK via ADB (`--remove-old` explicitly uninstalls `com.stably.orca.mobile` first; never uninstalls without the flag).
+
 ### Upstream gate notes (main-process rules)
 
 - Fork main-process code uses only `fs/promises` (upstream's `main-sync-fs` ratchet). The Kiro vault store is
