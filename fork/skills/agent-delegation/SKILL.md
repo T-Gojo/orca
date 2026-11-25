@@ -101,6 +101,13 @@ ORCA orchestration worker-start --environment local --worktree current --agent <
   nothing, start it again. Orca may also type a wake-up note into your pane; if it does, still
   read mail with this command. Never poll in the foreground.
 
+## Coordinating from another CLI (codex, kiro, vibe, opencode, antigravity)
+
+The same kit installs for all of them. No background-command notification: the wait is a FOREGROUND
+`ORCA orchestration check --run <id> --types worker_done,escalation,decision_gate --wait
+--timeout-ms 3600000` once per turn — run it, act on everything it returns, rerun until it returns
+nothing, then answer the user and keep working in the same turn.
+
 ## 4. Verify, then retry or report
 
 When a worker reports `worker_done`:

@@ -5,8 +5,9 @@
 #   config/scripts/fork.sh dev      # run the custom build side by side with the installed Orca.app
 #   config/scripts/fork.sh build    # package Orca.app (macOS) from the current checkout into dist/
 #   config/scripts/fork.sh install  # replace /Applications/Orca.app with that build (quit Orca first)
-#   config/scripts/fork.sh skills   # install the fork's agent skills (fork/skills) for Claude Code
-#   config/scripts/fork.sh hooks    # install the auto-delegation Claude Code hook (fork/hooks)
+#   config/scripts/fork.sh skills   # install the fork's agent skills (fork/skills) for every CLI
+#   config/scripts/fork.sh hooks    # install the auto-delegation hooks (fork/hooks: Claude Code,
+#                                   # Codex and Kiro; Antigravity/Vibe/OpenCode have no hook yet)
 set -euo pipefail
 
 FORK_BRANCH="${ORCA_FORK_BRANCH:-main}"
@@ -198,37 +199,126 @@ install_app() {
   install_fork_hooks
 }
 
-# Registers the auto-delegation hook (FORK.md §8) next to Orca's own Claude Code hooks.
-install_fork_hooks() {
-  local config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-  local hook="$config_dir/hooks/orca-auto-delegation.sh"
-  mkdir -p "$config_dir/hooks"
-  cp "$REPO_ROOT/fork/hooks/orca-auto-delegation.sh" "$hook"
-  chmod +x "$hook"
-  node - "$config_dir/settings.json" "$hook" <<'NODE'
+# Adds a UserPromptSubmit group (Claude-shaped hooks file) filtered-and-appended: every previous
+# orca-auto-delegation group is dropped first, so Orca's own entries and their positional trust
+# state (~/.codex/config.toml `user_prompt_submit:0:0`) keep their indices.
+merge_user_prompt_submit() {
+  local file="$1" command="$2"
+  node - "$file" "$command" <<'NODE'
 const fs = require('node:fs')
-const [file, hook] = process.argv.slice(2)
+const [file, command] = process.argv.slice(2)
 const settings = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}
 const hooks = (settings.hooks ??= {})
 const kept = (hooks.UserPromptSubmit ?? []).filter(
   (group) => !(group.hooks ?? []).some((h) => String(h.command).includes('orca-auto-delegation'))
 )
-kept.push({ hooks: [{ type: 'command', command: `/bin/sh "${hook}"`, timeout: 8 }] })
+kept.push({ hooks: [{ type: 'command', command, timeout: 8 }] })
 hooks.UserPromptSubmit = kept
 fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n')
 NODE
-  echo "Installed auto-delegation hook in $config_dir/settings.json"
 }
 
-# Fork-only agent skills (fork/skills/<name>/SKILL.md) go to Claude Code's user skills.
+# `skill_paths` (verified top-level array key via `vibe config schema`) points vibe at extra skill
+# dirs; a plain ~/.vibe/skills is not autoloaded. Appends only when absent, inserted before the
+# first [table] header so the key can never land inside a table.
+ensure_vibe_skill_paths() {
+  node - "$config" "$dir" <<'NODE'
+const fs = require('node:fs')
+const [file, dir] = process.argv.slice(2)
+const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
+if (text.trim() === '') {
+  fs.writeFileSync(file, `skill_paths = ["${dir}"]\n`)
+  console.log(`Added skill_paths to ${file}`)
+  process.exit(0)
+}
+const lines = text.split('\n')
+let insertAt = null
+for (let i = 0; i < lines.length; i++) {
+  const line = lines[i]
+  if (/^\s*\[/.test(line)) {
+    if (insertAt === null) insertAt = i
+  } else if (insertAt === null && /^\s*skill_paths\s*=/.test(line)) {
+    console.log(`skill_paths already present in ${file}`)
+    process.exit(0)
+  }
+}
+if (insertAt === null && lines[lines.length - 1] === '') insertAt = lines.length - 1
+lines.splice(insertAt ?? lines.length, 0, `skill_paths = ["${dir}"]`)
+let out = lines.join('\n')
+if (!out.endsWith('\n')) out += '\n'
+fs.writeFileSync(file, out)
+console.log(`Added skill_paths to ${file}`)
+NODE
+}
+
+# Registers the auto-delegation hook (FORK.md §8) for every coordinator CLI, next to Orca's own hooks.
+install_fork_hooks() {
+  local hook_repo="$REPO_ROOT/fork/hooks/orca-auto-delegation.sh" hook
+  # Claude Code (agent defaults to claude, so the settings entry needs no env prefix).
+  local claude_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  mkdir -p "$claude_dir/hooks"
+  hook="$claude_dir/hooks/orca-auto-delegation.sh"
+  cp "$hook_repo" "$hook"
+  chmod +x "$hook"
+  merge_user_prompt_submit "$claude_dir/settings.json" "/bin/sh \"$hook\""
+  echo "Installed auto-delegation hook in $claude_dir/settings.json"
+  # Codex: merged into Orca-managed ~/.codex/hooks.json (filter-and-append keeps Orca's groups first).
+  # Codex does not trust our new group automatically (trusted_hash not scriptable) - its one-time
+  # trust prompt runs on the first prompt. See FORK.md §8.
+  local codex_dir="$HOME/.codex"
+  mkdir -p "$codex_dir/hooks"
+  hook="$codex_dir/hooks/orca-auto-delegation.sh"
+  cp "$hook_repo" "$hook"
+  chmod +x "$hook"
+  merge_user_prompt_submit "$codex_dir/hooks.json" "ORCA_DELEGATION_AGENT=codex /bin/sh \"$hook\""
+  echo "Installed auto-delegation hook in $codex_dir/hooks.json (let codex's trust prompt run once)"
+  # Kiro: standalone hook file, mirroring Orca's own ~/.kiro/hooks/orca-agent-status.json shape.
+  local kiro_dir="$HOME/.kiro"
+  mkdir -p "$kiro_dir/hooks"
+  hook="$kiro_dir/hooks/orca-auto-delegation.sh"
+  cp "$hook_repo" "$hook"
+  chmod +x "$hook"
+  node - "$kiro_dir/hooks/orca-auto-delegation.json" "$hook" <<'NODE'
+const fs = require('node:fs')
+const [file, hook] = process.argv.slice(2)
+// Mirrors Orca's own orca-agent-status.json entry: pane guard, file checks, stdin drain fallback.
+const guard = '[ -n "${ORCA_PANE_KEY-}${ORCA_AGENT_PANE-}" ] || exit 0; ' +
+  `if [ -f '${hook}' ] && [ -r '${hook}' ] && [ -x '${hook}' ]; then ` +
+  `ORCA_DELEGATION_AGENT=kiro /bin/sh '${hook}'; ` +
+  'else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'
+fs.writeFileSync(file, JSON.stringify({
+  version: 'v1',
+  hooks: [{
+    name: 'orca-auto-delegation-UserPromptSubmit',
+    trigger: 'UserPromptSubmit',
+    action: { type: 'command', command: guard },
+    timeout: 8
+  }]
+}, null, 2) + '\n')
+NODE
+  echo "Installed auto-delegation hook in $kiro_dir/hooks/orca-auto-delegation.json"
+}
+
+# Fork-only agent skills (fork/skills/<name>/SKILL.md) go to every coordinator CLI's skills dir.
 install_fork_skills() {
-  local skills_root="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills" skill
+  local homes=(
+    "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills"
+    "$HOME/.codex/skills"
+    "$HOME/.kiro/skills"
+    "$HOME/.gemini/skills"
+    "$HOME/.config/opencode/skills"
+    "$HOME/.vibe/skills"
+  )
+  local skill home
   for skill in "$REPO_ROOT"/fork/skills/*/; do
     [[ -f "$skill/SKILL.md" ]] || continue
-    mkdir -p "$skills_root/$(basename "$skill")"
-    cp -R "$skill". "$skills_root/$(basename "$skill")/"
-    echo "Installed skill $(basename "$skill") to $skills_root"
+    for home in "${homes[@]}"; do
+      mkdir -p "$home/$(basename "$skill")"
+      cp -R "$skill". "$home/$(basename "$skill")/"
+      echo "Installed skill $(basename "$skill") to $home"
+    done
   done
+  ensure_vibe_skill_paths
 }
 
 case "${1:-}" in

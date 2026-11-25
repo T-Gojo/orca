@@ -181,8 +181,9 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     saved account (unread usage, no env injected). Profile tier `standard` like kiro. Preferences
     files saved before mistral-vibe keep their own `agentOrder`: add `"mistral-vibe"` to it (or delete
     `agentOrder`) to delegate to it; its profile tier merges in on read.
-- **Auto-delegation (on by default):** `fork/hooks/orca-auto-delegation.sh` is a Claude Code
-  `UserPromptSubmit` hook (registered in `~/.claude/settings.json` by `fork.sh install` or
+- **Auto-delegation (on by default):** `fork/hooks/orca-auto-delegation.sh` is a `UserPromptSubmit`
+  hook for every coordinator CLI (Claude Code `~/.claude/settings.json`, Codex `~/.codex/hooks.json`,
+  Kiro `~/.kiro/hooks/orca-auto-delegation.json`; registered by `fork.sh install` or
   `fork.sh hooks`, next to Orca's own hook entries, which Orca's installer leaves alone). In an Orca
   terminal it adds the **usage brief** (`orca delegation advice`) to every prompt: the coordinator's
   own 5h/weekly usage and pace (when it would run out before reset, or how much of its own quota
@@ -214,11 +215,44 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     already in the loop; the coordinator gets the numbers instead.
 - **Waking the coordinator:** the skill has the coordinator run `orchestration check --run <id>
   --types worker_done,... --wait` as a background command, so Claude Code's own background-task
-  notification wakes it. Upstream's pane wake-up (typing a note into the coordinator's prompt) did not
+  notification wakes it. The other CLIs have no background-command notification, so there the wait
+  is a foreground `check` once per turn (the skill's per-CLI section covers it). Upstream's pane
+  wake-up (typing a note into the coordinator's prompt) did not
   fire in the hidden dev test window, where CLI-created terminals are "orphaned" (no UI tab); the
   background wait does not depend on it.
-- **Skill:** `fork/skills/agent-delegation/SKILL.md`, installed to `~/.claude/skills` by
-  `fork.sh install` (or `fork.sh skills`). Kept out of upstream's bundled-skill generator on purpose.
+- **Skill:** `fork/skills/agent-delegation/SKILL.md`, installed to every coordinator CLI's skills dir
+  (see the next bullets) by `fork.sh install` (or `fork.sh skills`). Kept out of upstream's
+  bundled-skill generator on purpose.
+- **Every CLI can coordinate (double-sided kits):** `fork.sh skills`/`hooks`/`install` install the
+  delegation kit for all six CLIs, so any of them can be the coordinator, not just Claude Code:
+  - **codex:** hook group merged into Orca-managed `~/.codex/hooks.json` `UserPromptSubmit`
+    (`ORCA_DELEGATION_AGENT=codex /bin/sh ~/.codex/hooks/orca-auto-delegation.sh`, timeout 8; the
+    stdout enters developer context) + skill in `~/.codex/skills`.
+  - **kiro:** standalone `~/.kiro/hooks/orca-auto-delegation.json`, mirroring Orca's own
+    `orca-agent-status.json` entry shape (`UserPromptSubmit` trigger, pane guard, `-f/-r/-x` checks,
+    stdin drain fallback; `ORCA_DELEGATION_AGENT=kiro`) + skill in `~/.kiro/skills`.
+  - **antigravity / vibe / opencode:** skill only — their per-prompt hook paths are UNCONFIRMED, so
+    they coordinate (foreground wait per the skill) but get no automatic usage brief: agy's
+    PreInvocation stdout injection is unverified (skill in `~/.gemini/skills`, one of
+    `AGY_HOME_SKILL_FOLDERS`); vibe has no per-prompt hook at all (skill in `~/.vibe/skills`);
+    opencode's v2 plugin hook is unconfirmed (skill in `~/.config/opencode/skills`).
+  - The hook itself is agent-generic: `--agent "${ORCA_DELEGATION_AGENT:-claude}"`, and a payload
+    with no `session_id` (codex/kiro) keys the brief and worker marker by `ORCA_PANE_KEY` instead.
+    `fork.sh` functions: `install_fork_hooks` (claude merge unchanged, codex merge, kiro file),
+    `install_fork_skills` (six homes), `merge_user_prompt_submit` (shared filter-and-append node
+    helper), `ensure_vibe_skill_paths`.
+  - **Merge gotchas:** `~/.codex/hooks.json` is Orca-managed — the merge drops only groups whose
+    command contains `orca-auto-delegation` and re-appends ours, so Orca's groups keep their array
+    positions and their positional `hooks.state` trust entries (`user_prompt_submit:0:0` in
+    `~/.codex/config.toml`) stay valid. Our new group's `trusted_hash` is NOT script-computable
+    (the hash format does not reproduce locally from any candidate encoding), so codex shows its
+    one-time trust prompt on the first prompt after install — documented, not scripted. Kiro V2
+    default agent caveat: on Kiro's V2 engine the built-in default agent has no global hook config
+    (Orca patches user-owned agent files), so the standalone hooks file only reaches agents that
+    load `~/.kiro/hooks/*.json` — same limitation Orca's own kiro hook has. Vibe does not autoload
+    `~/.vibe/skills`: `ensure_vibe_skill_paths` appends top-level `skill_paths = ["~/.vibe/skills"]`
+    to `~/.vibe/config.toml` only when absent (verified top-level array key via `vibe config schema`),
+    inserted before the first `[table]` header so it cannot land inside a table.
 - **Files:** `src/main/delegation/*` (preferences, usage, route, advice, overlay home, account env,
   service, worker-account), `fork/hooks/orca-auto-delegation.sh`, `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`,
   `src/shared/delegation/delegation-types.ts`, `src/shared/rpc-contract/delegation-params.ts`,
