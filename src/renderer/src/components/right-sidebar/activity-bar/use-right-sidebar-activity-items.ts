@@ -32,6 +32,8 @@ import { useFocusedChatWorkers } from '@/lib/focused-chat-workers'
 import { useBotNeedsYouCount, useBotNow } from '../../bots/use-bot-now'
 import { usePublishedBotsNeedsYou } from '../../bots/bot-needs-you-published'
 import { useBotGroupMembers } from '../../bots/use-bot-group-members'
+// Fork: active background-task count badge (FORK.md §13).
+import { useActiveBackgroundTaskCount } from '../background-tasks/use-active-background-task-count'
 
 export type RightSidebarActivityItems = {
   visibleItems: ActivityBarItem[]
@@ -77,6 +79,8 @@ export function useRightSidebarActivityItems({
   const showsHomeTab = isBot || isGroupHome
   // The same read as Activity's count, so connector reads aren't repeated for the tab.
   const connectorsNeedingOwner = needs.filter((need) => need.kind === 'connector').length
+  // Fork: active background-task count for the right-sidebar tab badge (FORK.md §13).
+  const activeBackgroundTasks = useActiveBackgroundTaskCount()
   const hasChatWorkers = useFocusedChatWorkers(rightSidebarOpen && !isBot).workers.length > 0
   // Why the owner: a managed server's workspace names its server, not an SSH connection.
   const hasRemoteHost = useAppStore((s) =>
@@ -114,7 +118,9 @@ export function useRightSidebarActivityItems({
       isBot,
       showsHomeTab,
       needsYou,
-      connectorsNeedingOwner
+      connectorsNeedingOwner,
+      // Fork: background-tasks count badge (FORK.md §13).
+      activeBackgroundTasks
     })
     return [
       ...builtInItems,
@@ -141,6 +147,7 @@ export function useRightSidebarActivityItems({
     showsHomeTab,
     needsYou,
     connectorsNeedingOwner,
+    activeBackgroundTasks,
     languageRevision,
     t
   ])

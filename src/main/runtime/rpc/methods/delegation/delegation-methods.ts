@@ -1,6 +1,7 @@
 import { defineMethod } from '../../core'
 import {
   DelegationAdviceParams,
+  DelegationBackgroundTasksParams,
   DelegationRouteParams,
   DelegationUsageParams
 } from '../../../../../shared/rpc-contract/delegation-params'
@@ -14,6 +15,7 @@ import {
   routeDelegationTask
 } from '../../../../delegation/delegation-service'
 import { buildDelegationAdvice } from '../../../../delegation/delegation-advice'
+import { queryBackgroundTasksSnapshot } from '../../../../delegation/background-tasks-query'
 
 /** Fork: usage-aware routing of work to other agents and their saved accounts. */
 export const DELEGATION_METHODS = [
@@ -62,5 +64,15 @@ export const DELEGATION_METHODS = [
       path: delegationPreferencesPath(),
       preferences: await readDelegationPreferences()
     })
+  }),
+  defineMethod({
+    name: 'delegation.backgroundTasks',
+    permission: 'workspace',
+    params: DelegationBackgroundTasksParams,
+    handler: async (params, { runtime }) =>
+      queryBackgroundTasksSnapshot(
+        runtime,
+        params?.recentMinutes !== undefined ? { recentMinutes: params.recentMinutes } : undefined
+      )
   })
 ] as const

@@ -28,3 +28,11 @@ export const DelegationAdviceParams = z
   })
   .strict()
   .optional()
+
+export const DelegationBackgroundTasksParams = z
+  .object({
+    /** Include settled workers finished within this many minutes (default 60). */
+    recentMinutes: z.number().int().min(1).max(1440).optional()
+  })
+  .strict()
+  .optional()

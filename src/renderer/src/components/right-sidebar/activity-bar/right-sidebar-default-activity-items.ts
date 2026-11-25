@@ -4,6 +4,8 @@ import {
   GitBranch,
   House,
   ListChecks,
+  // Fork: icon for background-tasks tab (FORK.md §13).
+  ListTodo,
   MessagesSquare,
   Plug,
   Workflow
@@ -21,7 +23,9 @@ export function getDefaultRightSidebarActivityItems({
   isBot = false,
   showsHomeTab = isBot,
   needsYou = 0,
-  connectorsNeedingOwner = 0
+  connectorsNeedingOwner = 0,
+  // Fork: active background-task count badge (FORK.md §13).
+  activeBackgroundTasks = 0
 }: {
   t: Translate
   explorerShortcut: string
@@ -32,6 +36,7 @@ export function getDefaultRightSidebarActivityItems({
   showsHomeTab?: boolean
   needsYou?: number
   connectorsNeedingOwner?: number
+  activeBackgroundTasks?: number
 }): ActivityBarItem[] {
   return [
     {
@@ -126,6 +131,21 @@ export function getDefaultRightSidebarActivityItems({
       title: t('auto.components.right.sidebar.index.441733b630', 'Ports'),
       shortcut: portsShortcut === 'Unassigned' ? '' : portsShortcut,
       remoteHostOnly: true
+    },
+    // Fork: cross-agent background-task sidebar tab (FORK.md §13).
+    {
+      id: 'background-tasks',
+      icon: ListTodo,
+      title: t('rightSidebar.backgroundTasks.tab', 'Background Tasks'),
+      shortcut: '',
+      ...(activeBackgroundTasks > 0
+        ? {
+            count: activeBackgroundTasks,
+            countLabel: t('rightSidebar.backgroundTasks.activeCount', '{{count}} running', {
+              count: activeBackgroundTasks
+            })
+          }
+        : {})
     }
   ]
 }

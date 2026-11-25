@@ -31477,5 +31477,42 @@
       "badJson": "Check the pasted JSON: it doesn’t parse.",
       "none": "Orca found no server it can add. SSE servers, servers with their own OAuth client or tool filters, and values read from the environment (${VAR}) aren’t supported."
     }
+  },
+  "rightSidebar": {
+    "backgroundTasks": {
+      "tab": "Background Tasks",
+      "activeCount": "{{count}} running",
+      "headerTitle": "Background Tasks",
+      "refresh": "Refresh background tasks",
+      "filterActive": "Active",
+      "filterAll": "All",
+      "filterAgentAll": "All agents",
+      "summaryRunning": "{{count}} running",
+      "summaryWaiting": "{{count}} waiting",
+      "summaryEstToClear": "Est. ~{{duration}} to clear",
+      "emptyActiveTitle": "No background tasks running",
+      "emptyActiveSubtitle": "Active agents and delegated workers across every CLI appear here with estimated ETAs.",
+      "emptyFilteredTitle": "No matching background tasks",
+      "emptyFilteredSubtitle": "Try switching filters or showing completed tasks.",
+      "statusWorking": "Working",
+      "statusBlocked": "Blocked",
+      "statusWaiting": "Waiting",
+      "statusFailed": "Failed",
+      "statusDone": "Done",
+      "elapsed": "Elapsed {{duration}}",
+      "etaCountdown": "~{{duration}} left (est.)",
+      "etaOverrun": "Over typical (est.)",
+      "etaWaiting": "Waiting on input",
+      "etaStalled": "Stalled? (est.)",
+      "etaDone": "Completed",
+      "etaUnknown": "Estimating…",
+      "etaBasisSubagents": "Estimated from subagent progress",
+      "etaBasisHistory": "Estimated from recent turns on this agent",
+      "etaBasisPrior": "Estimated from past {{agent}} completions",
+      "etaBasisDefault": "Rough estimate from typical {{agent}} duration",
+      "stopWorker": "Stop worker",
+      "subagentsProgress": "{{done}}/{{total}} subagents",
+      "untitledTask": "Background task"
+    }
   }
 }

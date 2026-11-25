@@ -430,6 +430,48 @@ CLI, account, and model across `1h`, `5h`, `7d`, `30d`, `90d`, and `all` windows
   `accountUsage:removeEntry`), `agent-usage-api.ts` + `account-usage-bridge.ts`, `UsageOverviewPane.tsx`
   (+1 import, +1 render above `UsageAccountsSection`), `en.json` (`stats.usageWindows.*`).
 
+### 13. Background-task sidebar panel with ETA estimates
+
+Adds a **Background Tasks** right-sidebar panel (`'background-tasks'`) that unifies live agent panes across
+every CLI (`claude`, `kiro`, `codex`, `antigravity`, `mistral-vibe`, `opencode`, and any other agent) with
+durable orchestration workers, complete with explicitly labeled estimated ETAs, subagent progress, click-to-focus,
+and worker stop controls.
+
+- **Durable worker + duration-prior RPC (`delegation.backgroundTasks`):**
+  - Appended at the end of `DELEGATION_METHODS` in `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`
+    (keeping `rpc-method-registry.ts` untouched) with params `DelegationBackgroundTasksParams` in
+    `src/shared/rpc-contract/delegation-params.ts`.
+  - Electron-free query (`src/main/delegation/background-tasks-query.ts`) reads active dispatches plus recently
+    settled dispatches (default 60 minutes) from the orchestration DB (`runtime.getExistingOrchestrationDb()`),
+    extracts `agent`, `model`, and `account` from `worker_dispatches.start_options`, counts mailbox messages per
+    worker, and computes empirical `medianMs` and `p75Ms` duration priors per agent plus a `globalPrior` from up to
+    500 completed dispatches (clamped 5s–4h).
+- **ETA estimation heuristics (`background-task-eta.ts` + `background-task-eta.test.ts`):**
+  - Every estimate is explicitly labeled as an estimate (`~Xm left (est.)`, `Over typical (est.)`,
+    `Waiting on input`, `Stalled? (est.)`) and never renders `0s left` or negative values.
+  - Precedence: terminal `done`/`failed` → `waiting`/`blocked` → stale heartbeat (`>120s` without background wait) →
+    subagent completion-ratio pacing (60/40 blend with prior when `>=2` subagents have partial completion after 5s) →
+    per-pane `stateHistory` working-turn median (60/40 blend with prior) → DB `agentPrior` (`>=2` samples) →
+    `globalPrior` (`>=3` samples) → conservative per-agent defaults (`antigravity: 90s`, `kiro`/`mistral-vibe`/
+    `opencode`: `150s`, `codex`/`claude`: `210s`, fallback `180s`).
+  - Applies stage bounds for early (`launching`/`starting`, capped `<=15%`) and late (`verifying`/`settling`,
+    floored `>=80%`) orchestration stages, and switches to `overrun` past `1.15x` expected duration.
+- **Files:** `src/shared/delegation/background-tasks-types.ts`, `src/main/delegation/background-tasks-query.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/background-task-eta.ts` (+ `background-task-eta.test.ts`),
+  `src/renderer/src/components/right-sidebar/background-tasks/background-task-item.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/background-task-merge.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/use-active-background-task-count.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/use-background-tasks-feed.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/BackgroundTaskCard.tsx`,
+  `src/renderer/src/components/right-sidebar/background-tasks/BackgroundTasksPanel.tsx`.
+- **Hooks into:** `STATIC_RIGHT_SIDEBAR_TABS` (`ui-chrome-types.ts`), `normalizeRightSidebarTab`
+  (`ui-selection-normalization.ts`), `normalizeRightSidebarRoute` (`right-sidebar-route.ts`),
+  `getDefaultRightSidebarActivityItems` (`right-sidebar-default-activity-items.ts` +
+  `activity-bar-arrangement.test.ts`), `useRightSidebarActivityItems` (`use-right-sidebar-activity-items.ts`),
+  `RightSidebarPanelContent` (`right-sidebar-panel-content.tsx`), `delegation-params.ts`,
+  `delegation-methods.ts`, regenerated `rpc-params-catalog.generated.ts`, and `en.json`
+  (`rightSidebar.backgroundTasks.*`).
+
 ### Upstream gate notes (main-process rules)
 
 - Fork main-process code uses only `fs/promises` (upstream's `main-sync-fs` ratchet). The Kiro vault store is

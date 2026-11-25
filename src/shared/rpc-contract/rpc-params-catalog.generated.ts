@@ -389,6 +389,7 @@ import {
 } from './connectors/connector-params'
 import {
   DelegationAdviceParams,
+  DelegationBackgroundTasksParams,
   DelegationRouteParams,
   DelegationUsageParams
 } from './delegation-params'
@@ -1578,6 +1579,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'connector.slackMirror.set': ConnectorSlackMirrorSet,
   'connector.slackMirror.status': ConnectorSlackMirrorStatus,
   'delegation.advice': DelegationAdviceParams,
+  'delegation.backgroundTasks': DelegationBackgroundTasksParams,
   'delegation.preferences': null,
   'delegation.route': DelegationRouteParams,
   'delegation.usage': DelegationUsageParams,

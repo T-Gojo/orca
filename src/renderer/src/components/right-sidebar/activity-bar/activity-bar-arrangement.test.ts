@@ -76,11 +76,27 @@ describe('activity bar arrangement', () => {
   it.each([
     [
       ['explorer', 'plugin:test/panel', 'vault'],
-      ['explorer', 'plugin:test/panel', 'vault', 'workspaces', 'pr-checks', 'source-control']
+      [
+        'explorer',
+        'plugin:test/panel',
+        'vault',
+        'workspaces',
+        'pr-checks',
+        'source-control',
+        'background-tasks'
+      ]
     ],
     [
       ['plugin:test/panel', 'explorer', 'vault'],
-      ['plugin:test/panel', 'explorer', 'vault', 'workspaces', 'pr-checks', 'source-control']
+      [
+        'plugin:test/panel',
+        'explorer',
+        'vault',
+        'workspaces',
+        'pr-checks',
+        'source-control',
+        'background-tasks'
+      ]
     ]
   ])('inserts folder tabs using the production default for saved %j', (saved, expected) => {
     const defaults = getDefaultRightSidebarActivityItems({

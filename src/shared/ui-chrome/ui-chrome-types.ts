@@ -104,7 +104,9 @@ export const STATIC_RIGHT_SIDEBAR_TABS = [
   'bot-activity',
   'bot-automations',
   'bot-connectors',
-  'bot-chats'
+  'bot-chats',
+  // Fork: cross-agent background-task panel with ETA estimates (FORK.md §13).
+  'background-tasks'
 ] as const
 export type StaticRightSidebarTab = (typeof STATIC_RIGHT_SIDEBAR_TABS)[number]
 export type RightSidebarTab =

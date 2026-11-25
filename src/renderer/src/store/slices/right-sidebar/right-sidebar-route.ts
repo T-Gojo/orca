@@ -45,7 +45,9 @@ export function normalizeRightSidebarRoute(
     tab === 'bot-activity' ||
     tab === 'bot-automations' ||
     tab === 'bot-connectors' ||
-    tab === 'bot-chats'
+    tab === 'bot-chats' ||
+    // Fork: background-tasks right-sidebar tab (FORK.md §13).
+    tab === 'background-tasks'
   ) {
     return {
       rightSidebarTab: tab,

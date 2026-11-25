@@ -24,6 +24,8 @@ const PluginPanel = lazy(() => import('./plugin-panels/PluginPanel'))
 const BotActivityPanel = lazy(() => import('../bots/BotActivityPanel'))
 const BotConnectorsPanel = lazy(() => import('../bots/BotConnectorsPanel'))
 const BotChatsPanel = lazy(() => import('../bots/BotChatsPanel'))
+// Fork: cross-agent background-task sidebar panel with ETA estimates (FORK.md §13).
+const BackgroundTasksPanel = lazy(() => import('./background-tasks/BackgroundTasksPanel'))
 
 type RightSidebarPanelContentProps = {
   effectiveTab: ActiveRightSidebarTab
@@ -77,6 +79,12 @@ export function RightSidebarPanelContent({
         {effectiveTab === 'bot-activity' && <BotActivityPanel />}
         {effectiveTab === 'bot-connectors' && <BotConnectorsPanel />}
         {effectiveTab === 'bot-chats' && <BotChatsPanel />}
+        {/* Fork: cross-agent background-task sidebar panel with ETA estimates (FORK.md §13). */}
+        {effectiveTab === 'background-tasks' && (
+          <BackgroundTasksPanel
+            isVisible={rightSidebarOpen && effectiveTab === 'background-tasks'}
+          />
+        )}
         {/* Remount on plugin changes so an old iframe cannot post through the next plugin's rebound bridge. */}
         {isPluginPanelTabKey(effectiveTab) && (
           <PluginPanel key={effectiveTab} tabKey={effectiveTab} />
