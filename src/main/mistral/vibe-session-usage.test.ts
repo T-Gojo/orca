@@ -123,15 +123,52 @@ describe('collectMistralVibeUsage', () => {
           session: 'org-a+user-a',
           buckets: [
             {
-              // The highest cumulative record is the session total; its updatedAt names the day.
+              day: '2024-06-14',
+              model: 'zai-glm-5-3',
+              inputTokens: 80,
+              outputTokens: 50,
+              cacheTokens: 20,
+              reasoningTokens: 0,
+              totalTokens: 150,
+              activity: 1,
+              credits: 0,
+              costUsd: null
+            },
+            {
               day: '2024-06-15',
               model: 'zai-glm-5-3',
-              inputTokens: 120,
-              outputTokens: 120,
-              cacheTokens: 80,
+              inputTokens: 40,
+              outputTokens: 70,
+              cacheTokens: 60,
               reasoningTokens: 0,
-              totalTokens: 320,
-              activity: 2,
+              totalTokens: 170,
+              activity: 1,
+              credits: 0,
+              costUsd: null
+            }
+          ],
+          hourlyBuckets: [
+            {
+              hour: '2024-06-14T12',
+              model: 'zai-glm-5-3',
+              inputTokens: 80,
+              outputTokens: 50,
+              cacheTokens: 20,
+              reasoningTokens: 0,
+              totalTokens: 150,
+              activity: 1,
+              credits: 0,
+              costUsd: null
+            },
+            {
+              hour: '2024-06-15T12',
+              model: 'zai-glm-5-3',
+              inputTokens: 40,
+              outputTokens: 70,
+              cacheTokens: 60,
+              reasoningTokens: 0,
+              totalTokens: 170,
+              activity: 1,
               credits: 0,
               costUsd: null
             }
@@ -172,6 +209,20 @@ describe('collectMistralVibeUsage', () => {
           buckets: [
             {
               day: '2024-06-16',
+              model: 'mistral-medium-latest',
+              inputTokens: 20,
+              outputTokens: 5,
+              cacheTokens: 10,
+              reasoningTokens: 0,
+              totalTokens: 35,
+              activity: 1,
+              credits: 0,
+              costUsd: null
+            }
+          ],
+          hourlyBuckets: [
+            {
+              hour: '2024-06-16T09',
               model: 'mistral-medium-latest',
               inputTokens: 20,
               outputTokens: 5,

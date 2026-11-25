@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { UsageSourceRollup } from '../../shared/account-usage-ledger-types'
 import { getLocalUsageDay } from '../usage/reporting/range-query/usage-calendar-range'
+import { toUtcHourKey } from '../usage/account-usage-hourly-model'
 import { SourceRollupBuilder } from '../usage/usage-source-rollups'
 
 // Tokens each Mistral Vibe session used, from the session journals mistral-vibe writes
@@ -83,16 +84,18 @@ function stampOf(paths: readonly string[]): string {
   return paths.map((path) => statSync(path, { throwIfNoEntry: false })?.mtimeMs ?? 0).join(':')
 }
 
-/** Token counters of one session: the highest any journal segment shows, plus how many writes were metered. */
-function usageOfSession(dir: string): { usage: MeteredUsage; activity: number } | null {
+/** One session's usage split chronologically into day and UTC-hour deltas across journal segments. */
+function rollupOfSession(dir: string, sessionId: string): UsageSourceRollup[] {
   let segments: string[]
   try {
     segments = readdirSync(join(dir, 'journal')).filter((name) => name.endsWith('.jsonl'))
   } catch {
-    return null
+    return []
   }
-  let highest: MeteredUsage | null = null
-  let activity = 0
+  const model = modelOfSession(dir)
+  const session = accountBucketOfSession(dir)
+  const builder = new SourceRollupBuilder()
+  const high = { cached: 0, input: 0, output: 0 }
   for (const segment of segments.sort()) {
     const text = readFileSync(join(dir, 'journal', segment), 'utf8')
     for (const line of text.split('\n')) {
@@ -107,48 +110,45 @@ function usageOfSession(dir: string): { usage: MeteredUsage; activity: number } 
         continue
       }
       const usage = tokenUsageOf(record)
-      if (!usage) {
+      if (!usage || usage.updatedAt <= 0) {
         continue
       }
-      activity += 1
-      if (!highest || usage.total > highest.total) {
-        highest = usage
+      const day = getLocalUsageDay(new Date(usage.updatedAt).toISOString())
+      const hour = toUtcHourKey(usage.updatedAt)
+      if (!day || !hour) {
+        continue
       }
+      const dCached = Math.max(usage.cached - high.cached, 0)
+      const dInput = Math.max(usage.input - high.input, 0)
+      const dOutput = Math.max(usage.output - high.output, 0)
+      high.cached = Math.max(high.cached, usage.cached)
+      high.input = Math.max(high.input, usage.input)
+      high.output = Math.max(high.output, usage.output)
+      // Why the split: mistral-vibe's inputTokens include cached tokens, and totalTokens leave them out.
+      const cacheTokens = Math.min(dCached, dInput)
+      const inputTokens = dInput - cacheTokens
+      const totalTokens = inputTokens + dOutput + cacheTokens
+      if (totalTokens <= 0) {
+        continue
+      }
+      builder.add(
+        { source: sessionId, home: null, session },
+        {
+          day,
+          model,
+          inputTokens,
+          outputTokens: dOutput,
+          cacheTokens,
+          reasoningTokens: 0,
+          totalTokens,
+          activity: 1,
+          credits: 0,
+          costUsd: null
+        },
+        hour
+      )
     }
   }
-  return highest ? { usage: highest, activity } : null
-}
-
-/** One session's usage as a single source rollup, built like kiro-cli's session rollups. */
-function rollupOfSession(dir: string, sessionId: string): UsageSourceRollup[] {
-  const metered = usageOfSession(dir)
-  if (!metered || metered.usage.updatedAt <= 0) {
-    return []
-  }
-  const day = getLocalUsageDay(new Date(metered.usage.updatedAt).toISOString())
-  if (!day) {
-    return []
-  }
-  const model = modelOfSession(dir)
-  const builder = new SourceRollupBuilder()
-  const cacheTokens = Math.min(metered.usage.cached, metered.usage.input)
-  // Why the split: mistral-vibe's inputTokens include the cached ones, and its totalTokens leave
-  // them out, so non-cached input + output + cache is both totals.
-  builder.add(
-    { source: sessionId, home: null, session: accountBucketOfSession(dir) },
-    {
-      day,
-      model,
-      inputTokens: metered.usage.input - cacheTokens,
-      outputTokens: metered.usage.output,
-      cacheTokens,
-      reasoningTokens: 0,
-      totalTokens: metered.usage.input - cacheTokens + metered.usage.output + cacheTokens,
-      activity: metered.activity,
-      credits: 0,
-      costUsd: null
-    }
-  )
   return builder.build()
 }
 

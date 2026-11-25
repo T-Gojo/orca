@@ -23,6 +23,11 @@ import type {
   AccountUsageLedgerSnapshot
 } from '../../../shared/account-usage-ledger-types'
 import type {
+  AccountUsageRemoveTarget,
+  AccountUsageWindow,
+  AccountUsageWindowsSnapshot
+} from '../../../shared/account-usage-windows-types'
+import type {
   CodexRateLimitResetResult,
   RateLimitRuntimeTarget,
   RateLimitState,
@@ -74,6 +79,13 @@ export type AccountUsageApi = {
   getSnapshot: (args: { range: AccountUsageLedgerRange }) => Promise<AccountUsageLedgerSnapshot>
   /** Read every agent's logs now, then answer like getSnapshot. */
   refresh: (args: { range: AccountUsageLedgerRange }) => Promise<AccountUsageLedgerSnapshot>
+  // Fork: usage windows ledger (FORK.md §12).
+  getWindowsSnapshot: (args: { window: AccountUsageWindow }) => Promise<AccountUsageWindowsSnapshot>
+  refreshWindows: (args: { window: AccountUsageWindow }) => Promise<AccountUsageWindowsSnapshot>
+  removeEntry: (args: {
+    target: AccountUsageRemoveTarget
+    window: AccountUsageWindow
+  }) => Promise<AccountUsageWindowsSnapshot>
 }
 
 export type RateLimitsApi = {

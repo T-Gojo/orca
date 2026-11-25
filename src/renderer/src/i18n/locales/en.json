@@ -27241,6 +27241,33 @@
       "accountCount_other": "{{count}} accounts",
       "subtitle": "Usage per account, kept after an account is removed · {{range}}"
     },
+    "usageWindows": {
+      "title": "Usage Windows",
+      "subtitle": "Tracked per hour, 5h, week and all time — stored until manually removed",
+      "windowSelector": "Usage window",
+      "window1h": "1h",
+      "window5h": "5h",
+      "window7d": "7d",
+      "window30d": "30d",
+      "window90d": "90d",
+      "windowAll": "All",
+      "summaryWeek": "Week (7d)",
+      "summaryAll": "All time",
+      "refresh": "Refresh usage windows",
+      "hourlyTitle": "Hourly tokens",
+      "input": "Input",
+      "output": "Output",
+      "cache": "Cache",
+      "total": "Total",
+      "cliAccountColumn": "CLI / Account",
+      "tokenSplit": "In {{in}} · Out {{out}} · Cache {{cache}}",
+      "hourlyTooltip": "{{time}} · Total {{total}} · In {{in}} · Out {{out}} · Cache {{cache}}",
+      "empty": "No usage recorded in this window yet.",
+      "removeAccount": "Remove stored usage for {{account}}",
+      "removeModel": "Remove stored usage for {{model}}",
+      "confirmRemove": "Remove",
+      "cancelRemove": "Cancel"
+    },
     "usageProviders": {
       "toggle": "Show {{provider}} details"
     }

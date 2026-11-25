@@ -1,3 +1,5 @@
+import type { AccountUsageHourlyBucket } from './account-usage-windows-types' // Fork: (FORK.md §12).
+
 export const ACCOUNT_USAGE_PROVIDERS = [
   'claude',
   'codex',
@@ -36,6 +38,8 @@ export type UsageSourceRollup = {
   /** The agent's own session id, used to find which account ran it. */
   session: string | null
   buckets: AccountUsageBucket[]
+  /** Fork: UTC-hour buckets for 1h/5h/7d windows when the scanner records timestamps (FORK.md §12). */
+  hourlyBuckets?: AccountUsageHourlyBucket[]
 }
 
 /** Usage that was already logged when Orca started tracking, with no way to tell whose it was. */

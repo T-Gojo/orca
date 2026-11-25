@@ -13,6 +13,7 @@ import { DailyIntensityGrid, ProviderUsageRow, TokenMixBar } from './usage-overv
 import { getIntlLocale, translate } from '@/i18n/i18n'
 import { useIntlLocale, useTranslate, type Translate } from '@/i18n/use-translate'
 import { UsageAccountsSection } from './UsageAccountsSection'
+import { UsageWindowsSection } from './UsageWindowsSection' // Fork: usage windows ledger (FORK.md §12).
 import { useAccountUsageSnapshot } from './use-account-usage-snapshot'
 
 const RECENT_DAY_COUNT = 42
@@ -367,6 +368,8 @@ export function UsageOverviewPane(): React.JSX.Element {
         </div>
       </section>
 
+      {/* Fork: usage windows ledger (FORK.md §12). */}
+      {isLocalHost ? <UsageWindowsSection /> : null}
       {isLocalHost ? <UsageAccountsSection /> : null}
     </div>
   )

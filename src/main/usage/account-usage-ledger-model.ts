@@ -10,19 +10,30 @@ import {
   ACCOUNT_USAGE_PROVIDERS,
   UNATTRIBUTED_ACCOUNT_KEY
 } from '../../shared/account-usage-ledger-types'
+import type { AccountUsageHourlyBucket } from '../../shared/account-usage-windows-types'
+import { recordHourlyForSource } from './account-usage-hourly-model'
 import { addBuckets, bucketKey } from './usage-source-rollups'
 import { getUsageRangeCutoff } from './reporting/range-query/usage-calendar-range'
 
 type BucketMap = Record<string, AccountUsageBucket>
+type HourlyBucketMap = Record<string, AccountUsageHourlyBucket>
 
 type LedgerSource = {
   /** Account the source's latest growth was credited to. */
   owner: string
   /** Highest totals seen; anything at or below them was already credited. */
   seen: BucketMap
+  /** Fork: highest UTC-hour totals seen per source (FORK.md §12). */
+  seenHourly?: HourlyBucketMap
 }
 
-type LedgerAccount = { label: string | null; buckets: BucketMap; sources: string[] }
+type LedgerAccount = {
+  label: string | null
+  buckets: BucketMap
+  sources: string[]
+  /** Fork: UTC-hour totals accumulated for 1h/5h/7d windows (FORK.md §12). */
+  hourly?: HourlyBucketMap
+}
 
 type ProviderLedger = {
   sources: Record<string, LedgerSource>
@@ -118,13 +129,16 @@ export function recordSourceRollups(
     const resolved = resolve(rollup)
     const owner = chooseOwner(prior, resolved, baseline)
     const seen = { ...prior?.seen }
+    const seenHourly = { ...prior?.seenHourly }
     const existing = accounts[owner]
+    const accountHourly = { ...existing?.hourly }
     const account: LedgerAccount = {
       label: existing?.label ?? null,
       buckets: { ...existing?.buckets },
       sources: existing?.sources ?? []
     }
     let credited = false
+    const dayDeltas: AccountUsageBucket[] = []
     for (const bucket of rollup.buckets) {
       const key = bucketKey(bucket)
       const { delta, highest, grew } = growth(bucket, seen[key])
@@ -133,11 +147,28 @@ export function recordSourceRollups(
         account.buckets[key] = account.buckets[key]
           ? addBuckets(account.buckets[key], delta)
           : delta
+        dayDeltas.push(delta)
         credited = true
       }
     }
-    sources[rollup.source] = { owner, seen }
+    const hourlyCredited = recordHourlyForSource(
+      accountHourly,
+      seenHourly,
+      rollup.hourlyBuckets,
+      dayDeltas,
+      baseline,
+      now
+    )
+    credited ||= hourlyCredited
+    sources[rollup.source] = {
+      owner,
+      seen,
+      ...(Object.keys(seenHourly).length > 0 ? { seenHourly } : {})
+    }
     if (credited || existing) {
+      if (Object.keys(accountHourly).length > 0) {
+        account.hourly = accountHourly
+      }
       if (owner !== UNATTRIBUTED_ACCOUNT_KEY && owner === resolved.accountKey) {
         account.label = resolved.label ?? account.label
       }

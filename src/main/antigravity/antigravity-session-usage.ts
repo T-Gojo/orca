@@ -9,6 +9,7 @@ import {
   protoVarint,
   readProtoFields
 } from '../usage/protobuf-wire-reader'
+import { toUtcHourKey } from '../usage/account-usage-hourly-model'
 import { SourceRollupBuilder } from '../usage/usage-source-rollups'
 
 // agy keeps each conversation in its own SQLite file; the IDE folder is read too for older installs.
@@ -89,7 +90,8 @@ function readConversation(path: string, builder: SourceRollupBuilder): void {
           activity: 1,
           credits: 0,
           costUsd: null
-        }
+        },
+        toUtcHourKey(seconds * 1000)
       )
     }
   } finally {

@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountUsageBucket, UsageSourceRollup } from '../../shared/account-usage-ledger-types'
 import { getLocalUsageDay } from '../usage/reporting/range-query/usage-calendar-range'
+import { toUtcHourKey } from '../usage/account-usage-hourly-model'
 import { SourceRollupBuilder } from '../usage/usage-source-rollups'
 
 type TurnRecord = Record<string, unknown>
@@ -74,12 +75,13 @@ function turnBucket(
   previousContext: number | null,
   window: number,
   assistantChars: Map<string, number>
-): { bucket: AccountUsageBucket; context: number } | null {
+): { bucket: AccountUsageBucket; hour: string | null; context: number } | null {
   const ended = typeof turn.end_timestamp === 'string' ? turn.end_timestamp : null
   const day = ended ? getLocalUsageDay(ended) : null
   if (!day) {
     return null
   }
+  const hour = ended ? toUtcHourKey(ended) : null
   const metering = Array.isArray(turn.metering_usage) ? turn.metering_usage : []
   const credits = metering
     .filter(isRecord)
@@ -118,6 +120,7 @@ function turnBucket(
   const cacheTokens = hasLogged ? logged.cache : Math.max(promptTokens - newInput, 0)
   return {
     context,
+    hour,
     bucket: {
       day,
       model: typeof turn.model === 'string' ? turn.model : null,
@@ -172,7 +175,7 @@ export function collectKiroCliUsage(kiroHome = join(homedir(), '.kiro')): UsageS
       for (const turn of turnsOf(session)) {
         const read = turnBucket(turn, previousContext, window, chars)
         if (read) {
-          builder.add({ source: sessionId, home: null, session: sessionId }, read.bucket)
+          builder.add({ source: sessionId, home: null, session: sessionId }, read.bucket, read.hour)
           previousContext = read.context
         }
       }

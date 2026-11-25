@@ -7,11 +7,18 @@ import type {
   AccountUsageProvider,
   UsageSourceRollup
 } from '../../shared/account-usage-ledger-types'
+import type {
+  AccountUsageRemoveTarget,
+  AccountUsageWindow,
+  AccountUsageWindowsSnapshot
+} from '../../shared/account-usage-windows-types'
 import {
   SYSTEM_DEFAULT_ACCOUNT_KEY,
   UNATTRIBUTED_ACCOUNT_KEY
 } from '../../shared/account-usage-ledger-types'
 import { durableWriteTempPath, writeFileDurable } from '../filesystem/durable-file-write'
+import { removeAccountUsageEntry } from './account-usage-hourly-model'
+import { summarizeAccountUsageWindows } from './account-usage-windows-summary'
 import {
   dailyAccountUsage,
   emptyAccountUsageLedger,
@@ -132,5 +139,45 @@ export class AccountUsageLedger {
       ),
       daily: dailyAccountUsage(this.state, range)
     }
+  }
+
+  /** Fork: usage windows ledger snapshot (1h/5h/7d/30d/90d/all) (FORK.md §12). */
+  async getWindowsSnapshot(window: AccountUsageWindow): Promise<AccountUsageWindowsSnapshot> {
+    await this.loaded
+    await this.records
+    return summarizeAccountUsageWindows(
+      this.state,
+      window,
+      (provider, key) => this.isSaved(provider, key),
+      Date.now()
+    )
+  }
+
+  /** Fork: manually removes one account or model's stored totals without resetting seen marks. */
+  removeEntry(
+    target: AccountUsageRemoveTarget,
+    window: AccountUsageWindow
+  ): Promise<AccountUsageWindowsSnapshot> {
+    const next = this.records.then(async () => {
+      await this.loaded
+      const now = Date.now()
+      this.state = removeAccountUsageEntry(this.state, target, now)
+      const payload = JSON.stringify(this.state)
+      this.writes = this.writes
+        .catch(() => {})
+        .then(() => writeFileDurable(durableWriteTempPath(this.file), this.file, payload))
+      await this.writes.catch((error) => console.warn('[account-usage] Could not save:', error))
+      return summarizeAccountUsageWindows(
+        this.state,
+        window,
+        (provider, key) => this.isSaved(provider, key),
+        now
+      )
+    })
+    this.records = next.then(
+      () => {},
+      () => {}
+    )
+    return next
   }
 }

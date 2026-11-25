@@ -395,6 +395,41 @@ on top, without touching upstream's account plumbing.
   (both resolved through upstream's key tiers over each account's env). Preferences: `agentOrder`
   default ends with `opencode`, profile tier `standard` merges in on read like mistral-vibe's.
 
+### 12. Usage windows ledger (1h / 5h / weekly / all-time)
+
+Extends the local per-account usage ledger (`orca-account-usage-ledger.json`, kept at schema `version: 2`)
+with UTC-hour buckets (`'YYYY-MM-DDTHH'`) and per-model breakdowns so Stats & Usage tracks token usage per
+CLI, account, and model across `1h`, `5h`, `7d`, `30d`, `90d`, and `all` windows — stored until manually removed.
+
+- **Hourly bucketing:**
+  - Timestamped scanners (`vibe-session-usage.ts`, `kiro-cli-session-usage.ts`, `antigravity-session-usage.ts`)
+    emit exact `hourlyBuckets` through `SourceRollupBuilder` (`usage-source-rollups.ts`). Mistral Vibe walks
+    journal segments chronologically with monotonic high-water marks so multi-hour sessions split into exact
+    per-hour deltas whose sum equals the session total.
+  - Day-only scanners (Claude, Codex, OpenCode) stamp non-baseline positive daily deltas into the current UTC
+    hour (`recordHourlyForSource` in `account-usage-hourly-model.ts`); baseline collections skip hourly stamping
+    so pre-existing logs do not spike `1h`.
+  - Window cutoffs: `1h` = current UTC hour (1 bucket), `5h` = last 5 UTC hours (`now - 4h..now`); `7d`/`30d`/
+    `90d`/`all` aggregate from daily `account.buckets` so pre-existing v2 daily history is preserved 100%.
+  - Fixed OpenCode cache double-counting in `account-usage-buckets.ts` (`cachedInputTokens` already includes
+    `cacheWriteInputTokens`).
+- **Manual removal without re-crediting:** `removeAccountUsageEntry` deletes either a single model's buckets
+  or an entire account's stored buckets/hourly history while leaving `providers[provider].sources` (`seen` and
+  `seenHourly`) intact, so existing logs on disk never re-credit removed history on subsequent refreshes, while
+  genuinely new usage above those high-water marks is credited normally.
+- **Files:** `src/shared/account-usage-windows-types.ts`, `src/main/usage/account-usage-hourly-model.ts`,
+  `src/main/usage/account-usage-windows-summary.ts`, `src/main/usage/account-usage-windows.test.ts`,
+  `src/renderer/src/components/stats/use-account-usage-windows.ts`,
+  `src/renderer/src/components/stats/UsageHourlyChart.tsx`,
+  `src/renderer/src/components/stats/UsageWindowsAccountRow.tsx`,
+  `src/renderer/src/components/stats/UsageWindowsSection.tsx`.
+- **Hooks into:** `account-usage-ledger-types.ts` (`hourlyBuckets?`), `usage-source-rollups.ts` (optional `hour`
+  arg on `SourceRollupBuilder.add`), `account-usage-ledger-model.ts` (`seenHourly?`, `hourly?`,
+  `recordHourlyForSource`), `account-usage-ledger.ts` (`getWindowsSnapshot`, `removeEntry`),
+  `account-usage-desktop.ts` (`accountUsage:getWindowsSnapshot`, `accountUsage:refreshWindows`,
+  `accountUsage:removeEntry`), `agent-usage-api.ts` + `account-usage-bridge.ts`, `UsageOverviewPane.tsx`
+  (+1 import, +1 render above `UsageAccountsSection`), `en.json` (`stats.usageWindows.*`).
+
 ### Upstream gate notes (main-process rules)
 
 - Fork main-process code uses only `fs/promises` (upstream's `main-sync-fs` ratchet). The Kiro vault store is

@@ -37,7 +37,8 @@ export function codexAggregateBucket(row: CodexUsageDailyAggregate): AccountUsag
 }
 
 export function openCodeAggregateBucket(row: OpenCodeUsageDailyAggregate): AccountUsageBucket {
-  const cacheTokens = row.cachedInputTokens + (row.cacheWriteInputTokens ?? 0)
+  // Fork: parseOpenCodeUsageRow already folds cache.write into cachedInputTokens (FORK.md §12).
+  const cacheTokens = row.cachedInputTokens
   return {
     day: row.day,
     model: row.model,

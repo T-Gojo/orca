@@ -1,5 +1,7 @@
 import { basename, dirname, sep } from 'node:path'
 import type { AccountUsageBucket, UsageSourceRollup } from '../../shared/account-usage-ledger-types'
+import type { AccountUsageHourlyBucket } from '../../shared/account-usage-windows-types'
+import { addHourlyBuckets, hourlyBucketKey } from './account-usage-hourly-model'
 
 type RolledFile<Aggregate> = { path: string; dailyAggregates: Aggregate[] }
 
@@ -30,26 +32,54 @@ export function addBuckets(
   }
 }
 
-/** Merges rows that share a source and a day/model bucket. */
+/** Merges rows that share a source and a day/model (or hour/model) bucket. */
 export class SourceRollupBuilder {
   private readonly bySource = new Map<
     string,
-    { home: string | null; session: string | null; buckets: Map<string, AccountUsageBucket> }
+    {
+      home: string | null
+      session: string | null
+      buckets: Map<string, AccountUsageBucket>
+      hourlyBuckets: Map<string, AccountUsageHourlyBucket>
+    }
   >()
 
   add(
     source: { source: string; home: string | null; session: string | null },
-    bucket: AccountUsageBucket
+    bucket: AccountUsageBucket,
+    hour?: string | null
   ): void {
     const entry = this.bySource.get(source.source) ?? {
       home: source.home,
       session: source.session,
-      buckets: new Map<string, AccountUsageBucket>()
+      buckets: new Map<string, AccountUsageBucket>(),
+      hourlyBuckets: new Map<string, AccountUsageHourlyBucket>()
     }
     this.bySource.set(source.source, entry)
     const key = bucketKey(bucket)
     const existing = entry.buckets.get(key)
     entry.buckets.set(key, existing ? addBuckets(existing, bucket) : bucket)
+    if (hour) {
+      const hourly: AccountUsageHourlyBucket = {
+        hour,
+        model: bucket.model,
+        inputTokens: bucket.inputTokens,
+        outputTokens: bucket.outputTokens,
+        cacheTokens: bucket.cacheTokens,
+        reasoningTokens: bucket.reasoningTokens,
+        totalTokens: bucket.totalTokens,
+        activity: bucket.activity,
+        credits: bucket.credits,
+        costUsd: bucket.costUsd,
+        ...(bucket.estimated ? { estimated: true } : {})
+      }
+      const hKey = hourlyBucketKey(hourly)
+      const existingHourly = entry.hourlyBuckets.get(hKey)
+      entry.hourlyBuckets.set(
+        hKey,
+        existingHourly ? addHourlyBuckets(existingHourly, hourly) : hourly
+      )
+    }
   }
 
   build(): UsageSourceRollup[] {
@@ -57,7 +87,8 @@ export class SourceRollupBuilder {
       source,
       home: entry.home,
       session: entry.session,
-      buckets: [...entry.buckets.values()]
+      buckets: [...entry.buckets.values()],
+      ...(entry.hourlyBuckets.size > 0 ? { hourlyBuckets: [...entry.hourlyBuckets.values()] } : {})
     }))
   }
 }
