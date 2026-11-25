@@ -12,11 +12,11 @@ const Agent = z.enum(DELEGATION_AGENTS)
 const Models = z.partialRecord(Agent, z.string().min(1).max(200))
 
 const PreferencesSchema = z.object({
-  // Fork: mistral-vibe goes last, matching its append-only spot in DELEGATION_AGENTS (FORK.md §8).
+  // Fork: opencode goes last, matching its append-only spot in DELEGATION_AGENTS (FORK.md §8).
   agentOrder: z
     .array(Agent)
     .min(1)
-    .default(['antigravity', 'kiro', 'codex', 'claude', 'mistral-vibe']),
+    .default(['antigravity', 'kiro', 'codex', 'claude', 'mistral-vibe', 'opencode']),
   models: Models.default({}),
   maxUsedPercent: z.number().min(1).max(100).default(90),
   kinds: z
@@ -46,7 +46,9 @@ const DEFAULT_PROFILES: DelegationPreferences['profiles'] = {
   codex: { tier: 'strong', note: 'OpenAI Codex' },
   claude: { tier: 'strong', note: 'Claude Code, another account' },
   // Fork: same tier as kiro; merged into preference files saved before it too (FORK.md §8).
-  'mistral-vibe': { tier: 'standard', note: 'Mistral Vibe' }
+  'mistral-vibe': { tier: 'standard', note: 'Mistral Vibe' },
+  // Fork: OpenCode delegates on its own saved accounts (FORK.md §8); tier merges in on read.
+  opencode: { tier: 'standard', note: 'OpenCode' }
 }
 
 export const DEFAULT_DELEGATION_PREFERENCES: DelegationPreferences = PreferencesSchema.parse({
@@ -82,7 +84,7 @@ export async function readDelegationPreferences(
       `${path} is not valid delegation preferences: ${parsed.error.issues[0]?.message ?? 'invalid'}`
     )
   }
-  // Fork: profiles merge so files saved before mistral-vibe still get its tier, but agentOrder is
-  // the user's own list: add "mistral-vibe" (or delete agentOrder) to delegate to it (FORK.md §8).
+  // Fork: profiles merge so files saved before opencode still get its tier, but agentOrder is
+  // the user's own list: add "opencode" to it (or delete agentOrder) to delegate to it (FORK.md §8).
   return { ...parsed.data, profiles: { ...DEFAULT_PROFILES, ...parsed.data.profiles } }
 }

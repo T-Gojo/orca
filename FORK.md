@@ -145,13 +145,14 @@ login, rebuild the seeding from FORK.md history (`git log -- fork/FORK.md`).
   `codex-accounts/runtime-home/routing/runtime-home-service-launch.ts` and `codex/configuration/homes/codex-pane-account-registry*`,
   plus the right-click "Change account" menu in `ChangeAccountMenuItems.tsx`.
 
-### 8. Cross-agent delegation (Claude → Antigravity, Kiro, Codex, Mistral Vibe) with usage-aware accounts
+### 8. Cross-agent delegation (Claude → Antigravity, Kiro, Codex, Mistral Vibe, OpenCode) with usage-aware accounts
 
 A coordinator agent (usually Claude Code in an Orca terminal) hands self-contained tasks to other
 agents as Orca orchestration workers, on whichever saved account has usage left, then verifies the
 result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `send`, retries).
 
-- **`worker-start --account <id|email|system|auto>`** (agents: claude, codex, antigravity, kiro, mistral-vibe;
+- **`worker-start --account <id|email|system|auto>`** (agents: claude, codex, antigravity, kiro,
+  mistral-vibe, opencode;
   existing workspaces only, not `--on`/`--terminal`/`new-child`/`new-top-level`):
   - claude/codex: the existing per-terminal pin env (`ORCA_PIN_CLAUDE_ACCOUNT` /
     `ORCA_PIN_CODEX_ACCOUNT`).
@@ -160,6 +161,12 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     workers on different accounts are isolated with no overlay home (and no Windows refusal). `system`
     injects nothing: the machine default key (env, `.env`, keychain) wins. `ORCA_DELEGATION_WORKER=1`
     is added for mistral workers like every other agent.
+  - opencode: upstream's managed data accounts are the accounts (FORK.md §11) — the worker env carries
+    `ORCA_DATA_ACCOUNT_ID=<id>`, upstream's own per-launch store request, which the pty host-env
+    assembly turns into that account's XDG overlay (`ManagedDataAccountService.environmentForAccount`).
+    `system` asks for the machine's own store (`ORCA_DATA_ACCOUNT_ID=system`), which matters when a
+    saved account is active: without it the active account's overlay would apply. Env only, so
+    Windows is fine. See §11 for the accounts, rows and pins.
   - antigravity/kiro keep ONE machine-wide login, so a worker gets a private `HOME` overlay
     (`userData/delegation-homes/<agent>/<accountId>/home`): symlinks to every entry of the real
     home except the agent's login location, which holds that account's saved login —
@@ -181,6 +188,10 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     saved account (unread usage, no env injected). Profile tier `standard` like kiro. Preferences
     files saved before mistral-vibe keep their own `agentOrder`: add `"mistral-vibe"` to it (or delete
     `agentOrder`) to delegate to it; its profile tier merges in on read.
+  - opencode rows: one per saved managed account (label = its saved display name, matched by it for
+    `--account <name>`), used % per window from the per-account probe (`rateLimits.openCodeAccounts`,
+    FORK.md §11), plus a `system` row only when the machine store's own Go key matches no saved
+    account's key (unread usage). Profile tier `standard`; `agentOrder` behaves like mistral-vibe's.
 - **Auto-delegation (on by default):** `fork/hooks/orca-auto-delegation.sh` is a `UserPromptSubmit`
   hook for every coordinator CLI (Claude Code `~/.claude/settings.json`, Codex `~/.codex/hooks.json`,
   Kiro `~/.kiro/hooks/orca-auto-delegation.json`; registered by `fork.sh install` or
@@ -195,7 +206,7 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     rate since the window started projects when it runs out. Windows resetting within 20 minutes
     count as nothing at risk; a reading older than its reset counts as a fresh window.
   - Routing (`delegation-route.ts`): agents at or above the task's `--tier` (preferences `profiles`:
-    antigravity light, kiro and mistral-vibe standard, codex and claude strong), quota that resets unused first, then
+    antigravity light, kiro, mistral-vibe and opencode standard, codex and claude strong), quota that resets unused first, then
     usable share; exact tier and preferred order break near-ties. A Claude Code session's own
     account (from `CLAUDE_CONFIG_DIR` = `claude-profiles/<id>`) is never offered; the user's other
     Claude accounts are strong workers.
@@ -348,6 +359,41 @@ key per account in an encrypted vault; using one is per-terminal env pinning, ne
   `applyMistralTerminalAccountPin` injects `MISTRAL_API_KEY=<saved key>` and strips the hint; WSL drops it,
   an unresolvable id refuses like Claude's pin. Accounts pane + search hooks: `AccountsPane.tsx` (+1 import,
   +1 render after Kiro) and `settings-navigation-capability-sections.ts` (+1 search-entries merge).
+
+### 11. OpenCode delegation and account pins (upstream's managed data accounts)
+
+Upstream already gives OpenCode multiple accounts: `ManagedDataAccountService` (providers 'opencode'/'devin',
+`userData/managed-data-accounts`) stores each account's data home and exposes
+`environmentForAccount('opencode', id)` → `{XDG_DATA_HOME, XDG_STATE_HOME, OPENCODE_DB: 'opencode.db',
+OPENCODE_AUTH_CONTENT: ''}`, applied to launches by `applyManagedDataAccountEnvironment`
+(`managed-data-accounts/launch-environment.ts`), which honors the per-launch store request
+`ORCA_DATA_ACCOUNT_ID` (id or `system`). This fork adds per-terminal account choice and delegation rows
+on top, without touching upstream's account plumbing.
+
+- **Per-account usage rows:** every row — the active account included — is read with that account's own
+  key: the probe (`src/main/rate-limits/opencode-account-usage-probe.ts`, fork-owned) builds the account's
+  env (`environmentForAccount`) and reuses upstream's `fetchOpenCodeGoUsage` keyed path, so a row never
+  borrows the active account's reading (upstream's live `opencode-go` meter keeps its own resolution).
+  The tracker/cache mirrors Mistral's (`SavedAccountUsageTracker('opencode-go', …,
+  `userData/opencode-go-accounts/usage-cache.json`), fork partial `RateLimitServiceOpenCodeAccounts`appended to`service-mistral-accounts.ts`, one poll-trigger line in `service-full-cycle-preparation.ts`,
+  reader + probe wired in `saved-account-usage-wiring.ts`), publishing as `openCodeAccounts`beside`mistralAccounts`in`rate-limit-types.ts`. Roster/stats: `use-status-bar-controller.ts`(+1 line) →`usage-roster-saved-accounts.tsx` (`opencode-go`branch, rows under the live meter row) and`usage-account-limits-model.ts` (`opencode-go`moves from single-account providers to`savedAccountRows(...)` with the live meter as fallback). Key resolution reuses upstream's sync
+  SQLite/DB reads; fingerprints for the system-row match are cached 10 minutes (kiro-whoami precedent).
+- **Per-terminal pin:** the picker and hand-off offer the managed accounts through
+  `useOpenCodeLaunchAccounts` (`use-openencode-launch-accounts.ts`, kiro's >=2-accounts rule, System
+  default first, `accounts.listData` RPC), wired pin-side in `agent-row-launch-accounts.tsx` and
+  `ContinuationAccountSelect.tsx` (both opencode and opencode2). The launch encodes
+  `ORCA_PIN_OPENCODE_ACCOUNT` (`agent-terminal-account-pin.ts` union + `agent-terminal-account-pins.ts`
+  branch); main consumes it at the mistral pin's site in `spawn-host-env.ts`:
+  `applyOpenCodeTerminalAccountPin` (`src/main/opencode/opencode-terminal-account-pin.ts`) validates the
+  id and sets `ORCA_DATA_ACCOUNT_ID` (upstream applies the overlay), `system-default` becomes the
+  `system` store request, WSL drops it, an unresolvable id refuses like Claude's pin. `spawn-host-env.ts`
+  sits near the 300-line gate after this hook: if upstream grows it, move the pin consumption calls
+  into one shared fork helper.
+- **Delegation:** opencode joins `DELEGATION_AGENTS` (append-only, last), `worker-start --agent opencode
+  --account` (see §8), and the usage tables: `--account <label>` matches the saved display name;
+  the `system` row appears only when the machine store's Go key matches no saved account's key
+  (both resolved through upstream's key tiers over each account's env). Preferences: `agentOrder`
+  default ends with `opencode`, profile tier `standard` merges in on read like mistral-vibe's.
 
 ### Upstream gate notes (main-process rules)
 

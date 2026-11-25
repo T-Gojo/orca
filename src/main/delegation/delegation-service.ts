@@ -11,6 +11,8 @@ import { readKiroCliWhoamiEmail } from '../kiro/kiro-cli-whoami'
 // Fork: mistral-vibe joins the delegation tables (FORK.md §8).
 import { getMistralAccountService } from '../mistral/mistral-account-host'
 import type { MistralAccountState } from '../../shared/mistral-account-types'
+// Fork: opencode joins too, on upstream's managed data accounts (FORK.md §8).
+import { readOpenCodeDelegationAccounts } from '../rate-limits/opencode-account-usage-probe'
 import type { ProviderRateLimits } from '../../shared/agent-usage/rate-limits/rate-limit-types'
 import { buildDelegationUsage } from './delegation-usage'
 import { readDelegationPreferences } from './delegation-preferences'
@@ -74,7 +76,7 @@ export async function readDelegationUsage(
   if (options.refresh) {
     await runtime.refreshAccountsForMobile()
   }
-  const [snapshot, preferences, antigravity, kiro, mistral] = await Promise.all([
+  const [snapshot, preferences, antigravity, kiro, mistral, openCode] = await Promise.all([
     runtime.getAccountsSnapshot(),
     readDelegationPreferences(),
     getAntigravityAccountService({ runtime: 'host' })
@@ -87,9 +89,11 @@ export async function readDelegationUsage(
       .catch(() => []),
     getMistralAccountService()
       .listAccounts()
-      .catch(() => null)
+      .catch(() => null),
+    readOpenCodeDelegationAccounts().catch(() => null)
   ])
   const mistralUsage = mistral ? mistralUsageInput(mistral) : { accounts: [], systemLogin: null }
+  const openCodeUsage = openCode ?? { accounts: [], systemLogin: null }
   return {
     usage: buildDelegationUsage({
       rateLimits: snapshot.rateLimits,
@@ -100,6 +104,8 @@ export async function readDelegationUsage(
       kiroLoginEmail: kiroLoginEmail(snapshot.rateLimits.kiro),
       mistral: mistralUsage.accounts,
       mistralSystemLogin: mistralUsage.systemLogin,
+      openCode: openCodeUsage.accounts,
+      openCodeSystemLogin: openCodeUsage.systemLogin,
       maxUsedPercent: preferences.maxUsedPercent
     }),
     readAt: Date.now()
@@ -145,8 +151,8 @@ export async function resolveDelegationAccount(
 ): Promise<{ agent: DelegationAgent; accountId: string | null; label: string | null }> {
   if (!isDelegationAgent(agent)) {
     throw new Error(
-      // Fork: mistral-vibe joins the --account agents (FORK.md §8).
-      `--account works with claude, codex, antigravity, kiro and mistral-vibe workers, not ${agent}.`
+      // Fork: mistral-vibe and opencode join the --account agents (FORK.md §8).
+      `--account works with claude, codex, antigravity, kiro, mistral-vibe and opencode workers, not ${agent}.`
     )
   }
   if (reference === 'auto') {

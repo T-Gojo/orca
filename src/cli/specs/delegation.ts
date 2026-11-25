@@ -9,7 +9,7 @@ export const DELEGATION_COMMAND_SPECS: CommandSpec[] = [
     usage: 'orca delegation usage [--cached] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'cached'],
     notes: [
-      'Covers the accounts workers can run on: Antigravity, Kiro, Codex, Claude and Mistral Vibe (Fork), including saved accounts that are not active.',
+      'Covers the accounts workers can run on: Antigravity, Kiro, Codex, Claude, Mistral Vibe and OpenCode (Fork), including saved accounts that are not active.',
       'Reads usage fresh first; --cached shows the last readings without waiting.',
       '`*` marks the login new launches use today. [skip] means at or above the preferences threshold, or failing.'
     ],
@@ -19,7 +19,7 @@ export const DELEGATION_COMMAND_SPECS: CommandSpec[] = [
     path: ['delegation', 'route'],
     summary: 'Pick the agent, account and model for one delegated task',
     usage:
-      'orca delegation route [--tier light|standard|strong] [--agent antigravity|kiro|codex|claude|mistral-vibe] [--kind <kind>] [--cached] [--json]',
+      'orca delegation route [--tier light|standard|strong] [--agent antigravity|kiro|codex|claude|mistral-vibe|opencode] [--kind <kind>] [--cached] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'agent', 'kind', 'tier', 'cached'],
     notes: [
       '--tier is the task’s difficulty: only agents whose model tier (preferences `profiles`) is at least that are considered.',

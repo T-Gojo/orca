@@ -2,6 +2,7 @@ import {
   CLAUDE_TERMINAL_ACCOUNT_PIN_ENV,
   CODEX_TERMINAL_ACCOUNT_PIN_ENV,
   MISTRAL_TERMINAL_ACCOUNT_PIN_ENV,
+  OPENCODE_TERMINAL_ACCOUNT_PIN_ENV,
   encodeTerminalAccountPin
 } from '../../../shared/agent-terminal-account-pin'
 import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
@@ -60,6 +61,11 @@ export function agentTerminalAccountPinEnv(
   // Fork: mistral-vibe is pin-mode too (FORK.md section 10): main injects the saved key.
   if (agent === 'mistral-vibe') {
     return { [MISTRAL_TERMINAL_ACCOUNT_PIN_ENV]: encodeTerminalAccountPin(accountId) }
+  }
+  // Fork: opencode/opencode2 are pin-mode too (FORK.md section 11): main requests the picked
+  // managed account's store (or the user's own, when unpinned-by-choice).
+  if (agent === 'opencode' || agent === 'opencode2') {
+    return { [OPENCODE_TERMINAL_ACCOUNT_PIN_ENV]: encodeTerminalAccountPin(accountId) }
   }
   return {}
 }

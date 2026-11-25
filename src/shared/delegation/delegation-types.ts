@@ -1,6 +1,13 @@
 /** Fork: cross-agent delegation (FORK.md "Cross-agent delegation"). */
-// 'mistral-vibe' stays last: append-only, tests and fixtures may index the earlier entries.
-export const DELEGATION_AGENTS = ['antigravity', 'kiro', 'codex', 'claude', 'mistral-vibe'] as const
+// 'opencode' stays last: append-only, tests and fixtures may index the earlier entries.
+export const DELEGATION_AGENTS = [
+  'antigravity',
+  'kiro',
+  'codex',
+  'claude',
+  'mistral-vibe',
+  'opencode'
+] as const
 export type DelegationAgent = (typeof DELEGATION_AGENTS)[number]
 
 export function isDelegationAgent(value: string): value is DelegationAgent {

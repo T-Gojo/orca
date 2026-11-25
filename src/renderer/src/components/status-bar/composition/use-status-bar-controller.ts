@@ -243,6 +243,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     antigravityAccounts: rateLimits.antigravityAccounts,
     kiroAccounts: rateLimits.kiroAccounts,
     mistralAccounts: rateLimits.mistralAccounts, // Fork: Mistral Vibe saved-account rows (FORK.md §7).
+    openCodeAccounts: rateLimits.openCodeAccounts, // Fork: OpenCode saved-account rows (FORK.md §11).
     anyFetching,
     anyVisible,
     canSignInFromUsageRow,

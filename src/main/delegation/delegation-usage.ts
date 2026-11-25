@@ -24,6 +24,10 @@ export type DelegationUsageInput = {
   mistral?: readonly SavedAccount[]
   /** The machine's own mistral-vibe key when it matches no saved account, for `--account system`. */
   mistralSystemLogin?: { label: string | null } | null
+  /** Saved OpenCode accounts (upstream managed data accounts); the label is the saved display name. */
+  openCode?: readonly SavedAccount[]
+  /** The machine's own OpenCode key when it matches no saved account, for `--account system`. */
+  openCodeSystemLogin?: { label: string | null } | null
   maxUsedPercent: number
 }
 
@@ -99,7 +103,7 @@ function managedRows(
 }
 
 function savedRows(
-  agent: 'antigravity' | 'kiro' | 'mistral-vibe',
+  agent: 'antigravity' | 'kiro' | 'mistral-vibe' | 'opencode',
   accounts: readonly SavedAccount[],
   readings: readonly {
     accountId: string
@@ -166,6 +170,29 @@ export function mistralSystemRow(
     : []
 }
 
+/**
+ * Fork: the machine's own OpenCode store (no managed-account overlay) when its Go key matches no
+ * saved account; workers run on it with `--account system`, which asks for the system store
+ * instead of the active account's overlay. Its usage is unread (per-account rows are probed by
+ * the rate-limit service, the machine store is not), so it counts as usable.
+ */
+export function openCodeSystemRow(
+  login: { label: string | null } | null | undefined,
+  maxUsedPercent: number
+): DelegationAccountUsage[] {
+  return login
+    ? [
+        row(
+          'opencode',
+          { accountId: null, label: login.label ?? 'System default', active: true },
+          null,
+          null,
+          maxUsedPercent
+        )
+      ]
+    : []
+}
+
 /** Every account each delegation agent can run on, with the share of its plan it has used. */
 export function buildDelegationUsage(input: DelegationUsageInput): DelegationAccountUsage[] {
   const { rateLimits: state, maxUsedPercent } = input
@@ -181,8 +208,11 @@ export function buildDelegationUsage(input: DelegationUsageInput): DelegationAcc
       state.inactiveClaudeAccounts,
       maxUsedPercent
     ),
-    // Fork: mistral-vibe rows go last, matching its append-only spot in DELEGATION_AGENTS.
+    // Fork: mistral-vibe and opencode rows go last, matching their append-only spots in
+    // DELEGATION_AGENTS.
     ...savedRows('mistral-vibe', input.mistral ?? [], state.mistralAccounts ?? [], maxUsedPercent),
-    ...mistralSystemRow(input.mistralSystemLogin, maxUsedPercent)
+    ...mistralSystemRow(input.mistralSystemLogin, maxUsedPercent),
+    ...savedRows('opencode', input.openCode ?? [], state.openCodeAccounts ?? [], maxUsedPercent),
+    ...openCodeSystemRow(input.openCodeSystemLogin, maxUsedPercent)
   ]
 }

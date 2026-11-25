@@ -4,6 +4,7 @@ import { useTranslate } from '@/i18n/use-translate'
 import { listAgentLaunchAccounts, type AgentLaunchAccount } from '@/lib/agent-launch-accounts'
 import { useSingleLoginLaunchAccounts } from '@/lib/single-login-launch-accounts'
 import { useMistralLaunchAccounts } from '@/lib/mistral-launch-accounts'
+import { useOpenCodeLaunchAccounts } from '@/lib/use-openencode-launch-accounts'
 import type { NewTabAgentMenuRow } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
 import type { AgentPickerMenuLaunch } from '@/components/agent/AgentLaunchPickerMenuRow'
 import { AccountLaunchRow } from './AccountLaunchRow'
@@ -38,6 +39,12 @@ export function useAgentRowLaunchAccounts(
   const mistralAccounts = useMistralLaunchAccounts(
     rows.some((row) => isLocalLaunchRow(row) && row.agent === 'mistral-vibe')
   )
+  // Fork (FORK.md section 11): opencode/opencode2 are pin-mode on their managed data accounts.
+  const openCodeAccounts = useOpenCodeLaunchAccounts(
+    rows.some(
+      (row) => isLocalLaunchRow(row) && (row.agent === 'opencode' || row.agent === 'opencode2')
+    )
+  )
   return (row) => {
     if (!isLocalLaunchRow(row)) {
       return null
@@ -62,6 +69,10 @@ export function useAgentRowLaunchAccounts(
     // Fork (FORK.md section 10): the mistral-vibe pick pins the launch's terminal env.
     if (row.agent === 'mistral-vibe') {
       return mistralAccounts.length === 0 ? null : { accounts: mistralAccounts }
+    }
+    // Fork (FORK.md section 11): the opencode pick pins the launch onto the managed account's store.
+    if (row.agent === 'opencode' || row.agent === 'opencode2') {
+      return openCodeAccounts.length === 0 ? null : { accounts: openCodeAccounts }
     }
     const accounts = listAgentLaunchAccounts(
       row.agent,

@@ -13,6 +13,12 @@ import { parseAntigravityNativeCredential } from '../antigravity/native-credenti
 import { getKiroAccountService } from '../kiro/kiro-account-host'
 // Fork: mistral-vibe workers run on a per-terminal env pin, no overlay home (FORK.md §8).
 import { getMistralAccountService } from '../mistral/mistral-account-host'
+// Fork: opencode workers run on upstream's managed-data-account env request (FORK.md §8).
+import {
+  MANAGED_DATA_ACCOUNT_RESUME_ENV,
+  SYSTEM_DATA_ACCOUNT_RESUME_ID
+} from '../../shared/agent-launch/environment/managed-data-account-resume'
+import { getManagedDataAccountService } from '../managed-data-accounts/service'
 import { decodeKiroCliLogin, readKiroCliLoginToken } from '../kiro/kiro-cli-login'
 import {
   readKiroCliLogin,
@@ -151,6 +157,25 @@ async function mistralEnv(accountId: string): Promise<Record<string, string>> {
   return { MISTRAL_API_KEY: key }
 }
 
+/**
+ * Fork: an opencode worker's account rides upstream's managed-data-account launch machinery: the
+ * spawn env requests the account's store by id (`ORCA_DATA_ACCOUNT_ID`), which opencode's host-env
+ * assembly turns into the per-account XDG overlay. `system` requests the machine's own store —
+ * without it an active saved account's overlay would apply. Env only, so Windows is fine (FORK.md §8).
+ */
+async function opencodeEnv(accountId: string | null): Promise<Record<string, string>> {
+  if (accountId === null) {
+    return { [MANAGED_DATA_ACCOUNT_RESUME_ENV]: SYSTEM_DATA_ACCOUNT_RESUME_ID }
+  }
+  const known = getManagedDataAccountService()
+    .list('opencode')
+    .accounts.some((account) => account.id.toLowerCase() === accountId.toLowerCase())
+  if (!known) {
+    throw new Error(`OpenCode account ${accountId} is no longer saved in Orca.`)
+  }
+  return { [MANAGED_DATA_ACCOUNT_RESUME_ENV]: accountId }
+}
+
 /** The env a worker of `agent` needs to run on a saved account; null id is the agent's own login. */
 export async function delegationAccountEnv(
   agent: DelegationAgent,
@@ -161,6 +186,9 @@ export async function delegationAccountEnv(
   }
   if (agent === 'codex') {
     return { [CODEX_TERMINAL_ACCOUNT_PIN_ENV]: encodeTerminalAccountPin(accountId) }
+  }
+  if (agent === 'opencode') {
+    return opencodeEnv(accountId)
   }
   if (accountId === null) {
     // Fork: `--account system` on mistral-vibe injects nothing; the machine default key wins.

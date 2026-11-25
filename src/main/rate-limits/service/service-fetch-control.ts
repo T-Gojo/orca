@@ -1,7 +1,7 @@
 // Fork: the Mistral saved-account layer sits between the state and fetch-control layers (FORK.md §10).
-import { RateLimitServiceMistralAccounts } from './service-mistral-accounts'
+import { RateLimitServiceOpenCodeAccounts } from './service-mistral-accounts'
 
-export abstract class RateLimitServiceFetchControl extends RateLimitServiceMistralAccounts {
+export abstract class RateLimitServiceFetchControl extends RateLimitServiceOpenCodeAccounts {
   protected waitForFetchIdle(): Promise<void> {
     if (
       !this.isFetching &&

@@ -6,6 +6,8 @@ import { getMistralAccountService } from '../mistral/mistral-account-host' // Fo
 import { probeAntigravityAccountUsage } from './antigravity-account-usage-probe'
 import { probeKiroAccountUsage } from './kiro-account-usage-probe'
 import { probeMistralAccountUsage } from './mistral-account-usage-probe' // Fork: (FORK.md §10).
+import { getManagedDataAccountService } from '../managed-data-accounts/service' // Fork: (FORK.md §8).
+import { probeOpenCodeAccountUsage } from './opencode-account-usage-probe' // Fork: (FORK.md §8).
 import type { RateLimitService } from './service/rate-limit-service'
 
 /** Fork: reads each saved Kiro/Antigravity/Mistral account's usage without switching the CLI's login. */
@@ -68,4 +70,13 @@ export function wireSavedAccountUsage(rateLimits: RateLimitService): void {
       update: async () => {}
     })
   })
+  // Fork: OpenCode managed accounts are upstream's own; each is probed with its own data-home env (FORK.md §8).
+  rateLimits.setOpenCodeAccountsReader(async () => {
+    const state = getManagedDataAccountService().list('opencode')
+    return {
+      activeAccountId: state.activeAccountId,
+      accounts: state.accounts.map((account) => ({ id: account.id, email: account.label }))
+    }
+  })
+  rateLimits.setOpenCodeAccountUsageProbe((accountId) => probeOpenCodeAccountUsage(accountId))
 }

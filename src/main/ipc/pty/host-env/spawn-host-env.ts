@@ -41,6 +41,7 @@ import type {
 import { inheritOmpLaunchEnvironment } from './omp-launch-environment'
 import { promoteAgentTeamsShimPath } from './path'
 import { applyMistralTerminalAccountPin } from '../../../mistral/mistral-terminal-account-pin'
+import { applyOpenCodeTerminalAccountPin } from '../../../opencode/opencode-terminal-account-pin'
 import type { GetSelectedCodexHomePath } from './types'
 import { clearProviderPtyState } from '../provider/state-cleanup'
 
@@ -197,8 +198,11 @@ async function resolvePtySpawnHostEnvForAct(args: PtySpawnHostEnvArgs): Promise<
   // Fork: the Mistral Vibe account pin is consumed at the same site as the codex pin (FORK.md
   // section 10) — this is the one host-env assembly both pty spawn preflights flow through.
   const mistralPinnedEnv = await applyMistralTerminalAccountPin(baseEnv, target)
+  // Fork: the OpenCode account pin is consumed at the same site (FORK.md section 11): the pin
+  // becomes upstream's ORCA_DATA_ACCOUNT_ID store request, applied by the host-env assembly below.
+  const opencodePinnedEnv = await applyOpenCodeTerminalAccountPin(mistralPinnedEnv, target)
   // The hint has served home selection; the shell must not carry it into nested launches.
-  const spawnBaseEnv = withoutTerminalAccountPin(mistralPinnedEnv, CODEX_TERMINAL_ACCOUNT_PIN_ENV)
+  const spawnBaseEnv = withoutTerminalAccountPin(opencodePinnedEnv, CODEX_TERMINAL_ACCOUNT_PIN_ENV)
   const skipCodexHomeEnv = args.isDaemonHostSpawn && isWsl && !selectedCodexHomePath
   const ptySettings = args.isDaemonHostSpawn ? deps.getSettings?.() : undefined
   const hostEnv: PtySpawnHostEnv = {

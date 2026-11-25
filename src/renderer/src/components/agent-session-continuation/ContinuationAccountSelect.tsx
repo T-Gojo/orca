@@ -18,6 +18,7 @@ import {
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import { useSingleLoginLaunchAccounts } from '@/lib/single-login-launch-accounts'
 import { useMistralLaunchAccounts } from '@/lib/mistral-launch-accounts'
+import { useOpenCodeLaunchAccounts } from '@/lib/use-openencode-launch-accounts'
 
 const SYSTEM_DEFAULT_ACCOUNT_KEY = 'system-default'
 
@@ -68,17 +69,23 @@ export function useContinuationAccount<TRequest>({
   const mistralAccounts = useMistralLaunchAccounts(
     agent === 'mistral-vibe' && Boolean(localTerminal)
   )
+  // Fork (FORK.md section 11): opencode/opencode2 hand-offs pin the terminal the same way.
+  const openCodeAccounts = useOpenCodeLaunchAccounts(
+    (agent === 'opencode' || agent === 'opencode2') && Boolean(localTerminal)
+  )
   const accounts = singleLogin
     ? singleLogin.accounts
     : mistralAccounts.length > 0
       ? mistralAccounts
-      : agent && localTerminal
-        ? listAgentLaunchAccounts(
-            agent,
-            settings,
-            t('auto.components.status.bar.StatusBar.c676918adc', 'System default')
-          )
-        : []
+      : openCodeAccounts.length > 0
+        ? openCodeAccounts
+        : agent && localTerminal
+          ? listAgentLaunchAccounts(
+              agent,
+              settings,
+              t('auto.components.status.bar.StatusBar.c676918adc', 'System default')
+            )
+          : []
   const current =
     picked?.request === request && picked.agent === agent && accounts.length > 0 ? picked : null
   return {

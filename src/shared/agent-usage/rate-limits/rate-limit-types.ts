@@ -232,6 +232,8 @@ export type RateLimitState = {
   kiroAccounts?: SavedAccountUsage[]
   /** Fork: optional, like kiroAccounts — saved Mistral Vibe accounts' probed quota readings (FORK.md §10). */
   mistralAccounts?: SavedAccountUsage[]
+  /** Fork: optional, like kiroAccounts — saved OpenCode accounts' per-account quota readings (FORK.md §8). */
+  openCodeAccounts?: SavedAccountUsage[]
 }
 
 export type RuntimeTargetUsageProvider = 'claude' | 'codex'

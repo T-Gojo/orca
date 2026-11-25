@@ -285,7 +285,9 @@ export class RateLimitService extends RateLimitServiceTargetUsageRead {
       ),
       kiroAccounts: this.kiroAccountUsage.list(this.state.kiro),
       // Fork: probed quota readings of saved Mistral Vibe accounts (FORK.md §10).
-      mistralAccounts: this.mistralAccountUsage.list(null)
+      mistralAccounts: this.mistralAccountUsage.list(null),
+      // Fork: per-account quota readings of upstream's saved OpenCode accounts (FORK.md §8).
+      openCodeAccounts: this.openCodeAccountUsage.list(null)
     }
   }
 }

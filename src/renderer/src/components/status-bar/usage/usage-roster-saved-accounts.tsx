@@ -24,6 +24,8 @@ export type UsageRosterSavedAccounts = {
   kiro?: SavedAccountUsage[]
   /** Fork: saved Mistral Vibe accounts, same row shape as Kiro (FORK.md §7). */
   mistral?: SavedAccountUsage[]
+  /** Fork: saved OpenCode accounts, same row shape as Kiro (FORK.md §11). */
+  openCodeAccounts?: SavedAccountUsage[]
   mode: StatusBarUsageMode
   display: UsagePercentageDisplay
 }
@@ -42,6 +44,7 @@ export function getUsageRosterSavedAccounts(c: StatusBarController): UsageRoster
         antigravity: c.antigravityAccounts,
         kiro: c.kiroAccounts,
         mistral: c.mistralAccounts, // Fork: Mistral Vibe saved accounts (FORK.md §7).
+        openCodeAccounts: c.openCodeAccounts, // Fork: OpenCode saved accounts (FORK.md §11).
         ...view
       }
 }
@@ -54,10 +57,13 @@ function singleLoginAccounts(
     ? saved.antigravity
     : provider === 'kiro'
       ? saved.kiro
-      : // Fork: Mistral Vibe saved accounts ride the same single-login shape (FORK.md §7).
+      : // Fork: Mistral Vibe and OpenCode saved accounts ride the same single-login shape
+        // (FORK.md §7/§11); opencode-go rows sit under the provider's own live meter row.
         provider === 'mistral'
         ? saved.mistral
-        : undefined
+        : provider === 'opencode-go'
+          ? saved.openCodeAccounts
+          : undefined
 }
 
 function UsageAccountBlocks({
