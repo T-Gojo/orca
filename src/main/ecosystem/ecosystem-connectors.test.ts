@@ -18,6 +18,7 @@ import {
 } from './hermes-learning-connector'
 import {
   formatRikuganContextResult,
+  isExplicitRikuganRequest,
   isTrivialRikuganPrompt,
   resetRikuganSessionStateForTests,
   scrubSecretsForRikugan
@@ -34,7 +35,14 @@ describe('Unified Orca Ecosystem connectors (Rikugan, Hermes, OpenClaw)', () => 
     }
   })
 
-  it('deduplicates Rikugan context nodes across session turns and scrubs secrets/OTPs', () => {
+  it('keeps Rikugan strictly opt-in and deduplicates/scrubs when explicitly requested', () => {
+    // Urgent coding/CLI tasks must NEVER involve Rikugan unless explicitly asked
+    expect(isExplicitRikuganRequest('Fix production auth race condition right now')).toBe(false)
+    expect(isExplicitRikuganRequest('Complete PR #18 in Claude and push to main')).toBe(false)
+    expect(isExplicitRikuganRequest('Check Rikugan for my HDFC credit card statement')).toBe(true)
+    expect(isExplicitRikuganRequest('/rikugan summarize open threads')).toBe(true)
+    expect(isExplicitRikuganRequest('Summarize open threads', true)).toBe(true)
+
     expect(isTrivialRikuganPrompt('thanks!')).toBe(true)
     expect(isTrivialRikuganPrompt('/status')).toBe(true)
     expect(isTrivialRikuganPrompt('Summarize my HDFC credit card statement')).toBe(false)
@@ -141,8 +149,8 @@ describe('Unified Orca Ecosystem connectors (Rikugan, Hermes, OpenClaw)', () => 
             channel: 'telegram',
             senderId: '99887766',
             senderName: 'Thunder',
-            createdAt: Date.now(),
-            expiresAt: Date.now() + 60_000
+            createdAt: 1_700_000_000_000,
+            expiresAt: 9_999_999_999_999
           }
         ],
         approvedTelegram: [],

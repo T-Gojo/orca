@@ -67,7 +67,8 @@ export const DelegationEcosystemAskParams = z
     externalId: z.string().max(240).optional(),
     senderName: z.string().max(160).optional(),
     agent: z.string().max(64).optional(),
-    wait: z.boolean().optional()
+    wait: z.boolean().optional(),
+    rikugan: z.boolean().optional()
   })
   .strict()
 

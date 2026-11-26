@@ -169,7 +169,21 @@ export function constantTimeBearerOk(authHeader, expectedToken) {
   return crypto.timingSafeEqual(a, b)
 }
 
-async function callOrcaCliAsk({ prompt, source, externalId, senderName, wait = true, agent }) {
+const EXPLICIT_RIKUGAN_RE = /(?:^|[\s/@#"'`(])rikugan\b/i
+
+export function isExplicitRikuganPrompt(text) {
+  return EXPLICIT_RIKUGAN_RE.test(String(text || ''))
+}
+
+async function callOrcaCliAsk({
+  prompt,
+  source,
+  externalId,
+  senderName,
+  wait = true,
+  agent,
+  rikugan = false
+}) {
   const candidates = [
     process.env.ORCA_CLI_PATH,
     '/Applications/Orca.app/Contents/Resources/app.asar.unpacked/out/cli/index.js',
@@ -203,6 +217,7 @@ async function callOrcaCliAsk({ prompt, source, externalId, senderName, wait = t
     externalId || 'http:default',
     ...(senderName ? ['--sender', senderName] : []),
     ...(agent ? ['--agent', agent] : []),
+    ...(rikugan ? ['--rikugan'] : []),
     ...(wait ? ['--wait'] : []),
     '--json'
   ]
@@ -235,15 +250,25 @@ export async function dispatchAskToOrca({
   externalId,
   senderName,
   wait = true,
-  agent
+  agent,
+  rikugan = false
 }) {
+  const wantRikugan = Boolean(rikugan) || isExplicitRikuganPrompt(prompt)
   try {
-    return await callOrcaCliAsk({ prompt, source, externalId, senderName, wait, agent })
+    return await callOrcaCliAsk({
+      prompt,
+      source,
+      externalId,
+      senderName,
+      wait,
+      agent,
+      rikugan: wantRikugan
+    })
   } catch (rpcErr) {
     const secrets = loadSecrets()
     const cfg = loadConfig()
     let contextBlock = ''
-    if (secrets.RIKUGAN_TOKEN) {
+    if (wantRikugan && secrets.RIKUGAN_TOKEN) {
       try {
         const baseUrl = String(cfg.rikuganUrl).replace(/\/+$/, '')
         const rRes = await fetch(`${baseUrl}/v1/tools/get_context`, {
@@ -276,7 +301,7 @@ export async function dispatchAskToOrca({
             {
               role: 'system',
               content:
-                'You are Orca HQ (fallback standalone mode while Orca Desktop is closed). Answer concisely using the provided Rikugan context.'
+                'You are Orca HQ (fallback standalone mode while Orca Desktop is closed). Answer concisely and accurately.'
             },
             { role: 'user', content: `${contextBlock}${String(prompt)}` }
           ]

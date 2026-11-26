@@ -2,9 +2,13 @@ import { homedir } from 'node:os'
 import type { AgentJournalRenderItem } from '../../shared/agent-session/journal/agent-session-journal-types'
 import { readEcosystemConfig, readEcosystemSecrets } from './ecosystem-config'
 import { saveValidatedSkillWithUndo } from './hermes-learning-connector'
-import { prefetchRikuganContext, recordCompletedSessionToRikugan } from './rikugan-connector'
+import {
+  isExplicitRikuganRequest,
+  prefetchRikuganContext,
+  recordCompletedSessionToRikugan
+} from './rikugan-connector'
 
-/** Fork: silent post-turn session recorder & Hermes skill distillation synthesizer (§16). */
+/** Fork: post-turn observer & Hermes skill synthesizer — Rikugan stays strictly opt-in (§16). */
 
 function extractMessageText(item: AgentJournalRenderItem): string {
   if (item.body.kind !== 'message') {
@@ -28,7 +32,9 @@ export async function synthesizeSkillMarkdownForTopic(
       .replace(/[^a-z0-9-]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .slice(0, 48) || 'learned-workflow'
-  const ctx = await prefetchRikuganContext(cleanTopic, `learn:${slug}`, { home })
+  const ctx = isExplicitRikuganRequest(cleanTopic)
+    ? await prefetchRikuganContext(cleanTopic, `learn:${slug}`, { home })
+    : { text: '', itemCount: 0 }
   const secrets = await readEcosystemSecrets(home)
   if (secrets.OAIBO_API_KEY) {
     const synthRes = await fetch('https://oaibo.jumpbump.in/v1/chat/completions', {
@@ -79,6 +85,10 @@ export function observeEcosystemTurnEnded(
   readItems: (since: number) => Promise<readonly AgentJournalRenderItem[]>
 ): void {
   void (async () => {
+    const cfg = await readEcosystemConfig().catch(() => null)
+    if (!cfg?.rikuganAutoRecord && !cfg?.autoLearnEnabled) {
+      return
+    }
     const items = await readItems(0).catch(() => [])
     const userTexts: string[] = []
     const assistantTexts: string[] = []
@@ -98,7 +108,8 @@ export function observeEcosystemTurnEnded(
     }
     const lastAssistant = assistantTexts.at(-1) ?? ''
     const firstUser = userTexts[0] ?? ''
-    if (userTexts.length >= 2 && lastAssistant.length >= 80) {
+    // Strictly opt-in: never send completed Orca/CLI sessions to Rikugan unless rikuganAutoRecord is explicitly enabled.
+    if (cfg?.rikuganAutoRecord === true && userTexts.length >= 2 && lastAssistant.length >= 80) {
       await recordCompletedSessionToRikugan({
         sessionId,
         title: firstUser.slice(0, 80),
@@ -106,7 +117,6 @@ export function observeEcosystemTurnEnded(
         outcome: 'done'
       }).catch(() => false)
     }
-    const cfg = await readEcosystemConfig().catch(() => null)
     if (cfg?.autoLearnEnabled && lastAssistant.includes('```skill-md\n')) {
       const block = lastAssistant.match(/```skill-md\n([\s\S]*?)```/)?.[1]
       if (block) {

@@ -122,14 +122,9 @@ export function MobileForkEcosystemSection(props: {
         } else {
           setBanner(
             res.accepted
-              ? t(
-                  'fork.ecosystem.dispatched',
-                  'Sent to {{agent}} on Mac ({{count}} Rikugan items)',
-                  {
-                    agent: res.routedAgent ?? 'Orca HQ',
-                    count: res.rikuganItemsAttached
-                  }
-                )
+              ? t('fork.ecosystem.dispatched', 'Sent to {{agent}} on Mac', {
+                  agent: res.routedAgent ?? 'Orca HQ'
+                })
               : (res.error ?? 'Dispatch failed')
           )
         }
@@ -192,7 +187,7 @@ export function MobileForkEcosystemSection(props: {
               onChangeText={setPrompt}
               placeholder={t(
                 'fork.ecosystem.askPlaceholder',
-                'Ask Rikugan or run a task on your open Mac…'
+                'Run a task on Mac, or mention Rikugan…'
               )}
               placeholderTextColor={colors.textMuted}
               style={styles.input}

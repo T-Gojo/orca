@@ -16,6 +16,8 @@ export const EcosystemConfigSchema = z.object({
   bridgePort: z.number().int().min(1024).max(65535).default(6770),
   rikuganUrl: z.string().default('http://127.0.0.1:5680'),
   rikuganUiUrl: z.string().default('http://127.0.0.1:5690'),
+  rikuganAutoContext: z.boolean().default(false),
+  rikuganAutoRecord: z.boolean().default(false),
   autoLearnEnabled: z.boolean().default(true),
   telegramEnabled: z.boolean().default(true),
   whatsappEnabled: z.boolean().default(true),
@@ -105,27 +107,26 @@ function serializeDotEnv(entries: Record<string, string>): string {
 }
 
 export async function ensureEcosystemDirs(home: string = homedir()): Promise<void> {
-  const paths = ecosystemPaths(home)
-  await Promise.all([
-    mkdir(paths.root, { recursive: true, mode: 0o700 }),
-    mkdir(paths.runtimeDir, { recursive: true, mode: 0o700 }),
-    mkdir(paths.whatsappAuthDir, { recursive: true, mode: 0o700 }),
-    mkdir(paths.skillBackupsDir, { recursive: true, mode: 0o700 }),
-    mkdir(paths.execCacheDir, { recursive: true, mode: 0o700 }),
-    mkdir(paths.logsDir, { recursive: true, mode: 0o700 })
-  ])
-  await chmod(paths.root, 0o700).catch(() => {})
+  const p = ecosystemPaths(home)
+  const dirs = [
+    p.root,
+    p.runtimeDir,
+    p.whatsappAuthDir,
+    p.skillBackupsDir,
+    p.execCacheDir,
+    p.logsDir
+  ]
+  await Promise.all(dirs.map((d) => mkdir(d, { recursive: true, mode: 0o700 })))
+  await chmod(p.root, 0o700).catch(() => {})
 }
 
 export async function readEcosystemConfig(home: string = homedir()): Promise<EcosystemConfig> {
-  const { configFile } = ecosystemPaths(home)
-  const raw = await readFile(configFile, 'utf8').catch(() => '')
+  const raw = await readFile(ecosystemPaths(home).configFile, 'utf8').catch(() => '')
   if (!raw.trim()) {
     return EcosystemConfigSchema.parse({})
   }
   try {
-    const parsed: unknown = JSON.parse(raw)
-    const validated = EcosystemConfigSchema.safeParse(parsed)
+    const validated = EcosystemConfigSchema.safeParse(JSON.parse(raw))
     return validated.success ? validated.data : EcosystemConfigSchema.parse({})
   } catch {
     return EcosystemConfigSchema.parse({})
@@ -197,24 +198,17 @@ export async function setEcosystemSecret(
 }
 
 export async function readPairingStore(home: string = homedir()): Promise<PairingStore> {
-  const { pairingFile } = ecosystemPaths(home)
-  const raw = await readFile(pairingFile, 'utf8').catch(() => '')
-  if (!raw.trim()) {
-    return PairingStoreSchema.parse({})
-  }
+  const raw = await readFile(ecosystemPaths(home).pairingFile, 'utf8').catch(() => '')
   try {
     const parsed = PairingStoreSchema.safeParse(JSON.parse(raw))
-    if (!parsed.success) {
-      return PairingStoreSchema.parse({})
-    }
-    const now = Date.now()
-    return {
-      ...parsed.data,
-      pending: parsed.data.pending.filter((item) => item.expiresAt > now)
+    if (parsed.success) {
+      const now = Date.now()
+      return { ...parsed.data, pending: parsed.data.pending.filter((i) => i.expiresAt > now) }
     }
   } catch {
-    return PairingStoreSchema.parse({})
+    // Fall through to empty pairing store
   }
+  return PairingStoreSchema.parse({})
 }
 
 export async function approvePairingCode(
@@ -227,30 +221,24 @@ export async function approvePairingCode(
   if (!match) {
     return null
   }
-  const nextPending = store.pending.filter((entry) => entry.code !== clean)
-  const approvedTelegram = new Set(store.approvedTelegram)
-  const approvedWhatsapp = new Set(store.approvedWhatsapp)
-  if (match.channel === 'telegram') {
-    approvedTelegram.add(match.senderId)
-  } else {
-    approvedWhatsapp.add(match.senderId)
-  }
+  const tgSet = new Set(store.approvedTelegram)
+  const waSet = new Set(store.approvedWhatsapp)
+  ;(match.channel === 'telegram' ? tgSet : waSet).add(match.senderId)
   const next: PairingStore = {
-    pending: nextPending,
-    approvedTelegram: [...approvedTelegram],
-    approvedWhatsapp: [...approvedWhatsapp]
+    pending: store.pending.filter((entry) => entry.code !== clean),
+    approvedTelegram: [...tgSet],
+    approvedWhatsapp: [...waSet]
   }
-  const { pairingFile } = ecosystemPaths(home)
   await ensureEcosystemDirs(home)
-  await writeFile(pairingFile, `${JSON.stringify(next, null, 2)}\n`, {
+  await writeFile(ecosystemPaths(home).pairingFile, `${JSON.stringify(next, null, 2)}\n`, {
     encoding: 'utf8',
     mode: 0o600
   })
   const cfg = await readEcosystemConfig(home)
   await writeEcosystemConfig(
     {
-      telegramAllowFrom: [...new Set([...cfg.telegramAllowFrom, ...approvedTelegram])],
-      whatsappAllowFrom: [...new Set([...cfg.whatsappAllowFrom, ...approvedWhatsapp])]
+      telegramAllowFrom: [...new Set([...cfg.telegramAllowFrom, ...tgSet])],
+      whatsappAllowFrom: [...new Set([...cfg.whatsappAllowFrom, ...waSet])]
     },
     home
   )

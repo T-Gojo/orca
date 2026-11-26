@@ -3,6 +3,8 @@
 const TRIVIAL_PROMPT_RE =
   /^(?:ok|okay|k|thanks|thank you|thx|got it|cool|nice|yes|yep|no|nope|done|\/\w+)[.!?]*$/i
 
+const EXPLICIT_RIKUGAN_RE = /(?:^|[\s/@#"'`(])rikugan\b/i
+
 const SECRET_SCRUB_RE =
   /\b(?:rkg_[A-Za-z0-9_-]{12,}|sbk_[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{12,}|orca_eco_[a-f0-9]{20,}|\d{6})\b/g
 
@@ -35,6 +37,13 @@ export function scrubSecretsForRikugan(text: string): string {
 export function isTrivialRikuganPrompt(prompt: string): boolean {
   const trimmed = prompt.trim()
   return trimmed.length < 3 || TRIVIAL_PROMPT_RE.test(trimmed)
+}
+
+export function isExplicitRikuganRequest(prompt: string, explicitFlag?: boolean): boolean {
+  if (explicitFlag === true) {
+    return true
+  }
+  return EXPLICIT_RIKUGAN_RE.test(prompt)
 }
 
 export function getRikuganSessionState(sessionId: string): SessionRecallState {

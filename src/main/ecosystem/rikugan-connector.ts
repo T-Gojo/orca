@@ -9,6 +9,7 @@ import {
   getRikuganRuntimeCounters,
   getRikuganSessionState,
   incrementRecordedRikuganSessions,
+  isExplicitRikuganRequest,
   isPlainRecord,
   isTrivialRikuganPrompt,
   recordRikuganContextLatency,
@@ -18,6 +19,7 @@ import {
 
 export {
   formatRikuganContextResult,
+  isExplicitRikuganRequest,
   isTrivialRikuganPrompt,
   resetRikuganSessionStateForTests,
   scrubSecretsForRikugan
@@ -268,7 +270,7 @@ export async function probeRikuganStatus(
     recordedSessions: counters.recordedSessions,
     lastContextMs: counters.lastContextMs,
     detail: hasToken
-      ? `Connected on Mac SSD (${totalNodes !== null ? `${totalNodes.toLocaleString()} nodes` : 'ready'})`
+      ? `On-demand on Mac SSD (${totalNodes !== null ? `${totalNodes.toLocaleString()} nodes` : 'ready'})`
       : 'Running on :5680 — token provisioning needed'
   }
 }

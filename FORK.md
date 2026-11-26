@@ -524,10 +524,10 @@ Extends both the desktop-bundled mobile web UI and the standalone Android app wi
 
 Makes Orca the single orchestrator, UI, and local endpoint (`127.0.0.1:6770`) across Mac, Android (`dev.orca.app`), Telegram, and WhatsApp while keeping Rikugan on the Mac internal SSD as the single personal knowledge and continuity brain — engineered to keep running off the Mac internal SSD (`~/.config/orca-ecosystem/`) even when the external Thunder SSD is unplugged.
 
-- **Rikugan Connector (`src/main/ecosystem/rikugan-connector.ts` + `fork/skills/rikugan/SKILL.md`):**
+- **Rikugan Connector (`src/main/ecosystem/rikugan-connector.ts`, `rikugan-context-format.ts`, `fork/skills/rikugan/SKILL.md`):**
   - Native TypeScript port of `Rikugan/integrations/hermes/plugin/rikugan/__init__.py` talking to `http://127.0.0.1:5680/v1/tools/*` and `/mcp`.
   - Auto-provisions or reuses a scoped `Orca Ecosystem` standard-tier token (`RIKUGAN_TOKEN` in `~/.config/orca-ecosystem/.env`, mode `0600`, denying `brain.records.delete` and `brain.records.any`).
-  - Pre-turn `prefetchRikuganContext` attaches `<memory-context>` with per-session `seen` node-ID deduplication and once-per-session owner `brief` (`<=3.5s` budget), and post-turn `observeEcosystemTurnEnded` records secret-scrubbed session summaries (`record_session`) into Rikugan's daily reflection loop.
+  - **Strictly opt-in / explicit on-demand (`rikuganAutoContext: false`, `rikuganAutoRecord: false`):** normal and urgent tasks in Orca or any CLI (Claude Code, Codex/ChatGPT, Kiro, Antigravity, Mistral Vibe, OpenCode) **never** auto-query or auto-record to Rikugan (`orca-auto-delegation.sh` and `observeEcosystemTurnEnded` skip Rikugan completely by default). Rikugan is consulted or updated **only** when the user explicitly requests it (e.g. mentions `Rikugan`, `/rikugan`, `--rikugan`, or explicitly invokes `mcp__rikugan__*` tools). When explicitly invoked, `prefetchRikuganContext` deduplicates `seen` node IDs per session and `scrubSecretsForRikugan` redacts tokens/OTPs.
 - **OpenClaw Channel, Multimodal & Webhook Bridge (`src/main/ecosystem/openclaw-connector.ts` + `fork/ecosystem/orca-openclaw-bridge.mjs`):**
   - Staged into `~/.config/orca-ecosystem/runtime/` (`com.thunder.orca-ecosystem-bridge` LaunchAgent on `127.0.0.1:6770`).
   - **Telegram:** long-polling Bot API, 6-digit single-use DM pairing (`orca ecosystem pair --code <n>`), live typing + throttled draft message edits, voice-note STT transcription, and `/status`, `/review`, `/rikugan` commands.

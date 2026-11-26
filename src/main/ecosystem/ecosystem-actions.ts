@@ -7,7 +7,7 @@ import type {
 import { requireStructuredHost, runtimeBotChats } from '../bots/bot-chat-session'
 import { readTurnEndedItems } from '../native-chat/agent-session-wire/structured-agent-session-turn-context'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { readEcosystemSecrets } from './ecosystem-config'
+import { readEcosystemConfig, readEcosystemSecrets } from './ecosystem-config'
 import { ensurePrimaryEcosystemBot } from './ecosystem-service'
 import {
   observeEcosystemTurnEnded,
@@ -15,7 +15,7 @@ import {
 } from './ecosystem-turn-observer'
 import { buildHermesReviewBrief, saveValidatedSkillWithUndo } from './hermes-learning-connector'
 import { installFromSkillsHub, searchSkillsHub } from './hermes-skills-hub'
-import { prefetchRikuganContext } from './rikugan-connector'
+import { isExplicitRikuganRequest, prefetchRikuganContext } from './rikugan-connector'
 
 export { observeEcosystemTurnEnded }
 
@@ -65,6 +65,7 @@ export async function askEcosystem(
     senderName?: string
     agent?: string
     wait?: boolean
+    rikugan?: boolean
   },
   home: string = homedir()
 ): Promise<EcosystemAskResult> {
@@ -81,8 +82,13 @@ export async function askEcosystem(
       error: 'Empty prompt'
     }
   }
+  const cfg = await readEcosystemConfig(home)
+  const shouldUseRikugan =
+    isExplicitRikuganRequest(cleanPrompt, input.rikugan) || cfg.rikuganAutoContext
   const sessionKey = input.externalId ?? 'orca-hq-primary'
-  const context = await prefetchRikuganContext(cleanPrompt, sessionKey, { home })
+  const context = shouldUseRikugan
+    ? await prefetchRikuganContext(cleanPrompt, sessionKey, { home })
+    : { text: '', itemCount: 0 }
   const sourceHeader = input.source
     ? `[Unified Ingress: ${input.source}${input.senderName ? ` · ${input.senderName}` : ''}]\n`
     : ''

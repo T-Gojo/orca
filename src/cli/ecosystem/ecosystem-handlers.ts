@@ -75,12 +75,14 @@ export const ECOSYSTEM_HANDLERS: Record<string, CommandHandler> = {
     const senderName = getOptionalStringFlag(flags, 'sender')
     const agent = getOptionalStringFlag(flags, 'agent')
     const wait = flags.has('wait')
+    const rikugan = flags.has('rikugan')
     const res = await client.call<EcosystemAskResult>('delegation.ecosystemAsk', {
       prompt,
       ...(source ? { source } : {}),
       ...(externalId ? { externalId } : {}),
       ...(senderName ? { senderName } : {}),
       ...(agent ? { agent } : {}),
+      ...(rikugan ? { rikugan: true } : {}),
       wait
     })
     if (!res.result.accepted) {
@@ -90,7 +92,7 @@ export const ECOSYSTEM_HANDLERS: Record<string, CommandHandler> = {
       v.reply
         ? v.reply
         : v.accepted
-          ? `Dispatched to Orca session ${v.sessionId ?? 'orca-hq'} (${v.rikuganItemsAttached} Rikugan items attached).`
+          ? `Dispatched to Orca session ${v.sessionId ?? 'orca-hq'}${v.rikuganItemsAttached > 0 ? ` (${v.rikuganItemsAttached} Rikugan items attached)` : ''}.`
           : `Failed: ${v.error ?? 'unknown error'}`
     )
   },

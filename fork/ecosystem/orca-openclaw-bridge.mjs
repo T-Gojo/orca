@@ -334,7 +334,8 @@ const server = http.createServer(async (req, res) => {
       externalId: threadId,
       senderName: body.senderName || 'HTTP API',
       wait: body.wait !== false,
-      agent: body.agent
+      agent: body.agent,
+      rikugan: Boolean(body.rikugan)
     })
     channelStats.http.lastOutboundAt = Date.now()
     return sendJson(res, 200, { ok: Boolean(out?.accepted), ...out })
@@ -348,11 +349,12 @@ const server = http.createServer(async (req, res) => {
     const summary = JSON.stringify(payload).slice(0, 3000)
     pushDelivery(`webhook:${hookName}`, 'webhook', summary, 'accepted')
     const out = await dispatchAskToOrca({
-      prompt: `[Inbound Webhook '${hookName}']\nPayload:\n\`\`\`json\n${summary}\n\`\`\`\nProcess this event according to owner instructions and Rikugan context.`,
+      prompt: `[Inbound Webhook '${hookName}']\nPayload:\n\`\`\`json\n${summary}\n\`\`\`\nProcess this event according to owner instructions.`,
       source: 'openclaw',
       externalId: `webhook:${hookName}`,
       senderName: `Webhook (${hookName})`,
-      wait: false
+      wait: false,
+      rikugan: false
     })
     return sendJson(res, 202, { ok: true, hook: hookName, dispatched: out })
   }

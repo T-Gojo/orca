@@ -36,13 +36,22 @@ export const ECOSYSTEM_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['ecosystem', 'ask'],
     summary:
-      'Send a Rikugan-enriched prompt to the unified Orca control plane and optionally wait for the reply',
+      'Send a prompt to the unified Orca control plane (involves Rikugan only when --rikugan or explicitly named)',
     usage:
-      'orca ecosystem ask --prompt <text> [--wait] [--source <name>] [--thread <id>] [--sender <name>] [--agent <agent>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'prompt', 'wait', 'source', 'thread', 'sender', 'agent'],
+      'orca ecosystem ask --prompt <text> [--rikugan] [--wait] [--source <name>] [--thread <id>] [--sender <name>] [--agent <agent>] [--json]',
+    allowedFlags: [
+      ...GLOBAL_FLAGS,
+      'prompt',
+      'rikugan',
+      'wait',
+      'source',
+      'thread',
+      'sender',
+      'agent'
+    ],
     examples: [
-      'orca ecosystem ask --prompt "Summarize my recent open threads from Rikugan" --wait',
-      'orca ecosystem ask --prompt "Check git status in Orca" --json'
+      'orca ecosystem ask --prompt "Check git status in Orca" --json',
+      'orca ecosystem ask --prompt "Summarize my open threads" --rikugan --wait'
     ]
   },
   {

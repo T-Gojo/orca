@@ -100,7 +100,7 @@ export function EcosystemHubPanel({ isVisible }: { isVisible: boolean }): React.
         }}
       >
         <label htmlFor="eco-ask-input" className="text-2xs font-medium text-foreground">
-          {t('rightSidebar.ecosystem.askLabel', 'Ask Orca + Rikugan (One Endpoint)')}
+          {t('rightSidebar.ecosystem.askLabel', 'Ask Orca (One Endpoint · Rikugan on demand)')}
         </label>
         <div className="flex items-center gap-1.5">
           <input
@@ -110,7 +110,7 @@ export function EcosystemHubPanel({ isVisible }: { isVisible: boolean }): React.
             onChange={(e) => setAskText(e.target.value)}
             placeholder={t(
               'rightSidebar.ecosystem.askPlaceholder',
-              'Ask Rikugan, run task on Mac, or review repo…'
+              'Run task on Mac, review repo, or mention Rikugan…'
             )}
             className="h-7 min-w-0 flex-1 rounded-md border border-border bg-input px-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
           />
