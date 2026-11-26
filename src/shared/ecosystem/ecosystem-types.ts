@@ -83,6 +83,18 @@ export const EcosystemHermesStatusSchema = z.object({
 })
 export type EcosystemHermesStatus = z.infer<typeof EcosystemHermesStatusSchema>
 
+export const EcosystemChatMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(['user', 'assistant']),
+  source: z.string(),
+  sender: z.string(),
+  text: z.string(),
+  at: z.number(),
+  routedAgent: z.string().nullable(),
+  rikuganUsed: z.boolean()
+})
+export type EcosystemChatMessage = z.infer<typeof EcosystemChatMessageSchema>
+
 export const EcosystemStatusSnapshotSchema = z.object({
   checkedAt: z.number(),
   macStandaloneReady: z.boolean(),
@@ -105,7 +117,8 @@ export const EcosystemStatusSnapshotSchema = z.object({
       at: z.number(),
       status: z.string()
     })
-  )
+  ),
+  chatMessages: z.array(EcosystemChatMessageSchema).default([])
 })
 export type EcosystemStatusSnapshot = z.infer<typeof EcosystemStatusSnapshotSchema>
 
@@ -120,7 +133,8 @@ export const ECOSYSTEM_CONTROL_ACTIONS = [
   'toggle-auto-learn',
   'undo-skill',
   'notify',
-  'park-hermes-gateway'
+  'park-hermes-gateway',
+  'clear-chat'
 ] as const
 export type EcosystemControlAction = (typeof ECOSYSTEM_CONTROL_ACTIONS)[number]
 

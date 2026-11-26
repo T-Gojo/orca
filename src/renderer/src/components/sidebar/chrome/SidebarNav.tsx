@@ -10,6 +10,8 @@ import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SetupGuideSidebarEntry } from '../../setup-guide/SetupGuideSidebarEntry'
+// Fork: prominent OpenClaw & Hermes Unified Chat + Setup entry in main left sidebar (FORK.md §16).
+import { EcosystemSidebarEntry } from '../../ecosystem/EcosystemSidebarEntry'
 import { SidebarTaskNavButton } from './SidebarTaskNavButton'
 import { HideSidebarMenu, SIDEBAR_NAV_DIMMED_ICON_CLASS_NAME } from './sidebar-nav-controls'
 import { useTranslate } from '@/i18n/use-translate'
@@ -130,6 +132,7 @@ const SidebarNav = React.memo(function SidebarNav() {
         </span>
       </button>
       <SetupGuideSidebarEntry />
+      <EcosystemSidebarEntry />
       {appRailVisible ? null : <SidebarTaskNavButton />}
       {showArtifactsButton && !appRailVisible ? (
         <ContextMenu>

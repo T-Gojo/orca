@@ -50,24 +50,9 @@ export function MobileHomeBotsTab(props: {
     return (
       <>
         {header}
-        <MobileHomeTabEmpty
-          icon={Bot}
-          title={t('home.bots.noBotsTitle', 'No bots yet')}
-          message={t('home.bots.pairDesktop', 'Pair a desktop to see its bots here.')}
-        />
-      </>
-    )
-  }
-  const { rows } = data.bots
-  return (
-    <>
-      {header}
-      {notice.kind === 'empty' ? (
-        <MobileHomeTabEmpty icon={Bot} title={notice.title} message={notice.message} />
-      ) : (
         <ScrollView
           contentContainerStyle={[
-            { paddingBottom: props.bottomInset },
+            { paddingBottom: props.bottomInset, paddingHorizontal: spacing.lg },
             isWideLayout && { maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' }
           ]}
           keyboardShouldPersistTaps="handled"
@@ -77,33 +62,69 @@ export function MobileHomeBotsTab(props: {
             hostFilter={null}
             hostStates={data.hostStates}
             allClients={data.allClients}
+            onPairDesktop={() => data.router.push('/pair-scan')}
             first
           />
-          {computers.length > 1 ? (
-            computers.map((computer, index) => (
-              <View key={computer.placeKey}>
-                <View style={styles.computer}>
-                  <MobileHomeSectionHeading
-                    title={computer.label}
-                    count={computer.rows.length}
-                    first={index === 0}
-                  />
-                </View>
-                <MobileHomeBotRows rows={computer.rows} onOpen={props.onOpenBot} />
-              </View>
-            ))
-          ) : (
-            <MobileHomeBotRows rows={rows} onOpen={props.onOpenBot} />
-          )}
-          {notice.kind === 'waiting' ? (
-            <View style={styles.connecting}>
-              <ActivityIndicator size="small" color={colors.textSecondary} />
-            </View>
-          ) : notice.lines.length > 0 ? (
-            <MobileBotsListEnd lines={notice.lines} underRows={rows.length > 0} />
-          ) : null}
+          <MobileHomeTabEmpty
+            icon={Bot}
+            title={t('home.bots.noBotsTitle', 'No bots yet')}
+            message={t('home.bots.pairDesktop', 'Pair a desktop to see its bots here.')}
+          />
         </ScrollView>
-      )}
+      </>
+    )
+  }
+  const { rows } = data.bots
+  return (
+    <>
+      {header}
+      <ScrollView
+        contentContainerStyle={[
+          { paddingBottom: props.bottomInset },
+          isWideLayout && { maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' }
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <MobileForkEcosystemSection
+            hosts={data.sortedHosts}
+            hostFilter={null}
+            hostStates={data.hostStates}
+            allClients={data.allClients}
+            onPairDesktop={() => data.router.push('/pair-scan')}
+            first
+          />
+        </View>
+        {notice.kind === 'empty' ? (
+          <MobileHomeTabEmpty icon={Bot} title={notice.title} message={notice.message} />
+        ) : (
+          <>
+            {computers.length > 1 ? (
+              computers.map((computer, index) => (
+                <View key={computer.placeKey}>
+                  <View style={styles.computer}>
+                    <MobileHomeSectionHeading
+                      title={computer.label}
+                      count={computer.rows.length}
+                      first={index === 0}
+                    />
+                  </View>
+                  <MobileHomeBotRows rows={computer.rows} onOpen={props.onOpenBot} />
+                </View>
+              ))
+            ) : (
+              <MobileHomeBotRows rows={rows} onOpen={props.onOpenBot} />
+            )}
+            {notice.kind === 'waiting' ? (
+              <View style={styles.connecting}>
+                <ActivityIndicator size="small" color={colors.textSecondary} />
+              </View>
+            ) : notice.lines.length > 0 ? (
+              <MobileBotsListEnd lines={notice.lines} underRows={rows.length > 0} />
+            ) : null}
+          </>
+        )}
+      </ScrollView>
     </>
   )
 }

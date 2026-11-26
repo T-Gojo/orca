@@ -15,6 +15,8 @@ import { MobileHomeBots } from '../MobileHomeBots'
 import type { HomeBotRow } from '../bots/home-bot-rows'
 import { MobileHomeTasksSection } from '../MobileHomeTasksSection'
 import type { MobileHomeData } from '../use-mobile-home-data'
+// Fork: show OpenClaw & Hermes Unified Chat + Setup right on the primary Feed tab (FORK.md §16).
+import { MobileForkEcosystemSection } from './MobileForkEcosystemSection'
 import { MobileHomeTabHeader, MobileHomeTabHeaderButton } from './MobileHomeTabHeader'
 
 /** Home's first tab: bots, agents that need you or are working, the desktops, and Tasks. */
@@ -64,8 +66,6 @@ export function MobileHomeFeedTab(props: {
       </>
     )
   }
-  const hasBots = data.bots.rows.length > 0
-  const hasActiveAgents = data.activeAgents.length > 0
   return (
     <>
       {title}
@@ -75,8 +75,17 @@ export function MobileHomeFeedTab(props: {
           { paddingBottom: props.bottomInset },
           isWideLayout && { maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' }
         ]}
+        keyboardShouldPersistTaps="handled"
       >
         <MobileHomeAppMoveBanner />
+        <MobileForkEcosystemSection
+          hosts={data.sortedHosts}
+          hostFilter={null}
+          hostStates={data.hostStates}
+          allClients={data.allClients}
+          onPairDesktop={props.onPairDesktop}
+          first
+        />
         <MobileHomeBots
           rows={data.bots.rows}
           onOpen={props.onOpenBot}
@@ -87,12 +96,12 @@ export function MobileHomeFeedTab(props: {
           hosts={data.sortedHosts}
           now={data.agentList.now}
           handlers={props.agentHandlers}
-          first={!hasBots}
+          first={false}
           onSeeAll={props.onSeeAllAgents}
         />
         <MobileHomeHostList
           autoConnectHostIds={data.autoConnectHostIds}
-          first={!hasBots && !hasActiveAgents}
+          first={false}
           hostAttempts={data.hostAttempts}
           hostLastConnected={data.hostLastConnected}
           hostConnections={data.hostConnections}

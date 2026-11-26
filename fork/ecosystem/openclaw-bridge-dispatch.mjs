@@ -14,6 +14,29 @@ export const WA_AUTH_DIR = path.join(ECO_DIR, 'whatsapp-auth')
 export const PAIRING_FILE = path.join(ECO_DIR, 'pairing.json')
 export const CONFIG_FILE = path.join(ECO_DIR, 'config.json')
 export const ENV_FILE = path.join(ECO_DIR, '.env')
+export const CHAT_HISTORY_FILE = path.join(ECO_DIR, 'chat-history.json')
+
+export function appendBridgeChatHistory(entry) {
+  try {
+    const cur = readJson(CHAT_HISTORY_FILE, { messages: [] })
+    const list = Array.isArray(cur.messages) ? cur.messages : []
+    list.push({
+      id: `msg-${String(Date.now())}-${Math.random().toString(36).slice(2, 7)}`,
+      role: entry.role,
+      source: String(entry.source || 'openclaw'),
+      sender: String(entry.sender || 'User'),
+      text: String(entry.text || '')
+        .trim()
+        .slice(0, 12_000),
+      at: Date.now(),
+      routedAgent: entry.routedAgent || null,
+      rikuganUsed: Boolean(entry.rikuganUsed)
+    })
+    writeJsonAtomic(CHAT_HISTORY_FILE, { messages: list.slice(-100) })
+  } catch {
+    // Ignore history write failure
+  }
+}
 
 export const recentDeliveries = []
 export const sentWhatsAppIds = new Set()
@@ -186,9 +209,10 @@ async function callOrcaCliAsk({
 }) {
   const candidates = [
     process.env.ORCA_CLI_PATH,
-    '/Applications/Orca.app/Contents/Resources/app.asar.unpacked/out/cli/index.js',
+    '/Applications/Orca.app/Contents/Resources/bin/orca',
+    path.join(HOME, '.local', 'bin', 'orca'),
     '/usr/local/bin/orca',
-    path.join(HOME, '.local', 'bin', 'orca')
+    '/Applications/Orca.app/Contents/Resources/app.asar.unpacked/out/cli/index.js'
   ].filter(Boolean)
 
   let bin = 'orca'
@@ -310,6 +334,21 @@ export async function dispatchAskToOrca({
       const llmJson = await llmRes.json()
       const text = llmJson?.choices?.[0]?.message?.content || null
       if (text) {
+        appendBridgeChatHistory({
+          role: 'user',
+          source: source || 'openclaw',
+          sender: senderName || 'Owner',
+          text: prompt,
+          rikuganUsed: Boolean(contextBlock)
+        })
+        appendBridgeChatHistory({
+          role: 'assistant',
+          source: source || 'openclaw',
+          sender: 'Orca HQ',
+          text,
+          routedAgent: 'oaibo-fallback',
+          rikuganUsed: Boolean(contextBlock)
+        })
         return {
           accepted: true,
           sessionId: null,

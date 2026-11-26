@@ -1,5 +1,6 @@
 import { homedir } from 'node:os'
 import type { AgentJournalRenderItem } from '../../shared/agent-session/journal/agent-session-journal-types'
+import { appendEcosystemChatMessage, isTrackedEcosystemBotSession } from './ecosystem-chat-store'
 import { readEcosystemConfig, readEcosystemSecrets } from './ecosystem-config'
 import { saveValidatedSkillWithUndo } from './hermes-learning-connector'
 import {
@@ -19,6 +20,52 @@ function extractMessageText(item: AgentJournalRenderItem): string {
     .filter(Boolean)
     .join('\n')
     .trim()
+}
+
+export async function queryFallbackBridgeLlm(
+  composedPrompt: string,
+  home: string = homedir()
+): Promise<{ reply: string | null; error: string | null }> {
+  const secrets = await readEcosystemSecrets(home)
+  if (!secrets.OAIBO_API_KEY) {
+    return {
+      reply: null,
+      error: 'Enable Bots in Orca Settings › Bots to dispatch native sessions.'
+    }
+  }
+  try {
+    const res = await fetch('https://oaibo.jumpbump.in/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secrets.OAIBO_API_KEY}`,
+        'Content-Type': 'application/json',
+        'X-App-Name': 'orca-ecosystem-core'
+      },
+      body: JSON.stringify({
+        model: 'agy_gemini-3.8-flash-medium',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are Orca HQ — the unified orchestrator fusing Orca, OpenClaw (WhatsApp/Telegram), and Hermes Agent. Be concise, direct, and helpful.'
+          },
+          { role: 'user', content: composedPrompt }
+        ]
+      })
+    })
+    const json: unknown = await res.json()
+    const content =
+      typeof json === 'object' &&
+      json !== null &&
+      'choices' in json &&
+      Array.isArray(json.choices) &&
+      typeof json.choices[0]?.message?.content === 'string'
+        ? json.choices[0].message.content
+        : null
+    return { reply: content, error: content ? null : 'Bridge returned no reply' }
+  } catch (err) {
+    return { reply: null, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 export async function synthesizeSkillMarkdownForTopic(
@@ -85,8 +132,9 @@ export function observeEcosystemTurnEnded(
   readItems: (since: number) => Promise<readonly AgentJournalRenderItem[]>
 ): void {
   void (async () => {
+    const isEcoSession = isTrackedEcosystemBotSession(sessionId)
     const cfg = await readEcosystemConfig().catch(() => null)
-    if (!cfg?.rikuganAutoRecord && !cfg?.autoLearnEnabled) {
+    if (!isEcoSession && !cfg?.rikuganAutoRecord && !cfg?.autoLearnEnabled) {
       return
     }
     const items = await readItems(0).catch(() => [])
@@ -108,6 +156,16 @@ export function observeEcosystemTurnEnded(
     }
     const lastAssistant = assistantTexts.at(-1) ?? ''
     const firstUser = userTexts[0] ?? ''
+    if (isEcoSession && lastAssistant) {
+      await appendEcosystemChatMessage({
+        role: 'assistant',
+        source: 'orca-hq',
+        sender: 'Orca HQ',
+        text: lastAssistant,
+        routedAgent: 'orca-hq',
+        rikuganUsed: false
+      }).catch(() => null)
+    }
     // Strictly opt-in: never send completed Orca/CLI sessions to Rikugan unless rikuganAutoRecord is explicitly enabled.
     if (cfg?.rikuganAutoRecord === true && userTexts.length >= 2 && lastAssistant.length >= 80) {
       await recordCompletedSessionToRikugan({

@@ -31554,5 +31554,69 @@
       "learnBtn": "Distill",
       "undo": "Undo"
     }
+  },
+  "ecosystem": {
+    "sidebar": {
+      "navLabel": "OpenClaw & Hermes",
+      "hubBadge": "Hub"
+    },
+    "page": {
+      "title": "OpenClaw & Hermes Hub",
+      "close": "Close OpenClaw & Hermes Hub"
+    },
+    "chat": {
+      "heading": "Unified Chat · OpenClaw · Hermes · Orca",
+      "endpointBadge": "127.0.0.1:{{port}}",
+      "clear": "Clear",
+      "emptyTitle": "One conversation across Mac, Phone, WhatsApp, Telegram & Hermes",
+      "emptySubtitle": "Messages sent here, from Orca Mobile, or from paired WhatsApp / Telegram appear in this shared stream. Rikugan stays off unless you toggle it on.",
+      "starterReviewTitle": "Run Hermes /review",
+      "starterReviewDesc": "Independent senior code & security review",
+      "starterLearnTitle": "Distill a Hermes Skill",
+      "starterLearnDesc": "Create a <=60-char SKILL.md across all 6 CLIs",
+      "starterAskTitle": "Chat with OpenClaw & Orca",
+      "starterAskDesc": "Fast direct response without touching Rikugan",
+      "starterRikuganTitle": "Query Rikugan (On-Demand)",
+      "starterRikuganDesc": "Explicitly pull personal memory once",
+      "rikuganTag": "Rikugan",
+      "modeChat": "Chat",
+      "modeReview": "Hermes /review",
+      "modeLearn": "Distill Skill",
+      "rikuganOn": "Rikugan: On",
+      "rikuganOff": "Rikugan: Off",
+      "inputLabel": "Message OpenClaw, Hermes, and Orca",
+      "placeholderReview": "Describe branch, PR, or files to review…",
+      "placeholderLearn": "Describe the workflow topic to distill into a SKILL.md…",
+      "placeholderChat": "Message OpenClaw + Hermes + Orca (Enter to send, Shift+Enter for newline)…",
+      "sendBtn": "Send",
+      "pushToPhone": "Push to Phone"
+    },
+    "setup": {
+      "tabChannels": "Phone · WhatsApp · Telegram",
+      "tabHermes": "Hermes Suite & Skills",
+      "phoneTitle": "1. Connect Orca Mobile App",
+      "phoneDesc": "Scan the desktop pairing QR from the Orca app on your Android phone to chat and configure WhatsApp & Telegram remotely.",
+      "openPhoneQr": "Show Phone Pairing QR",
+      "whatsappTitle": "2. OpenClaw WhatsApp",
+      "whatsappDefault": "Multi-device Baileys link (Note-to-Self + approved contacts).",
+      "generateWaQr": "Generate WhatsApp QR",
+      "sendTest": "Send Test",
+      "waTestMsg": "Orca OpenClaw WhatsApp link is live.",
+      "tgTestMsg": "Orca OpenClaw Telegram bot is live.",
+      "telegramTitle": "3. OpenClaw Telegram & Pairing",
+      "telegramDefault": "Paste a @BotFather token, then DM your bot and approve its 6-digit pairing code.",
+      "saveAndStart": "Save & Connect",
+      "pairCodeLabel": "6-digit DM pairing code",
+      "pairCodePlaceholder": "6-digit pairing code…"
+    },
+    "hermes": {
+      "searchLabel": "Search Hermes Skills Hub",
+      "searchPlaceholder": "Search 1,426+ local & GitHub skills…",
+      "searchBtn": "Search",
+      "installBtn": "Install",
+      "learnedHeading": "Auto-Learned Skills (1-Tap Undo)",
+      "noLearnedYet": "Skills distilled by Hermes appear here with instant rollback across all 6 CLIs.",
+      "rikuganCardTitle": "Rikugan Personal Brain (On-Demand)"
+    }
   }
 }

@@ -7,10 +7,12 @@ import type {
 import { requireStructuredHost, runtimeBotChats } from '../bots/bot-chat-session'
 import { readTurnEndedItems } from '../native-chat/agent-session-wire/structured-agent-session-turn-context'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { readEcosystemConfig, readEcosystemSecrets } from './ecosystem-config'
+import { appendEcosystemChatMessage, trackEcosystemBotSession } from './ecosystem-chat-store'
+import { readEcosystemConfig } from './ecosystem-config'
 import { ensurePrimaryEcosystemBot } from './ecosystem-service'
 import {
   observeEcosystemTurnEnded,
+  queryFallbackBridgeLlm,
   synthesizeSkillMarkdownForTopic
 } from './ecosystem-turn-observer'
 import { buildHermesReviewBrief, saveValidatedSkillWithUndo } from './hermes-learning-connector'
@@ -82,6 +84,8 @@ export async function askEcosystem(
       error: 'Empty prompt'
     }
   }
+  const source = input.source ?? 'desktop'
+  const sender = input.senderName ?? 'Owner'
   const cfg = await readEcosystemConfig(home)
   const shouldUseRikugan =
     isExplicitRikuganRequest(cleanPrompt, input.rikugan) || cfg.rikuganAutoContext
@@ -89,6 +93,19 @@ export async function askEcosystem(
   const context = shouldUseRikugan
     ? await prefetchRikuganContext(cleanPrompt, sessionKey, { home })
     : { text: '', itemCount: 0 }
+
+  await appendEcosystemChatMessage(
+    {
+      role: 'user',
+      source,
+      sender,
+      text: cleanPrompt,
+      routedAgent: null,
+      rikuganUsed: context.itemCount > 0
+    },
+    home
+  ).catch(() => null)
+
   const sourceHeader = input.source
     ? `[Unified Ingress: ${input.source}${input.senderName ? ` · ${input.senderName}` : ''}]\n`
     : ''
@@ -97,80 +114,66 @@ export async function askEcosystem(
 
   const bot = await ensurePrimaryEcosystemBot(runtime)
   if (bot) {
-    const chats = runtimeBotChats(runtime)
-    const targetSessionId = await chats.ensure(bot.id)
-    const waitPromise =
-      input.wait === true ? waitForStructuredTurnReply(runtime, targetSessionId, 150_000) : null
-    const delivered = await chats.sendToChat(bot.id, composedPrompt)
-    const reply = waitPromise ? await waitPromise : null
-    return {
-      accepted: true,
-      sessionId: delivered.sessionId,
-      botId: bot.id,
-      routedAgent: bot.agent,
-      routedAccount: null,
-      rikuganItemsAttached: context.itemCount,
-      reply,
-      error: null
+    try {
+      const chats = runtimeBotChats(runtime)
+      const targetSessionId = await chats.ensure(bot.id)
+      trackEcosystemBotSession(targetSessionId)
+      const waitPromise =
+        input.wait === true ? waitForStructuredTurnReply(runtime, targetSessionId, 45_000) : null
+      const delivered = await chats.sendToChat(bot.id, composedPrompt)
+      trackEcosystemBotSession(delivered.sessionId)
+      const reply = waitPromise ? await waitPromise : null
+      if (reply) {
+        await appendEcosystemChatMessage(
+          {
+            role: 'assistant',
+            source,
+            sender: bot.name,
+            text: reply,
+            routedAgent: bot.agent,
+            rikuganUsed: context.itemCount > 0
+          },
+          home
+        ).catch(() => null)
+      }
+      return {
+        accepted: true,
+        sessionId: delivered.sessionId,
+        botId: bot.id,
+        routedAgent: bot.agent,
+        routedAccount: null,
+        rikuganItemsAttached: context.itemCount,
+        reply,
+        error: null
+      }
+    } catch {
+      // Fall through to OAIBO bridge if local bot session failed to boot
     }
   }
 
-  const secrets = await readEcosystemSecrets(home)
-  if (secrets.OAIBO_API_KEY) {
-    try {
-      const res = await fetch('https://oaibo.jumpbump.in/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${secrets.OAIBO_API_KEY}`,
-          'Content-Type': 'application/json',
-          'X-App-Name': 'orca-ecosystem-core'
-        },
-        body: JSON.stringify({
-          model: 'agy_gemini-3.8-flash-medium',
-          messages: [{ role: 'user', content: composedPrompt }]
-        })
-      })
-      const json: unknown = await res.json()
-      const content =
-        typeof json === 'object' &&
-        json !== null &&
-        'choices' in json &&
-        Array.isArray(json.choices) &&
-        typeof json.choices[0]?.message?.content === 'string'
-          ? json.choices[0].message.content
-          : null
-      return {
-        accepted: Boolean(content),
-        sessionId: null,
-        botId: null,
-        routedAgent: 'oaibo-bridge',
-        routedAccount: null,
-        rikuganItemsAttached: context.itemCount,
-        reply: content,
-        error: content ? null : 'Bridge returned no reply'
-      }
-    } catch (err) {
-      return {
-        accepted: false,
-        sessionId: null,
-        botId: null,
-        routedAgent: null,
-        routedAccount: null,
-        rikuganItemsAttached: context.itemCount,
-        reply: null,
-        error: err instanceof Error ? err.message : String(err)
-      }
-    }
+  const fb = await queryFallbackBridgeLlm(composedPrompt, home)
+  if (fb.reply) {
+    await appendEcosystemChatMessage(
+      {
+        role: 'assistant',
+        source,
+        sender: 'Orca HQ',
+        text: fb.reply,
+        routedAgent: 'orca-hq-llm',
+        rikuganUsed: context.itemCount > 0
+      },
+      home
+    ).catch(() => null)
   }
   return {
-    accepted: false,
+    accepted: Boolean(fb.reply),
     sessionId: null,
     botId: null,
-    routedAgent: null,
+    routedAgent: fb.reply ? 'orca-hq-llm' : null,
     routedAccount: null,
     rikuganItemsAttached: context.itemCount,
-    reply: null,
-    error: 'Enable Bots in Orca Settings › Bots to dispatch native sessions.'
+    reply: fb.reply,
+    error: fb.error
   }
 }
 
@@ -217,7 +220,7 @@ export async function runEcosystemHermesAction(
     })
     const asked = await askEcosystem(
       runtime,
-      { prompt: brief.prompt, source: 'hermes-review', wait: false },
+      { prompt: brief.prompt, source: 'hermes-review', wait: true },
       home
     )
     return {
@@ -226,23 +229,48 @@ export async function runEcosystemHermesAction(
       skillName: null,
       backupId: null,
       dispatchId: asked.sessionId,
-      summary: asked.accepted
-        ? `Dispatched independent Hermes review to session ${asked.sessionId ?? 'orca-hq'}.`
-        : (asked.error ?? 'Review dispatch failed.')
+      summary:
+        asked.reply ??
+        (asked.accepted
+          ? `Dispatched independent Hermes review to session ${asked.sessionId ?? 'orca-hq'}.`
+          : (asked.error ?? 'Review dispatch failed.'))
     }
   }
 
-  const md =
-    input.markdown?.trim() || (await synthesizeSkillMarkdownForTopic(input.topic ?? '', home))
+  const topicText = (input.topic ?? '').trim() || 'recent-workflow'
+  await appendEcosystemChatMessage(
+    {
+      role: 'user',
+      source: 'hermes-learn',
+      sender: 'Owner',
+      text: `Distill Hermes skill: ${topicText}`,
+      routedAgent: null,
+      rikuganUsed: false
+    },
+    home
+  ).catch(() => null)
+  const md = input.markdown?.trim() || (await synthesizeSkillMarkdownForTopic(topicText, home))
   const saved = await saveValidatedSkillWithUndo({ markdown: md }, home)
+  const summary = saved.ok
+    ? `Distilled & synced skill '${saved.entry?.skillName}' (${saved.entry?.action}) across all 6 CLIs.`
+    : (saved.error ?? 'Skill distillation failed.')
+  await appendEcosystemChatMessage(
+    {
+      role: 'assistant',
+      source: 'hermes-learn',
+      sender: 'Hermes Distiller',
+      text: summary,
+      routedAgent: 'hermes-distiller',
+      rikuganUsed: false
+    },
+    home
+  ).catch(() => null)
   return {
     ok: saved.ok,
     mode: 'learn',
     skillName: saved.entry?.skillName ?? null,
     backupId: saved.entry?.backupId ?? null,
     dispatchId: null,
-    summary: saved.ok
-      ? `Distilled & synced skill '${saved.entry?.skillName}' (${saved.entry?.action}) across all 6 CLIs.`
-      : (saved.error ?? 'Skill distillation failed.')
+    summary
   }
 }

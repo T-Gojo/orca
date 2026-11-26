@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native'
-import { RotateCcw, Send, ShieldCheck, Sparkles } from 'lucide-react-native'
+import { Pressable, Text, View } from 'react-native'
+import { QrCode, Sparkles } from 'lucide-react-native'
 import type {
   EcosystemControlAction,
+  EcosystemLearnResult,
   EcosystemStatusSnapshot
 } from '../../../../src/shared/ecosystem/ecosystem-types'
 import { AgentStateDot } from '../../agents/presentation/AgentStateDot'
@@ -23,22 +24,31 @@ import {
   ecosystemLearnOp,
   ecosystemStatusReadOp
 } from './mobile-fork-ecosystem-rpc'
+import { MobileForkEcosystemChatView, type MobileChatMode } from './MobileForkEcosystemChatView'
+import {
+  MobileForkEcosystemChannelsView,
+  MobileForkEcosystemHermesView
+} from './MobileForkEcosystemSetupViews'
 
-// Fork: unified Ecosystem & Ask-Mac-Now control card on Mobile Home Agents tab (FORK.md §16).
+// Fork: unified OpenClaw & Hermes Chat + Setup Hub on Mobile Feed, Bots, and Agents tabs (FORK.md §16).
+
+type HubSubTab = 'chat' | 'channels' | 'hermes'
+type SkillItem = NonNullable<EcosystemLearnResult['items']>[number]
 
 export function MobileForkEcosystemSection(props: {
   hosts: readonly HostProfile[]
   hostFilter: string | null
   hostStates: Record<string, ConnectionState>
   allClients: readonly { hostId: string; client: RpcClient }[]
+  onPairDesktop?: () => void
   first?: boolean
 }) {
   useMobileColorScheme()
   const t = useMobileTranslation()
+  const [subTab, setSubTab] = useState<HubSubTab>('chat')
   const [snapshot, setSnapshot] = useState<EcosystemStatusSnapshot | null>(null)
-  const [prompt, setPrompt] = useState('')
+  const [skillResults, setSkillResults] = useState<SkillItem[]>([])
   const [busy, setBusy] = useState<string | null>(null)
-  const [replyText, setReplyText] = useState<string | null>(null)
   const [banner, setBanner] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
@@ -79,7 +89,16 @@ export function MobileForkEcosystemSection(props: {
   }, [primaryTarget, tick])
 
   const onControl = useCallback(
-    (action: EcosystemControlAction, extra: { code?: string; skillName?: string } = {}) => {
+    (
+      action: EcosystemControlAction,
+      extra: {
+        code?: string
+        token?: string
+        skillName?: string
+        message?: string
+        channel?: 'auto' | 'telegram' | 'whatsapp'
+      } = {}
+    ) => {
       if (!primaryTarget || busy) {
         return
       }
@@ -101,76 +120,123 @@ export function MobileForkEcosystemSection(props: {
     [primaryTarget, busy]
   )
 
-  const onAskMac = useCallback(() => {
-    const trimmed = prompt.trim()
-    if (!primaryTarget || !trimmed || busy) {
-      return
-    }
-    triggerSelection()
-    setBusy('ask')
-    setBanner(null)
-    setReplyText(null)
-    void runRpcOperation(primaryTarget.client, ecosystemAskOp, {
-      prompt: trimmed,
-      source: 'orca-mobile',
-      wait: true
-    }).then(
-      (res) => {
-        setPrompt('')
-        if (res.reply) {
-          setReplyText(res.reply)
-        } else {
-          setBanner(
-            res.accepted
-              ? t('fork.ecosystem.dispatched', 'Sent to {{agent}} on Mac', {
-                  agent: res.routedAgent ?? 'Orca HQ'
-                })
-              : (res.error ?? 'Dispatch failed')
-          )
+  const onRunHermes = useCallback(
+    (mode: 'learn' | 'review' | 'skills-search' | 'skills-install', value: string) => {
+      if (!primaryTarget || busy) {
+        return
+      }
+      triggerSelection()
+      setBusy(mode)
+      setBanner(null)
+      void runRpcOperation(primaryTarget.client, ecosystemLearnOp, {
+        mode,
+        ...(mode === 'learn' ? { topic: value } : {}),
+        ...(mode === 'review' ? { focus: value } : {}),
+        ...(mode === 'skills-search' || mode === 'skills-install' ? { query: value } : {})
+      }).then(
+        (res) => {
+          if (mode === 'skills-search') {
+            setSkillResults(res.items ?? [])
+          }
+          setBanner(res.summary)
+          setBusy(null)
+          setTick((n) => n + 1)
+        },
+        (err: unknown) => {
+          setBanner(err instanceof Error ? err.message : String(err))
+          setBusy(null)
         }
-        setBusy(null)
-        setTick((n) => n + 1)
-      },
-      (err: unknown) => {
-        setBanner(err instanceof Error ? err.message : String(err))
-        setBusy(null)
-      }
-    )
-  }, [primaryTarget, prompt, busy, t])
+      )
+    },
+    [primaryTarget, busy]
+  )
 
-  const onReviewMac = useCallback(() => {
-    if (!primaryTarget || busy) {
-      return
-    }
-    triggerSelection()
-    setBusy('review')
-    void runRpcOperation(primaryTarget.client, ecosystemLearnOp, {
-      mode: 'review',
-      focus: prompt.trim() || 'current workspace changes'
-    }).then(
-      (res) => {
-        setBanner(res.summary)
-        setBusy(null)
-      },
-      (err: unknown) => {
-        setBanner(err instanceof Error ? err.message : String(err))
-        setBusy(null)
+  const onSendChat = useCallback(
+    (trimmed: string, mode: MobileChatMode, useRikugan: boolean) => {
+      if (!primaryTarget || busy) {
+        return
       }
-    )
-  }, [primaryTarget, prompt, busy])
+      if (mode === 'review') {
+        onRunHermes('review', trimmed)
+        return
+      }
+      if (mode === 'learn') {
+        onRunHermes('learn', trimmed)
+        return
+      }
+      triggerSelection()
+      setBusy('ask')
+      setBanner(null)
+      void runRpcOperation(primaryTarget.client, ecosystemAskOp, {
+        prompt: trimmed,
+        source: 'orca-mobile',
+        wait: true,
+        ...(useRikugan ? { rikugan: true } : {})
+      }).then(
+        (res) => {
+          if (!res.reply) {
+            setBanner(
+              res.accepted
+                ? t('fork.ecosystem.dispatched', 'Sent to {{agent}} on Mac', {
+                    agent: res.routedAgent ?? 'Orca HQ'
+                  })
+                : (res.error ?? 'Dispatch failed')
+            )
+          }
+          setBusy(null)
+          setTick((n) => n + 1)
+        },
+        (err: unknown) => {
+          setBanner(err instanceof Error ? err.message : String(err))
+          setBusy(null)
+        }
+      )
+    },
+    [primaryTarget, busy, onRunHermes, t]
+  )
 
   if (!primaryTarget) {
-    return null
+    if (!props.onPairDesktop) {
+      return null
+    }
+    return (
+      <View>
+        <MobileHomeSectionHeading
+          title={t('fork.ecosystem.heading', 'OpenClaw & Hermes Hub')}
+          first={props.first === true}
+        />
+        <View style={homeListStyles.group}>
+          <View style={styles.card}>
+            <Text style={styles.emptyHint}>
+              {t(
+                'fork.ecosystem.pairMacFirst',
+                'Connect your Mac to chat with OpenClaw & Hermes and set up WhatsApp & Telegram.'
+              )}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={props.onPairDesktop}
+              style={styles.pairMacBtn}
+            >
+              <QrCode size={15} color={colors.background} />
+              <Text style={styles.pairMacBtnText}>
+                {t('fork.ecosystem.pairMacBtn', 'Scan Mac Pairing QR')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    )
   }
 
   const tg = snapshot?.channels.find((c) => c.id === 'telegram')
   const wa = snapshot?.channels.find((c) => c.id === 'whatsapp')
-  const latestSkill = snapshot?.hermes.recentLearnedSkills[0] ?? null
+  const messages = (snapshot?.chatMessages ?? []).slice(-12)
 
   return (
     <View>
       <MobileHomeSectionHeading
-        title={t('fork.ecosystem.heading', 'Mac Ecosystem · Rikugan · OpenClaw · Hermes')}
+        title={t('fork.ecosystem.heading', 'OpenClaw & Hermes Hub')}
         aside={
           snapshot?.bridgeRunning
             ? t('fork.ecosystem.sync', 'Sync')
@@ -181,116 +247,69 @@ export function MobileForkEcosystemSection(props: {
       />
       <View style={homeListStyles.group}>
         <View style={styles.card}>
-          <View style={styles.inputRow}>
-            <TextInput
-              value={prompt}
-              onChangeText={setPrompt}
-              placeholder={t(
-                'fork.ecosystem.askPlaceholder',
-                'Run a task on Mac, or mention Rikugan…'
-              )}
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-              editable={busy === null}
-              returnKeyType="send"
-              onSubmitEditing={onAskMac}
-            />
+          <View style={styles.tabsRow}>
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('fork.ecosystem.sendToMac', 'Send to Mac')}
-              disabled={busy !== null || prompt.trim().length === 0}
-              onPress={onAskMac}
-              style={[styles.sendBtn, (busy !== null || !prompt.trim()) && styles.disabled]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: subTab === 'chat' }}
+              onPress={() => setSubTab('chat')}
+              style={[styles.tabBtn, subTab === 'chat' && styles.tabBtnActive]}
             >
-              {busy === 'ask' ? (
-                <ActivityIndicator size="small" color={colors.background} />
-              ) : (
-                <Send size={15} color={colors.background} />
-              )}
+              <Text style={[styles.tabText, subTab === 'chat' && styles.tabTextActive]}>
+                {t('fork.ecosystem.tabChat', 'Chat')}
+              </Text>
             </Pressable>
-          </View>
-
-          <View style={styles.pillsRow}>
-            <View style={styles.pill}>
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: subTab === 'channels' }}
+              onPress={() => setSubTab('channels')}
+              style={[styles.tabBtn, subTab === 'channels' && styles.tabBtnActive]}
+            >
               <AgentStateDot
-                state={snapshot?.rikugan.state === 'online' ? 'done' : 'failed'}
+                state={wa?.state === 'online' || tg?.state === 'online' ? 'done' : 'idle'}
                 decorative
               />
-              <Text style={styles.pillText}>{t('fork.ecosystem.pillRikugan', 'Rikugan')}</Text>
-            </View>
-            <View style={styles.pill}>
-              <AgentStateDot state={tg?.state === 'online' ? 'done' : 'idle'} decorative />
-              <Text style={styles.pillText}>{t('fork.ecosystem.pillTelegram', 'Telegram')}</Text>
-            </View>
-            <View style={styles.pill}>
-              <AgentStateDot state={wa?.state === 'online' ? 'done' : 'idle'} decorative />
-              <Text style={styles.pillText}>{t('fork.ecosystem.pillWhatsApp', 'WhatsApp')}</Text>
-            </View>
-            <View style={styles.pill}>
-              <Sparkles size={11} color={colors.textSecondary} />
-              <Text style={styles.pillText}>
-                {t('fork.ecosystem.pillHermes', 'Hermes ({{count}})', {
-                  count: snapshot?.hermes.installedSkillsCount ?? 0
-                })}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.actionsRow}>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy !== null}
-              onPress={onReviewMac}
-              style={styles.secondaryBtn}
-            >
-              <ShieldCheck size={13} color={colors.textPrimary} />
-              <Text style={styles.secondaryBtnText}>
-                {t('fork.ecosystem.reviewBtn', '/review on Mac')}
+              <Text style={[styles.tabText, subTab === 'channels' && styles.tabTextActive]}>
+                {t('fork.ecosystem.tabChannels', 'WhatsApp · Telegram')}
               </Text>
             </Pressable>
-            {latestSkill ? (
-              <Pressable
-                accessibilityRole="button"
-                disabled={busy !== null}
-                onPress={() => onControl('undo-skill', { skillName: latestSkill.backupId })}
-                style={styles.secondaryBtn}
-              >
-                <RotateCcw size={13} color={colors.textSecondary} />
-                <Text style={styles.secondaryBtnText} numberOfLines={1}>
-                  {t('fork.ecosystem.undoSkill', 'Undo {{name}}', {
-                    name: latestSkill.skillName
-                  })}
-                </Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: subTab === 'hermes' }}
+              onPress={() => setSubTab('hermes')}
+              style={[styles.tabBtn, subTab === 'hermes' && styles.tabBtnActive]}
+            >
+              <Sparkles size={11} color={colors.textSecondary} />
+              <Text style={[styles.tabText, subTab === 'hermes' && styles.tabTextActive]}>
+                {t('fork.ecosystem.tabHermes', 'Hermes')}
+              </Text>
+            </Pressable>
           </View>
 
-          {(snapshot?.pendingPairings ?? []).map((req) => (
-            <View key={req.code} style={styles.pairingRow}>
-              <Text style={styles.pairingText} numberOfLines={1}>
-                {`${req.code} · ${req.channel} (${req.senderName ?? req.senderId})`}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                disabled={busy !== null}
-                onPress={() => onControl('approve-pairing', { code: req.code })}
-                style={styles.approveBtn}
-              >
-                <Text style={styles.approveBtnText}>{t('fork.ecosystem.approve', 'Approve')}</Text>
-              </Pressable>
-            </View>
-          ))}
+          {banner ? <Text style={styles.bannerText}>{banner}</Text> : null}
 
-          {banner ? (
-            <Text style={styles.banner} numberOfLines={3}>
-              {banner}
-            </Text>
-          ) : null}
-          {replyText ? (
-            <View style={styles.replyBox}>
-              <Text style={styles.replyText}>{replyText}</Text>
-            </View>
-          ) : null}
+          {subTab === 'chat' ? (
+            <MobileForkEcosystemChatView
+              messages={messages}
+              busy={busy}
+              onSendChat={onSendChat}
+              onClearChat={() => onControl('clear-chat')}
+            />
+          ) : subTab === 'channels' ? (
+            <MobileForkEcosystemChannelsView
+              snapshot={snapshot}
+              busy={busy}
+              onControl={onControl}
+            />
+          ) : (
+            <MobileForkEcosystemHermesView
+              snapshot={snapshot}
+              busy={busy}
+              skillResults={skillResults}
+              onControl={onControl}
+              onSearchSkills={(q) => onRunHermes('skills-search', q)}
+              onInstallSkill={(target) => onRunHermes('skills-install', target)}
+            />
+          )}
         </View>
       </View>
     </View>
@@ -298,111 +317,37 @@ export function MobileForkEcosystemSection(props: {
 }
 
 const styles = themedStyleSheet(() => ({
-  card: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    gap: spacing.sm
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs
-  },
-  input: {
+  card: { padding: spacing.md, gap: spacing.sm },
+  tabsRow: { flexDirection: 'row', gap: spacing.xs },
+  tabBtn: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 32,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm + 2,
-    fontSize: 16,
-    color: colors.textPrimary
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.xs
   },
-  sendBtn: {
-    width: 38,
-    height: 38,
+  tabBtnActive: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.textSecondary
+  },
+  tabText: { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
+  tabTextActive: { fontWeight: '700', color: colors.textPrimary },
+  emptyHint: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
+  bannerText: { fontSize: 12, color: colors.textSecondary },
+  pairMacBtn: {
+    minHeight: 40,
     borderRadius: radii.md,
     backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  disabled: {
-    opacity: 0.45
-  },
-  pillsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs
   },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.full,
-    backgroundColor: colors.surface
-  },
-  pillText: {
-    fontSize: 12,
-    color: colors.textSecondary
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border
-  },
-  secondaryBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textPrimary
-  },
-  pairingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingTop: 4
-  },
-  pairingText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textPrimary
-  },
-  approveBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.md,
-    backgroundColor: colors.textPrimary
-  },
-  approveBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.background
-  },
-  banner: {
-    fontSize: 12,
-    color: colors.textSecondary
-  },
-  replyBox: {
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    padding: spacing.sm
-  },
-  replyText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.textPrimary
-  }
+  pairMacBtnText: { fontSize: 13, fontWeight: '600', color: colors.background }
 }))

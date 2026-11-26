@@ -7,7 +7,9 @@ import type {
   EcosystemStatusSnapshot
 } from '../../../../../shared/ecosystem/ecosystem-types'
 
-/** Fork: state and RPC controller hook for the Desktop Ecosystem Hub sidebar view (FORK.md §16). */
+/** Fork: state and RPC controller hook for Desktop Ecosystem Hub & Workspace views (FORK.md §16). */
+
+export type SkillHubItem = NonNullable<EcosystemLearnResult['items']>[number]
 
 export function useEcosystemHub(isVisible: boolean) {
   const [status, setStatus] = useState<EcosystemStatusSnapshot | null>(null)
@@ -16,6 +18,7 @@ export function useEcosystemHub(isVisible: boolean) {
   const [notice, setNotice] = useState<string | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
   const [lastAskReply, setLastAskReply] = useState<string | null>(null)
+  const [skillResults, setSkillResults] = useState<SkillHubItem[]>([])
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -97,7 +100,7 @@ export function useEcosystemHub(isVisible: boolean) {
   )
 
   const submitAsk = useCallback(
-    (prompt: string, wait: boolean) => {
+    (prompt: string, wait: boolean, rikugan: boolean = false) => {
       const trimmed = prompt.trim()
       if (!trimmed) {
         return
@@ -108,7 +111,7 @@ export function useEcosystemHub(isVisible: boolean) {
       callRuntimeRpc<EcosystemAskResult>(
         { kind: 'local' },
         'delegation.ecosystemAsk',
-        { prompt: trimmed, source: 'desktop-hub', wait },
+        { prompt: trimmed, source: 'desktop', wait, ...(rikugan ? { rikugan: true } : {}) },
         { timeoutMs: wait ? 160_000 : 25_000 }
       )
         .then((res) => {
@@ -121,9 +124,7 @@ export function useEcosystemHub(isVisible: boolean) {
             setLastAskReply(res.reply)
             setNotice(null)
           } else {
-            setNotice(
-              `Dispatched to ${res.routedAgent ?? 'Orca HQ'} (${res.rikuganItemsAttached} Rikugan records attached).`
-            )
+            setNotice(`Dispatched to ${res.routedAgent ?? 'Orca HQ'}.`)
           }
           refresh()
         })
@@ -142,7 +143,7 @@ export function useEcosystemHub(isVisible: boolean) {
   )
 
   const runHermes = useCallback(
-    (mode: 'learn' | 'review' | 'skills-install', value: string) => {
+    (mode: 'learn' | 'review' | 'skills-install' | 'skills-search', value: string) => {
       setBusyAction(mode)
       setErrorText(null)
       callRuntimeRpc<EcosystemLearnResult>(
@@ -152,13 +153,16 @@ export function useEcosystemHub(isVisible: boolean) {
           mode,
           ...(mode === 'learn' ? { topic: value } : {}),
           ...(mode === 'review' ? { focus: value } : {}),
-          ...(mode === 'skills-install' ? { query: value } : {})
+          ...(mode === 'skills-install' || mode === 'skills-search' ? { query: value } : {})
         },
-        { timeoutMs: 60_000 }
+        { timeoutMs: 75_000 }
       )
         .then((res) => {
           if (!mountedRef.current) {
             return
+          }
+          if (mode === 'skills-search') {
+            setSkillResults(res.items ?? [])
           }
           if (res.ok) {
             setNotice(res.summary)
@@ -188,6 +192,7 @@ export function useEcosystemHub(isVisible: boolean) {
     notice,
     errorText,
     lastAskReply,
+    skillResults,
     refresh,
     runControl,
     submitAsk,

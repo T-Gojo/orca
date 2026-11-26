@@ -7,6 +7,7 @@ import type {
   EcosystemStatusSnapshot
 } from '../../shared/ecosystem/ecosystem-types'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
+import { clearEcosystemChatMessages, readEcosystemChatMessages } from './ecosystem-chat-store'
 import {
   approvePairingCode,
   ecosystemPaths,
@@ -57,11 +58,12 @@ export async function readEcosystemStatus(
   home: string = homedir()
 ): Promise<EcosystemStatusSnapshot> {
   const paths = ecosystemPaths(home)
-  const [rikugan, hermes, bridge, pairing, bridgeRuntimePresent] = await Promise.all([
+  const [rikugan, hermes, bridge, pairing, chatMessages, bridgeRuntimePresent] = await Promise.all([
     probeRikuganStatus(home),
     probeHermesSuiteStatus(home),
     probeOpenClawBridgeStatus(home),
     readPairingStore(home),
+    readEcosystemChatMessages(home, 50),
     stat(join(paths.runtimeDir, 'orca-openclaw-bridge.mjs')).then(
       () => true,
       () => false
@@ -82,7 +84,8 @@ export async function readEcosystemStatus(
     hermes,
     channels: bridge.channels,
     pendingPairings: pairing.pending,
-    recentDeliveries: bridge.recentDeliveries
+    recentDeliveries: bridge.recentDeliveries,
+    chatMessages
   }
 }
 
@@ -158,8 +161,11 @@ export async function controlEcosystem(
     }
     case 'set-telegram-token': {
       await setEcosystemSecret('TELEGRAM_BOT_TOKEN', input.token ?? '', home)
+      if (input.token?.trim()) {
+        await startOpenClawBridgeDaemon(DEFAULT_REPO_ROOT, home)
+      }
       detail = input.token?.trim()
-        ? 'Saved TELEGRAM_BOT_TOKEN (0600) in ~/.config/orca-ecosystem/.env.'
+        ? 'Saved TELEGRAM_BOT_TOKEN (0600) and started OpenClaw Telegram polling.'
         : 'Cleared TELEGRAM_BOT_TOKEN.'
       break
     }
@@ -173,7 +179,15 @@ export async function controlEcosystem(
       if (qrRes.ok && typeof qrRes.data === 'object' && qrRes.data !== null) {
         extra = { ...qrRes.data }
       }
-      detail = 'Initiated WhatsApp Web QR pairing.'
+      for (let i = 0; i < 4; i += 1) {
+        const snap = await probeOpenClawBridgeStatus(home)
+        const wa = snap.channels.find((c) => c.id === 'whatsapp')
+        if (wa?.qrDataUrl || wa?.state === 'online') {
+          break
+        }
+        await new Promise((r) => setTimeout(r, 750))
+      }
+      detail = 'Generated WhatsApp Linked-Devices QR code.'
       break
     }
     case 'whatsapp-logout': {
@@ -208,6 +222,11 @@ export async function controlEcosystem(
     case 'park-hermes-gateway': {
       await parkLegacyHermesGateway()
       detail = 'Parked duplicate standalone ai.hermes.gateway daemon.'
+      break
+    }
+    case 'clear-chat': {
+      await clearEcosystemChatMessages(home)
+      detail = 'Cleared unified ecosystem chat history.'
       break
     }
   }

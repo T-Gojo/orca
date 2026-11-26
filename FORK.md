@@ -539,8 +539,10 @@ Makes Orca the single orchestrator, UI, and local endpoint (`127.0.0.1:6770`) ac
   - Cleanly parks duplicate standalone `ai.hermes.gateway` on `orca ecosystem up` while keeping `~/.hermes` intact for Hermes ACP inside Orca.
 - **CLI, RPC & UI surfaces:**
   - `src/cli/specs/ecosystem.ts`, `src/cli/ecosystem/ecosystem-handlers.ts`, `src/cli/ecosystem/ecosystem-handler-group.ts` (`orca ecosystem {up|down|status|sync|ask|review|learn|undo-skill|skills|pair|telegram|whatsapp|notify}`).
+  - Shared conversation history (`src/main/ecosystem/ecosystem-chat-store.ts` → `~/.config/orca-ecosystem/chat-history.json`, mode `0600`) unifies messages across Desktop, Mobile, WhatsApp, Telegram, and Hermes `/review` & `learn`.
   - Appends `delegation.ecosystemStatus`, `delegation.ecosystemControl`, `delegation.ecosystemAsk`, and `delegation.ecosystemLearn` at the end of `DELEGATION_METHODS` and `MOBILE_FORK_PAIRED_DESKTOP_METHODS`.
-  - Desktop `EcosystemHubPanel.tsx` (`[Background Tasks | Ecosystem]` switcher in `BackgroundTasksPanel.tsx`) and Mobile `MobileForkEcosystemSection.tsx` (in `MobileHomeAgentsTab.tsx` & `MobileHomeBotsTab.tsx`).
+  - **Desktop UI:** prominent top-left sidebar button `EcosystemSidebarEntry.tsx` (in `SidebarNav.tsx`) opening full-workspace `EcosystemWorkspacePage.tsx` (`EcosystemChatPane.tsx` + `EcosystemSetupAndHermesPane.tsx`, mounted in `AppWorkspaceShell.tsx`), plus right-sidebar `EcosystemHubPanel.tsx`.
+  - **Mobile UI (`dev.orca.app`):** `MobileForkEcosystemSection.tsx` + `MobileForkEcosystemSetupViews.tsx` (`[Chat | WhatsApp · Telegram | Hermes]` tabs with WhatsApp QR `<Image>`, Telegram BotFather token input, 6-digit pairing approvals, Skills Hub search/install, and opt-in Rikugan toggle) rendered at the top of `MobileHomeFeedTab.tsx`, `MobileHomeBotsTab.tsx` (even when Bots are off or empty), and `MobileHomeAgentsTab.tsx`.
 
 ### Upstream gate notes (main-process rules)
 
