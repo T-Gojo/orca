@@ -135,6 +135,83 @@ function discoverDusk(homeDir) {
   return null
 }
 
+function parseDotEnvSimple(filePath) {
+  const out = {}
+  if (!fs.existsSync(filePath)) {
+    return out
+  }
+  for (const raw of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) {
+      continue
+    }
+    const eq = line.indexOf('=')
+    if (eq <= 0) {
+      continue
+    }
+    const k = line
+      .slice(0, eq)
+      .trim()
+      .replace(/^export\s+/, '')
+    let v = line.slice(eq + 1).trim()
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1)
+    }
+    out[k] = v
+  }
+  return out
+}
+
+function stageEcosystemRuntime(homeDir, dryRun) {
+  const ecoRuntime = path.join(homeDir, '.config', 'orca-ecosystem', 'runtime')
+  const repoEco = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', 'ecosystem')
+  const mcpDest = path.join(ecoRuntime, 'orca-hermes-mcp.mjs')
+  if (!dryRun && fs.existsSync(repoEco)) {
+    fs.mkdirSync(ecoRuntime, { recursive: true, mode: 0o700 })
+    for (const f of [
+      'orca-openclaw-bridge.mjs',
+      'openclaw-bridge-dispatch.mjs',
+      'openclaw-whatsapp-adapter.mjs',
+      'orca-hermes-mcp.mjs',
+      'package.json'
+    ]) {
+      const src = path.join(repoEco, f)
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, path.join(ecoRuntime, f))
+        if (f.endsWith('.mjs')) {
+          fs.chmodSync(path.join(ecoRuntime, f), 0o755)
+        }
+      }
+    }
+  }
+  const nodeBin = [
+    '/opt/homebrew/opt/node@24/bin/node',
+    '/opt/homebrew/bin/node',
+    '/usr/local/bin/node',
+    process.execPath
+  ].find((c) => fs.existsSync(c))
+  if (
+    fs.existsSync(mcpDest) ||
+    (dryRun && fs.existsSync(path.join(repoEco, 'orca-hermes-mcp.mjs')))
+  ) {
+    return { command: nodeBin || 'node', args: [mcpDest] }
+  }
+  return null
+}
+
+function discoverRikugan(homeDir) {
+  const ecoEnv = parseDotEnvSimple(path.join(homeDir, '.config', 'orca-ecosystem', '.env'))
+  const hermesEnv = parseDotEnvSimple(path.join(homeDir, '.hermes', '.env'))
+  const token = ecoEnv.RIKUGAN_TOKEN || hermesEnv.RIKUGAN_TOKEN || ''
+  if (!token && !fs.existsSync(path.join(homeDir, 'MainCodeBase', 'NewERA', 'Rikugan'))) {
+    return null
+  }
+  return {
+    url: 'http://127.0.0.1:5680/mcp',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  }
+}
+
 function resolveWriteTarget(filePath) {
   try {
     const stat = fs.lstatSync(filePath)
@@ -381,6 +458,8 @@ function main() {
   const browserUse = discoverBrowserUse(homeDir)
   const computerUse = discoverComputerUse(homeDir)
   const dusk = discoverDusk(homeDir)
+  const orcaHermes = stageEcosystemRuntime(homeDir, dryRun)
+  const rikugan = discoverRikugan(homeDir)
 
   const servers = [
     { kind: 'stdio', name: 'browser-use', command: browserUse.command, args: browserUse.args }
@@ -393,8 +472,19 @@ function main() {
       args: computerUse.args
     })
   }
+  if (orcaHermes) {
+    servers.push({
+      kind: 'stdio',
+      name: 'orca-hermes',
+      command: orcaHermes.command,
+      args: orcaHermes.args
+    })
+  }
   if (dusk) {
     servers.push({ kind: 'http', name: 'dusk', url: dusk.url, headers: dusk.headers })
+  }
+  if (rikugan) {
+    servers.push({ kind: 'http', name: 'rikugan', url: rikugan.url, headers: rikugan.headers })
   }
 
   const results = []

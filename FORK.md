@@ -13,18 +13,19 @@ fork change or upstream port.
 
 ## Workflow
 
-| Command                                 | What it does                                                                                                                         |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `config/scripts/fork.sh upstream-check` | Fetch `upstream` and list all commits since `fork/UPSTREAM_CUTOFF` for manual selective review/porting.                              |
-| `config/scripts/fork.sh build`          | Package `dist/mac-arm64/Orca.app` from the checkout, versioned `<next upstream patch>-custom.<date>.g<sha>`.                         |
-| `config/scripts/fork.sh install`        | Replace `/Applications/Orca.app` (quit Orca first), delete staging copy, refresh Dock, and run `skills`, `hooks`, and `mcp`.         |
-| `config/scripts/fork.sh skills`         | Install `fork/skills/*` (`agent-delegation`, `external-browser-mcp`) to all 6 CLI homes and ensure Vibe `skill_paths`.               |
-| `config/scripts/fork.sh hooks`          | Install `fork/hooks/orca-auto-delegation.sh` for Claude Code, Codex, and Kiro.                                                       |
-| `config/scripts/fork.sh mcp`            | Upgrade `browser-use[cli]` and configure `browser-use`, `background-computer-use`, and `dusk` MCP across all 6 CLIs.                 |
-| `config/scripts/fork.sh mobile-build`   | Run `expo prebuild` and Gradle `assembleRelease` (`arm64-v8a` by default; `ORCA_ANDROID_ARCHS=all` for all ABIs).                    |
-| `config/scripts/fork.sh mobile-install` | Install the built Android APK over wireless/USB ADB (`--serial <id>`, `--remove-old` to uninstall legacy `com.stably.orca.mobile`).  |
-| `config/scripts/fork.sh dev`            | Run `pnpm dev` side by side with the installed app.                                                                                  |
-| `config/scripts/fork.sh sync`           | Legacy full merge (`git merge upstream/main`); only use if explicitly choosing to re-sync full history instead of selective porting. |
+| Command                                 | What it does                                                                                                                                   |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config/scripts/fork.sh upstream-check` | Fetch `upstream` and list all commits since `fork/UPSTREAM_CUTOFF` for manual selective review/porting.                                        |
+| `config/scripts/fork.sh build`          | Package `dist/mac-arm64/Orca.app` from the checkout, versioned `<next upstream patch>-custom.<date>.g<sha>`.                                   |
+| `config/scripts/fork.sh install`        | Replace `/Applications/Orca.app` (quit Orca first), delete staging copy, refresh Dock, and run `skills`, `hooks`, and `mcp`.                   |
+| `config/scripts/fork.sh skills`         | Install `fork/skills/*` (`agent-delegation`, `external-browser-mcp`) to all 6 CLI homes and ensure Vibe `skill_paths`.                         |
+| `config/scripts/fork.sh hooks`          | Install `fork/hooks/orca-auto-delegation.sh` for Claude Code, Codex, and Kiro.                                                                 |
+| `config/scripts/fork.sh mcp`            | Upgrade `browser-use[cli]` and configure `browser-use`, `background-computer-use`, `dusk`, `rikugan`, and `orca-hermes` MCP across all 6 CLIs. |
+| `config/scripts/fork.sh ecosystem`      | Control or sync the Unified Ecosystem (`up`, `down`, `status`, `sync`, `ask`, `review`, `learn`).                                              |
+| `config/scripts/fork.sh mobile-build`   | Run `expo prebuild` and Gradle `assembleRelease` (`arm64-v8a` by default; `ORCA_ANDROID_ARCHS=all` for all ABIs).                              |
+| `config/scripts/fork.sh mobile-install` | Install the built Android APK over wireless/USB ADB (`--serial <id>`, `--remove-old` to uninstall legacy `com.stably.orca.mobile`).            |
+| `config/scripts/fork.sh dev`            | Run `pnpm dev` side by side with the installed app.                                                                                            |
+| `config/scripts/fork.sh sync`           | Legacy full merge (`git merge upstream/main`); only use if explicitly choosing to re-sync full history instead of selective porting.           |
 
 - Use Node 24: `export PATH=/opt/homebrew/opt/node@24/bin:$PATH` before `pnpm` or `git commit` (hooks fail on newer Node).
 - Run `pnpm check:changed --base=origin/main --maxWorkers=2 --timeout=120` (or `--base=$(cat fork/UPSTREAM_CUTOFF)` for full fork diff) before every push.
@@ -518,6 +519,28 @@ Extends both the desktop-bundled mobile web UI and the standalone Android app wi
 - **Standalone Android APK workflow (`config/scripts/fork.sh`):**
   - `config/scripts/fork.sh mobile-build`: configures `ANDROID_HOME` and Java 17, runs `expo prebuild --platform android --no-install`, and builds `mobile/android/app/build/outputs/apk/release/app-release.apk` via `./gradlew assembleRelease`.
   - `config/scripts/fork.sh mobile-install [--serial <id>] [--remove-old]`: installs the built release APK via ADB (`--remove-old` explicitly uninstalls `com.stably.orca.mobile` first; never uninstalls without the flag).
+
+### 16. Unified Ecosystem Connectors (Rikugan, OpenClaw Channels & Multimodal, Hermes Intelligence Suite)
+
+Makes Orca the single orchestrator, UI, and local endpoint (`127.0.0.1:6770`) across Mac, Android (`dev.orca.app`), Telegram, and WhatsApp while keeping Rikugan on the Mac internal SSD as the single personal knowledge and continuity brain — engineered to keep running off the Mac internal SSD (`~/.config/orca-ecosystem/`) even when the external Thunder SSD is unplugged.
+
+- **Rikugan Connector (`src/main/ecosystem/rikugan-connector.ts` + `fork/skills/rikugan/SKILL.md`):**
+  - Native TypeScript port of `Rikugan/integrations/hermes/plugin/rikugan/__init__.py` talking to `http://127.0.0.1:5680/v1/tools/*` and `/mcp`.
+  - Auto-provisions or reuses a scoped `Orca Ecosystem` standard-tier token (`RIKUGAN_TOKEN` in `~/.config/orca-ecosystem/.env`, mode `0600`, denying `brain.records.delete` and `brain.records.any`).
+  - Pre-turn `prefetchRikuganContext` attaches `<memory-context>` with per-session `seen` node-ID deduplication and once-per-session owner `brief` (`<=3.5s` budget), and post-turn `observeEcosystemTurnEnded` records secret-scrubbed session summaries (`record_session`) into Rikugan's daily reflection loop.
+- **OpenClaw Channel, Multimodal & Webhook Bridge (`src/main/ecosystem/openclaw-connector.ts` + `fork/ecosystem/orca-openclaw-bridge.mjs`):**
+  - Staged into `~/.config/orca-ecosystem/runtime/` (`com.thunder.orca-ecosystem-bridge` LaunchAgent on `127.0.0.1:6770`).
+  - **Telegram:** long-polling Bot API, 6-digit single-use DM pairing (`orca ecosystem pair --code <n>`), live typing + throttled draft message edits, voice-note STT transcription, and `/status`, `/review`, `/rikugan` commands.
+  - **WhatsApp:** Baileys multi-device Web socket (`~/.config/orca-ecosystem/whatsapp-auth/`), QR pairing (`orca ecosystem whatsapp --login` + Desktop QR view), Note-to-Self ("Message Yourself") + owner allowlist, hard broadcast/story block (`status@broadcast`, `@newsletter`), outbound message-ID loop guard, `👀`/`✅` reactions, and voice PTT transcription.
+  - **Unified Endpoint & Webhooks:** `POST /v1/ask`, `POST /webhooks/:hookName`, and `POST /v1/notify` (proactive outbound push), typed via `ECOSYSTEM_CHANNEL_IDS` in `src/shared/ecosystem/ecosystem-types.ts`.
+- **Hermes Intelligence Suite (`src/main/ecosystem/hermes-learning-connector.ts`, `hermes-skills-hub.ts`, `fork/ecosystem/orca-hermes-mcp.mjs`, `fork/skills/hermes-suite/SKILL.md`):**
+  - Registers `orca-hermes` MCP across all 6 CLIs providing `orca_ptc` (Programmatic Tool Calling over a local Python/Unix-socket RPC kernel with 40%/60% `50 KB` stdout cap + spill file recovery), `orca_review` (independent senior reviewer subagent), `orca_skills_hub`, `orca_session_recall`, and `ecosystem_notify`.
+  - Enforces Trojan-Source/bidi unicode stripping, Hermes's `<=60`-char skill routing description rule, `skill-scanner` validation, and automatic snapshots in `~/.config/orca-ecosystem/skill-backups/` for 1-tap `undo-skill`.
+  - Cleanly parks duplicate standalone `ai.hermes.gateway` on `orca ecosystem up` while keeping `~/.hermes` intact for Hermes ACP inside Orca.
+- **CLI, RPC & UI surfaces:**
+  - `src/cli/specs/ecosystem.ts`, `src/cli/ecosystem/ecosystem-handlers.ts`, `src/cli/ecosystem/ecosystem-handler-group.ts` (`orca ecosystem {up|down|status|sync|ask|review|learn|undo-skill|skills|pair|telegram|whatsapp|notify}`).
+  - Appends `delegation.ecosystemStatus`, `delegation.ecosystemControl`, `delegation.ecosystemAsk`, and `delegation.ecosystemLearn` at the end of `DELEGATION_METHODS` and `MOBILE_FORK_PAIRED_DESKTOP_METHODS`.
+  - Desktop `EcosystemHubPanel.tsx` (`[Background Tasks | Ecosystem]` switcher in `BackgroundTasksPanel.tsx`) and Mobile `MobileForkEcosystemSection.tsx` (in `MobileHomeAgentsTab.tsx` & `MobileHomeBotsTab.tsx`).
 
 ### Upstream gate notes (main-process rules)
 

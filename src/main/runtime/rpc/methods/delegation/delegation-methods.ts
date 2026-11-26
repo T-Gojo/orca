@@ -2,6 +2,10 @@ import { defineMethod } from '../../core'
 import {
   DelegationAdviceParams,
   DelegationBackgroundTasksParams,
+  DelegationEcosystemAskParams,
+  DelegationEcosystemControlParams,
+  DelegationEcosystemLearnParams,
+  DelegationEcosystemStatusParams,
   DelegationRouteParams,
   DelegationUsageParams,
   DelegationUsageWindowsParams
@@ -18,6 +22,8 @@ import {
 import { buildDelegationAdvice } from '../../../../delegation/delegation-advice'
 import { queryBackgroundTasksSnapshot } from '../../../../delegation/background-tasks-query'
 import { readAccountUsageWindowsSnapshot } from '../../../../usage/account-usage-windows-bridge'
+import { controlEcosystem, readEcosystemStatus } from '../../../../ecosystem/ecosystem-service'
+import { askEcosystem, runEcosystemHermesAction } from '../../../../ecosystem/ecosystem-actions'
 
 /** Fork: usage-aware routing of work to other agents and their saved accounts. */
 export const DELEGATION_METHODS = [
@@ -82,5 +88,29 @@ export const DELEGATION_METHODS = [
     permission: 'workspace',
     params: DelegationUsageWindowsParams,
     handler: async (params) => readAccountUsageWindowsSnapshot(params?.window ?? '5h')
+  }),
+  defineMethod({
+    name: 'delegation.ecosystemStatus',
+    permission: 'workspace',
+    params: DelegationEcosystemStatusParams,
+    handler: async (_params, { runtime }) => readEcosystemStatus(runtime)
+  }),
+  defineMethod({
+    name: 'delegation.ecosystemControl',
+    permission: 'workspace',
+    params: DelegationEcosystemControlParams,
+    handler: async (params, { runtime }) => controlEcosystem(runtime, params)
+  }),
+  defineMethod({
+    name: 'delegation.ecosystemAsk',
+    permission: 'workspace',
+    params: DelegationEcosystemAskParams,
+    handler: async (params, { runtime }) => askEcosystem(runtime, params)
+  }),
+  defineMethod({
+    name: 'delegation.ecosystemLearn',
+    permission: 'workspace',
+    params: DelegationEcosystemLearnParams,
+    handler: async (params, { runtime }) => runEcosystemHermesAction(runtime, params)
   })
 ] as const

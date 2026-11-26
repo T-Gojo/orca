@@ -28,6 +28,8 @@ import type { CatalogOwner } from '../model-catalog/structured-agent-model-catal
 import type { StructuredAgentSessionRuntimeDeps } from './structured-agent-session-runtime-contract'
 import type { AgentSessionRecord } from '../../../../shared/agent-session/lifecycle/agent-session-record'
 import { observePRWatchCommittedRows } from '../lifecycle/pr-watch-runtime'
+// Fork: silent Rikugan session continuity & Hermes background learning observer (FORK.md §16).
+import { observeEcosystemTurnEnded } from '../../../ecosystem/ecosystem-actions'
 
 export async function installOnJournal(
   deps: StructuredAgentSessionRuntimeDeps,
@@ -126,6 +128,26 @@ export async function installOnJournal(
       onState: delivery.reconcile
     })
   }
+  const installedForEcosystem = host
+  installedForEcosystem.subscribeTurnCompletions({
+    id: 'fork-ecosystem-turn-observer',
+    emit: (event) => {
+      if (event.type === 'completion') {
+        const { sessionId, turnId } = event.completion
+        observeEcosystemTurnEnded(
+          sessionId,
+          async (since) =>
+            (
+              await readTurnEndedItems(
+                await installedForEcosystem.journalReads(sessionId),
+                turnId,
+                since
+              )
+            ).items
+        )
+      }
+    }
+  })
   const turnEnded = deps.turnContext?.turnEnded
   if (turnEnded) {
     const installed = host

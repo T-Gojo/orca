@@ -30,4 +30,27 @@ agent="${ORCA_DELEGATION_AGENT:-claude}"
 # An older CLI without --session still gets the full brief.
 $cli delegation advice --agent "$agent" ${key:+--session "$key"} 2>/dev/null ||
   $cli delegation advice --agent "$agent" 2>/dev/null
+
+# Fork (FORK.md §16): attach bounded Rikugan owner/project context once per session when reachable (<1.5s).
+rikugan_seen="${TMPDIR:-/tmp}/orca-rikugan-brief"
+if [ -n "$key" ] && [ ! -f "$rikugan_seen/$key" ] && [ "${ORCA_RIKUGAN_HOOK:-on}" != off ]; then
+  rkg_token=""
+  for envf in "$HOME/.config/orca-ecosystem/.env" "$HOME/.hermes/.env"; do
+    if [ -f "$envf" ]; then
+      rkg_token=$(grep -E '^RIKUGAN_TOKEN=' "$envf" 2>/dev/null | head -n 1 | cut -d= -f2- | tr -d '"' | tr -d "'")
+      [ -n "$rkg_token" ] && break
+    fi
+  done
+  if [ -n "$rkg_token" ]; then
+    brief=$(curl -fsS --max-time 1.4 -X POST "http://127.0.0.1:5680/v1/tools/get_context" \
+      -H "Authorization: Bearer $rkg_token" \
+      -H "Content-Type: application/json" \
+      -d '{"task":"active coding session context","limit":4}' 2>/dev/null |
+      sed -n 's/.*"brief":"\([^"]*\)".*/\1/p' | head -c 520)
+    if [ -n "$brief" ]; then
+      mkdir -p "$rikugan_seen" && : >"$rikugan_seen/$key"
+      printf '\n[Rikugan context (:5680, mcp__rikugan__* & orca_ptc ready): %s]\n' "$brief"
+    fi
+  fi
+fi
 exit 0

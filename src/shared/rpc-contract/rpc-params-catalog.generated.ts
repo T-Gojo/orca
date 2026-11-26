@@ -390,6 +390,10 @@ import {
 import {
   DelegationAdviceParams,
   DelegationBackgroundTasksParams,
+  DelegationEcosystemAskParams,
+  DelegationEcosystemControlParams,
+  DelegationEcosystemLearnParams,
+  DelegationEcosystemStatusParams,
   DelegationRouteParams,
   DelegationUsageParams,
   DelegationUsageWindowsParams
@@ -1581,6 +1585,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'connector.slackMirror.status': ConnectorSlackMirrorStatus,
   'delegation.advice': DelegationAdviceParams,
   'delegation.backgroundTasks': DelegationBackgroundTasksParams,
+  'delegation.ecosystemAsk': DelegationEcosystemAskParams,
+  'delegation.ecosystemControl': DelegationEcosystemControlParams,
+  'delegation.ecosystemLearn': DelegationEcosystemLearnParams,
+  'delegation.ecosystemStatus': DelegationEcosystemStatusParams,
   'delegation.preferences': null,
   'delegation.route': DelegationRouteParams,
   'delegation.usage': DelegationUsageParams,

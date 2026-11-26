@@ -8706,6 +8706,21 @@
       "clearWorker": "Clear {{name}}",
       "controlsHint": "Tap Stop or Clear to manage workers directly.",
       "clearAll": "Clear all ({{count}})"
+    },
+    "ecosystem": {
+      "heading": "Mac Ecosystem · Rikugan · OpenClaw · Hermes",
+      "sync": "Sync",
+      "bringUp": "Bring Up",
+      "askPlaceholder": "Ask Rikugan or run a task on your open Mac…",
+      "sendToMac": "Send to Mac",
+      "dispatched": "Sent to {{agent}} on Mac ({{count}} Rikugan items)",
+      "pillRikugan": "Rikugan",
+      "pillTelegram": "Telegram",
+      "pillWhatsApp": "WhatsApp",
+      "pillHermes": "Hermes ({{count}})",
+      "reviewBtn": "/review on Mac",
+      "undoSkill": "Undo {{name}}",
+      "approve": "Approve"
     }
   }
 }

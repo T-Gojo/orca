@@ -329,7 +329,7 @@ install_fork_skills() {
   ensure_vibe_skill_paths
 }
 
-# Installs/upgrades browser-use[cli] and registers browser-use, dusk, and computer-use MCP across all 6 CLIs.
+# Installs/upgrades browser-use[cli] and registers browser-use, dusk, computer-use, rikugan, and orca-hermes MCP across all 6 CLIs.
 install_fork_mcp() {
   if command -v uv >/dev/null 2>&1 && [[ "${ORCA_SKIP_BROWSER_USE_UPGRADE:-0}" != "1" ]]; then
     if ! uv tool install --upgrade "browser-use[cli]"; then
@@ -337,6 +337,27 @@ install_fork_mcp() {
     fi
   fi
   node "$REPO_ROOT/fork/scripts/install-browser-use-mcp.mjs"
+  local eco_runtime="$HOME/.config/orca-ecosystem/runtime"
+  if [[ -f "$eco_runtime/package.json" && ! -d "$eco_runtime/node_modules/@whiskeysockets/baileys" ]]; then
+    echo "Installing Mac-standalone OpenClaw/WhatsApp runtime dependencies in $eco_runtime..."
+    (cd "$eco_runtime" && npm install --omit=dev --no-audit --no-fund) ||
+      echo "Warning: failed to install baileys runtime deps (offline?)." >&2
+  fi
+}
+
+ecosystem_cmd() {
+  local sub="${1:-status}"
+  shift || true
+  case "$sub" in
+    sync)
+      install_fork_skills
+      install_fork_hooks
+      install_fork_mcp
+      ;;
+    *)
+      orca ecosystem "$sub" "$@"
+      ;;
+  esac
 }
 
 ANDROID_RELEASE_APK="$REPO_ROOT/mobile/android/app/build/outputs/apk/release/app-release.apk"
@@ -468,10 +489,11 @@ case "${1:-}" in
   skills) install_fork_skills ;;
   hooks) install_fork_hooks ;;
   mcp) install_fork_mcp ;;
+  ecosystem) shift; ecosystem_cmd "$@" ;;
   mobile-build) mobile_build ;;
   mobile-install) shift; mobile_install "$@" ;;
   *)
-    echo "usage: $0 {upstream-check|sync|dev|build|install|skills|hooks|mcp|mobile-build|mobile-install}" >&2
+    echo "usage: $0 {upstream-check|sync|dev|build|install|skills|hooks|mcp|ecosystem|mobile-build|mobile-install}" >&2
     exit 2
     ;;
 esac

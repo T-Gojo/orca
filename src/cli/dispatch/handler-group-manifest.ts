@@ -9,6 +9,7 @@ import { SERVE_PAIRING_HANDLER_GROUPS } from '../server/serve-pairing-handler-gr
 import { PLUGIN_HANDLER_GROUPS } from '../plugins/plugin-handler-groups'
 import { HOST_HANDLER_GROUPS } from '../hosts/host-handler-groups'
 import { WORKTREE_HANDLER_GROUPS } from '../workspaces/worktree-handler-groups'
+import { ECOSYSTEM_HANDLER_GROUP } from '../ecosystem/ecosystem-handler-group'
 
 export type HandlerGroup = {
   name: string
@@ -44,7 +45,8 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('../accounts/account.js')).ACCOUNT_HANDLERS
   },
   AUTH_HANDLER_GROUP,
-  // Fork: cross-agent delegation.
+  // Fork: cross-agent delegation & unified ecosystem.
+  ECOSYSTEM_HANDLER_GROUP,
   {
     name: 'delegation',
     keys: ['delegation usage', 'delegation route', 'delegation advice', 'delegation preferences'],

@@ -13,6 +13,8 @@ import { MobileHomeSectionHeading } from '../MobileHomeSectionHeading'
 import type { MobileHomeData } from '../use-mobile-home-data'
 import { MobileHomeTabEmpty } from './MobileHomeTabEmpty'
 import { MobileHomeTabHeader, MobileHomeTabHeaderButton } from './MobileHomeTabHeader'
+// Fork: Unified Ecosystem & Ask-Mac-Now card on Bots tab (FORK.md §16).
+import { MobileForkEcosystemSection } from './MobileForkEcosystemSection'
 
 /** Every bot on every paired computer and the servers they relay, needs-you first. */
 export function MobileHomeBotsTab(props: {
@@ -68,7 +70,15 @@ export function MobileHomeBotsTab(props: {
             { paddingBottom: props.bottomInset },
             isWideLayout && { maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' }
           ]}
+          keyboardShouldPersistTaps="handled"
         >
+          <MobileForkEcosystemSection
+            hosts={data.sortedHosts}
+            hostFilter={null}
+            hostStates={data.hostStates}
+            allClients={data.allClients}
+            first
+          />
           {computers.length > 1 ? (
             computers.map((computer, index) => (
               <View key={computer.placeKey}>
