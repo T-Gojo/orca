@@ -58,3 +58,12 @@ Every change must consider these areas:
 ## Git / GitHub
 
 If changing code around `git`, `gh`, source-control, or review behavior read [`docs/agents-md-refs/git-workflow.md`](./docs/agents-md-refs/git-workflow.md).
+
+# Fork Workflow (T-Gojo/orca)
+
+- **Remotes & branch:** `origin` is `T-Gojo/orca` (push here, all work on `main`). `upstream` is `stablyai/orca` — **never push to `upstream`** and **never rebase `main`**.
+- **Source of truth:** read [`FORK.md`](./FORK.md) before modifying fork features (§1–§15) and update it in the same commit as any new fork feature or upstream port.
+- **Node 24 required:** always prepend `export PATH=/opt/homebrew/opt/node@24/bin:$PATH` before `pnpm` or `git commit` (hooks fail on newer Node).
+- **Upstream tracking (cutoff & selective porting):** full upstream merges are retired as of the SHA recorded in [`fork/UPSTREAM_CUTOFF`](./fork/UPSTREAM_CUTOFF). When asked to check upstream (typically every 2–3 days manually), run `config/scripts/fork.sh upstream-check`, review commits since `fork/UPSTREAM_CUTOFF`, selectively cherry-pick small clean fixes or re-implement desired features natively on `main`, and advance `fork/UPSTREAM_CUTOFF` in the same commit.
+- **Gates & conventions:** run `pnpm check:changed --base=origin/main --maxWorkers=2 --timeout=120` before pushing (use `--maxWorkers=2` to stay gentle on the external USB SSD). Keep upstream-origin file edits to concise `// Fork:` hooks with logic in fork-owned modules; append new RPC methods at the **end** of method arrays and regenerate `rpc-params-catalog.generated.ts` via `pnpm run generate:rpc-params-catalog`; never commit credentials or fake OAuth secrets.
+- **Build & install safety:** always **ask the user** before quitting/replacing `/Applications/Orca.app` or uninstalling/overwriting the Android app on a connected phone. Use `config/scripts/fork.sh {build|install|skills|hooks|mcp|mobile-build|mobile-install}` (macOS builds must keep `"Orca Fork Local Signing"`).

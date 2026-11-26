@@ -1,23 +1,33 @@
 # Orca personal fork
 
 This repository is a personal fork of [stablyai/orca](https://github.com/stablyai/orca) (`upstream`),
-kept at `T-Gojo/orca` (`origin`). All fork work lives on `main`; upstream is merged into it.
-There are no other long-lived branches.
+kept at `T-Gojo/orca` (`origin`). All fork work lives on `main`. There are no other long-lived branches.
 
-This file is the record of what the fork changes and why, so each upstream merge can keep it.
-Update it in the same commit as any new fork change.
+**Upstream cutoff / last reviewed commit:** `fd05416de7c9` (`2026-11-25`, stored in `fork/UPSTREAM_CUTOFF`).
+Going forward, instead of doing full `git merge upstream/main` merges, this fork tracks upstream manually every
+2–3 days via `config/scripts/fork.sh upstream-check` and selectively cherry-picks or re-implements only the
+upstream features and fixes we want natively on `main`.
+
+This file is the source of truth for what the fork changes and why. Update it in the same commit as any new
+fork change or upstream port.
 
 ## Workflow
 
-| Command                          | What it does                                                                                                        |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `config/scripts/fork.sh sync`    | Fetch upstream, merge `upstream/main` into `main`, push `origin main`, `pnpm install`. Stops on conflicts.          |
-| `config/scripts/fork.sh build`   | Package `dist/mac-arm64/Orca.app` from the checkout, versioned `<next upstream patch>-custom.<date>.g<sha>`.        |
-| `config/scripts/fork.sh install` | Replace `/Applications/Orca.app` with that build (quit Orca first). Deletes the `dist` copy and refreshes the Dock. |
-| `config/scripts/fork.sh dev`     | `pnpm dev`, side by side with the installed app.                                                                    |
+| Command                                 | What it does                                                                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `config/scripts/fork.sh upstream-check` | Fetch `upstream` and list all commits since `fork/UPSTREAM_CUTOFF` for manual selective review/porting.                              |
+| `config/scripts/fork.sh build`          | Package `dist/mac-arm64/Orca.app` from the checkout, versioned `<next upstream patch>-custom.<date>.g<sha>`.                         |
+| `config/scripts/fork.sh install`        | Replace `/Applications/Orca.app` (quit Orca first), delete staging copy, refresh Dock, and run `skills`, `hooks`, and `mcp`.         |
+| `config/scripts/fork.sh skills`         | Install `fork/skills/*` (`agent-delegation`, `external-browser-mcp`) to all 6 CLI homes and ensure Vibe `skill_paths`.               |
+| `config/scripts/fork.sh hooks`          | Install `fork/hooks/orca-auto-delegation.sh` for Claude Code, Codex, and Kiro.                                                       |
+| `config/scripts/fork.sh mcp`            | Upgrade `browser-use[cli]` and configure `browser-use`, `background-computer-use`, and `dusk` MCP across all 6 CLIs.                 |
+| `config/scripts/fork.sh mobile-build`   | Run `expo prebuild` and Gradle `assembleRelease` (`arm64-v8a` by default; `ORCA_ANDROID_ARCHS=all` for all ABIs).                    |
+| `config/scripts/fork.sh mobile-install` | Install the built Android APK over wireless/USB ADB (`--serial <id>`, `--remove-old` to uninstall legacy `com.stably.orca.mobile`).  |
+| `config/scripts/fork.sh dev`            | Run `pnpm dev` side by side with the installed app.                                                                                  |
+| `config/scripts/fork.sh sync`           | Legacy full merge (`git merge upstream/main`); only use if explicitly choosing to re-sync full history instead of selective porting. |
 
 - Use Node 24: `export PATH=/opt/homebrew/opt/node@24/bin:$PATH` before `pnpm` or `git commit` (hooks fail on newer Node).
-- Run `pnpm check:changed` before every push.
+- Run `pnpm check:changed --base=origin/main --maxWorkers=2 --timeout=120` (or `--base=$(cat fork/UPSTREAM_CUTOFF)` for full fork diff) before every push.
 - **Signing:** builds are signed with the stable local identity "Orca Fork Local Signing", kept in
   `~/Library/Application Support/orca-fork/signing`. macOS keys Screen Recording and Accessibility grants
   to that signature. Never switch back to ad-hoc signing, or every install asks for the permissions again.
@@ -523,26 +533,25 @@ Extends both the desktop-bundled mobile web UI and the standalone Android app wi
   `KiroAccountsPaneSection` (`accounts-pane-kiro-section.tsx`). Codex's pinned-account launch reuses
   `mirrorSystemInto` in `runtime-home-service-managed-home.ts`.
 
-## Merging upstream
+## Upstream tracking (cutoff & selective porting)
 
-1. `config/scripts/fork.sh sync`. git `rerere` is on, so resolutions repeat.
-2. **Resolve conflicts by keeping both sides:** take upstream's structure and put the fork's addition back on top.
-   When upstream moves a file, move the fork's edit with it; don't restore the old path.
-3. Files that conflict most often:
-   - `src/renderer/src/components/tab-bar/QuickLaunchButton.tsx`, `agent-row-launch-accounts.tsx`, the agent picker
-     files (`AgentLaunchSetupPanel.tsx`, `AgentLaunchSetupFooter.tsx`)
-   - `src/renderer/src/components/stats/*` (Overview, panes, sections)
-   - `src/main/claude-usage/scanner.ts`, `src/main/codex-usage/scanner.ts`
-   - `src/main/usage/usage-scan-worker-*`, `src/main/rate-limits/service/*`
-   - `src/main/ipc/pty/*` or wherever the terminal account pins move to upstream
-   - `src/renderer/src/components/ui/dropdown-menu.tsx` (SubTrigger `variant`: default, launch, launch-row)
-   - `src/renderer/src/i18n/locales/en.json` (keep both key sets)
-   - `src/shared/rpc-contract/rpc-params-catalog.generated.ts`: regenerate; don't hand-merge
-4. After resolving, check that each behaviour above still holds, then:
-   - `pnpm tc`
-   - `pnpm test src/main/claude-usage src/main/codex-usage src/main/usage src/main/kiro src/main/antigravity src/renderer/src/components/agent src/renderer/src/components/tab-bar src/renderer/src/components/stats --maxWorkers=2`
-   - `pnpm check:changed`
-5. `fork.sh build`, then `fork.sh install`. Afterwards check: the Account row in the "+" agent panel, Settings →
-   Accounts → Kiro/Antigravity, and Stats & Usage totals matching across tabs.
+Full upstream merges are retired as of cutoff commit `fd05416de7c9` (`fork/UPSTREAM_CUTOFF`, 2026-11-25).
+Instead, every 2–3 days (manually triggered):
 
-Comments starting with `Fork:` in upstream files mark fork-only lines, so they are easy to find in a conflict.
+1. **Inspect new upstream commits:** run `config/scripts/fork.sh upstream-check` (fetches `upstream` and lists
+   `$(cat fork/UPSTREAM_CUTOFF)..upstream/main --oneline --no-merges`).
+2. **Triage selectively:**
+   - **Skip** upstream churn, telemetry, UI experiments, or refactors we do not need.
+   - **Cherry-pick** small self-contained fixes, model/provider updates, or security patches (`git cherry-pick -x <sha>`).
+   - **Port / re-implement natively** larger features we want by inspecting `git show <sha>` / `git diff <cutoff>..upstream/main -- <path>`
+     and implementing them cleanly on top of our own fork architecture (avoiding merge-conflict resolution and unwanted upstream drift).
+3. **Advance the cutoff watermark:** update `fork/UPSTREAM_CUTOFF` to the reviewed `upstream/main` commit SHA and
+   document any ported features in `FORK.md` in the same commit.
+4. **Verify & ship:**
+   - `pnpm check:changed --base=origin/main --maxWorkers=2 --timeout=120` (and `--base=$(cat fork/UPSTREAM_CUTOFF)` when touching shared/fork baselines).
+   - `config/scripts/fork.sh build`, then (after quitting Orca) `config/scripts/fork.sh install`.
+   - Rebuild/reinstall the Android app (`fork.sh mobile-build` + `fork.sh mobile-install`) whenever native Expo/Android code changes; web-shell screen updates under `/h/[hostId]/*` bundle automatically inside desktop `fork.sh build`.
+5. **Compatibility notes:**
+   - Because desktop and mobile APKs are built together from this repo, direct LAN/Tailscale mobile control stays self-contained; watch upstream cloud-relay / protocol changes only if using stablyai's cloud relay.
+   - `src/shared/rpc-contract/rpc-params-catalog.generated.ts`: always regenerate via `pnpm run generate:rpc-params-catalog`; never hand-edit.
+   - Comments starting with `Fork:` in upstream-origin files mark fork-owned hooks so they remain easy to locate.

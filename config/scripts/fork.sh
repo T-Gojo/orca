@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Personal-fork workflow. All work lives on `main`, which merges stablyai/orca (`upstream`) in.
+# Personal-fork workflow. All work lives on `main` (origin = T-Gojo/orca).
+# Upstream (`stablyai/orca`) is tracked selectively from the watermark in `fork/UPSTREAM_CUTOFF`.
 #
-#   config/scripts/fork.sh sync   # merge upstream into main, push main, reinstall deps
-#   config/scripts/fork.sh dev      # run the custom build side by side with the installed Orca.app
-#   config/scripts/fork.sh build    # package Orca.app (macOS) from the current checkout into dist/
-#   config/scripts/fork.sh install  # replace /Applications/Orca.app with that build (quit Orca first)
-#   config/scripts/fork.sh skills   # install the fork's agent skills (fork/skills) for every CLI
-#   config/scripts/fork.sh hooks    # install the auto-delegation hooks (fork/hooks: Claude Code,
-#                                   # Codex and Kiro; Antigravity/Vibe/OpenCode have no hook yet)
+#   config/scripts/fork.sh upstream-check # fetch upstream and list commits since fork/UPSTREAM_CUTOFF
+#   config/scripts/fork.sh sync           # legacy: full merge of upstream/main into main
+#   config/scripts/fork.sh dev            # run the custom build side by side with the installed Orca.app
+#   config/scripts/fork.sh build          # package Orca.app (macOS) from the current checkout into dist/
+#   config/scripts/fork.sh install        # replace /Applications/Orca.app with that build (quit Orca first)
+#   config/scripts/fork.sh skills         # install the fork's agent skills (fork/skills) for every CLI
+#   config/scripts/fork.sh hooks          # install the auto-delegation hooks (fork/hooks: Claude Code,
+#                                         # Codex and Kiro; Antigravity/Vibe/OpenCode have no hook yet)
 #   config/scripts/fork.sh mcp            # configure browser-use, dusk, and computer-use MCP for all 6 CLIs
-#   config/scripts/fork.sh mobile-build   # build standalone Android release APK (mobile/android/.../app-release.apk)
+#   config/scripts/fork.sh mobile-build   # build standalone Android release APK (arm64-v8a by default)
 #   config/scripts/fork.sh mobile-install # install built Android APK over ADB (--serial <id>, --remove-old)
 set -euo pipefail
 
@@ -363,10 +365,39 @@ configure_android_env() {
   fi
 }
 
+upstream_check() {
+  local cutoff_file="$REPO_ROOT/fork/UPSTREAM_CUTOFF"
+  if [[ ! -f "$cutoff_file" ]]; then
+    echo "Missing $cutoff_file; record the last reviewed upstream/main SHA there." >&2
+    exit 1
+  fi
+  local cutoff
+  cutoff="$(tr -d '[:space:]' <"$cutoff_file")"
+  git fetch upstream
+  local head_sha count
+  head_sha="$(git rev-parse --short=12 upstream/main)"
+  count="$(git rev-list --count --no-merges "$cutoff..upstream/main")"
+  echo "Upstream cutoff: ${cutoff:0:12} -> upstream/main: $head_sha ($count non-merge commit(s))"
+  if [[ "$count" == "0" ]]; then
+    echo "No new upstream commits since cutoff."
+    return 0
+  fi
+  echo
+  git log --oneline --no-merges "$cutoff..upstream/main"
+  echo
+  echo "Inspect a commit: git show <sha>"
+  echo "Advance cutoff after review: git rev-parse upstream/main > fork/UPSTREAM_CUTOFF"
+}
+
 mobile_build() {
   configure_android_env
   (cd mobile && pnpm install --frozen-lockfile && npx expo prebuild --platform android --no-install)
-  (cd mobile/android && ./gradlew assembleRelease)
+  local gradle_args=(assembleRelease --max-workers=2)
+  local archs="${ORCA_ANDROID_ARCHS:-arm64-v8a}"
+  if [[ "$archs" != "all" ]]; then
+    gradle_args+=("-PreactNativeArchitectures=$archs")
+  fi
+  (cd mobile/android && ./gradlew "${gradle_args[@]}")
   if [[ ! -f "$ANDROID_RELEASE_APK" ]]; then
     echo "Expected release APK not found at $ANDROID_RELEASE_APK" >&2
     exit 1
@@ -429,6 +460,7 @@ mobile_install() {
 }
 
 case "${1:-}" in
+  upstream-check) upstream_check ;;
   sync) sync ;;
   dev) shift; dev "$@" ;;
   build) build ;;
@@ -439,7 +471,7 @@ case "${1:-}" in
   mobile-build) mobile_build ;;
   mobile-install) shift; mobile_install "$@" ;;
   *)
-    echo "usage: $0 {sync|dev|build|install|skills|hooks|mcp|mobile-build|mobile-install}" >&2
+    echo "usage: $0 {upstream-check|sync|dev|build|install|skills|hooks|mcp|mobile-build|mobile-install}" >&2
     exit 2
     ;;
 esac
