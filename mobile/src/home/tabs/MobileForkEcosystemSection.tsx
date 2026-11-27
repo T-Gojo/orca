@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { QrCode, Sparkles } from 'lucide-react-native'
+import { QrCode } from 'lucide-react-native'
 import type {
   EcosystemControlAction,
   EcosystemLearnResult,
@@ -32,7 +32,7 @@ import {
 
 // Fork: unified OpenClaw & Hermes Chat + Setup Hub on Mobile Feed, Bots, and Agents tabs (FORK.md §16).
 
-type HubSubTab = 'chat' | 'channels' | 'hermes'
+type HubSubTab = 'chat' | 'setup'
 type SkillItem = NonNullable<EcosystemLearnResult['items']>[number]
 
 export function MobileForkEcosystemSection(props: {
@@ -218,7 +218,7 @@ export function MobileForkEcosystemSection(props: {
               onPress={props.onPairDesktop}
               style={styles.pairMacBtn}
             >
-              <QrCode size={15} color={colors.background} />
+              <QrCode size={15} color={colors.onAccent} />
               <Text style={styles.pairMacBtnText}>
                 {t('fork.ecosystem.pairMacBtn', 'Scan Mac Pairing QR')}
               </Text>
@@ -260,27 +260,16 @@ export function MobileForkEcosystemSection(props: {
             </Pressable>
             <Pressable
               accessibilityRole="tab"
-              accessibilityState={{ selected: subTab === 'channels' }}
-              onPress={() => setSubTab('channels')}
-              style={[styles.tabBtn, subTab === 'channels' && styles.tabBtnActive]}
+              accessibilityState={{ selected: subTab === 'setup' }}
+              onPress={() => setSubTab('setup')}
+              style={[styles.tabBtn, subTab === 'setup' && styles.tabBtnActive]}
             >
               <AgentStateDot
                 state={wa?.state === 'online' || tg?.state === 'online' ? 'done' : 'idle'}
                 decorative
               />
-              <Text style={[styles.tabText, subTab === 'channels' && styles.tabTextActive]}>
-                {t('fork.ecosystem.tabChannels', 'WhatsApp · Telegram')}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected: subTab === 'hermes' }}
-              onPress={() => setSubTab('hermes')}
-              style={[styles.tabBtn, subTab === 'hermes' && styles.tabBtnActive]}
-            >
-              <Sparkles size={11} color={colors.textSecondary} />
-              <Text style={[styles.tabText, subTab === 'hermes' && styles.tabTextActive]}>
-                {t('fork.ecosystem.tabHermes', 'Hermes')}
+              <Text style={[styles.tabText, subTab === 'setup' && styles.tabTextActive]}>
+                {t('fork.ecosystem.tabSetupSkills', 'Setup & Skills')}
               </Text>
             </Pressable>
           </View>
@@ -294,21 +283,22 @@ export function MobileForkEcosystemSection(props: {
               onSendChat={onSendChat}
               onClearChat={() => onControl('clear-chat')}
             />
-          ) : subTab === 'channels' ? (
-            <MobileForkEcosystemChannelsView
-              snapshot={snapshot}
-              busy={busy}
-              onControl={onControl}
-            />
           ) : (
-            <MobileForkEcosystemHermesView
-              snapshot={snapshot}
-              busy={busy}
-              skillResults={skillResults}
-              onControl={onControl}
-              onSearchSkills={(q) => onRunHermes('skills-search', q)}
-              onInstallSkill={(target) => onRunHermes('skills-install', target)}
-            />
+            <View style={styles.setupStack}>
+              <MobileForkEcosystemChannelsView
+                snapshot={snapshot}
+                busy={busy}
+                onControl={onControl}
+              />
+              <MobileForkEcosystemHermesView
+                snapshot={snapshot}
+                busy={busy}
+                skillResults={skillResults}
+                onControl={onControl}
+                onSearchSkills={(q) => onRunHermes('skills-search', q)}
+                onInstallSkill={(target) => onRunHermes('skills-install', target)}
+              />
+            </View>
           )}
         </View>
       </View>
@@ -318,36 +308,37 @@ export function MobileForkEcosystemSection(props: {
 
 const styles = themedStyleSheet(() => ({
   card: { padding: spacing.md, gap: spacing.sm },
+  setupStack: { gap: spacing.sm },
   tabsRow: { flexDirection: 'row', gap: spacing.xs },
   tabBtn: {
     flex: 1,
-    minHeight: 32,
+    minHeight: 34,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgPanel,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.xs
+    gap: 6,
+    paddingHorizontal: spacing.sm
   },
   tabBtnActive: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.textSecondary
+    backgroundColor: colors.bgRaised,
+    borderColor: colors.inputBorder
   },
-  tabText: { fontSize: 11, fontWeight: '500', color: colors.textSecondary },
+  tabText: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
   tabTextActive: { fontWeight: '700', color: colors.textPrimary },
   emptyHint: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
   bannerText: { fontSize: 12, color: colors.textSecondary },
   pairMacBtn: {
     minHeight: 40,
     borderRadius: radii.md,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.accentBlue,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs
   },
-  pairMacBtnText: { fontSize: 13, fontWeight: '600', color: colors.background }
+  pairMacBtnText: { fontSize: 13, fontWeight: '600', color: colors.onAccent }
 }))

@@ -8712,8 +8712,6 @@
       "sync": "Sync",
       "bringUp": "Bring Up",
       "tabChat": "Chat",
-      "tabChannels": "WhatsApp · Telegram",
-      "tabHermes": "Hermes",
       "pairMacFirst": "Connect your Mac to chat with OpenClaw & Hermes and set up WhatsApp & Telegram.",
       "pairMacBtn": "Scan Mac Pairing QR",
       "emptyChat": "Send a message below — shared live across your Mac, Phone, WhatsApp & Telegram.",
@@ -8745,7 +8743,8 @@
       "installBtn": "Install",
       "pillHermes": "Hermes ({{count}})",
       "undoSkill": "Undo {{name}}",
-      "approve": "Approve"
+      "approve": "Approve",
+      "tabSetupSkills": "Setup & Skills"
     }
   }
 }

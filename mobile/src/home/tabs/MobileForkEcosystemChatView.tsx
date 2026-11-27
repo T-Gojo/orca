@@ -5,6 +5,7 @@ import type { EcosystemChatMessage } from '../../../../src/shared/ecosystem/ecos
 import { useMobileTranslation } from '../../i18n/use-mobile-translation'
 import { colors, radii, spacing } from '../../theme/mobile-theme'
 import { themedStyleSheet } from '../../theme/themed-styles'
+import { useMobileColorScheme } from '../../theme/use-mobile-color-scheme'
 
 // Fork: shared multi-surface Chat sub-view inside Mobile OpenClaw & Hermes Hub (§16).
 
@@ -16,6 +17,7 @@ export function MobileForkEcosystemChatView(props: {
   onSendChat: (text: string, mode: MobileChatMode, useRikugan: boolean) => void
   onClearChat: () => void
 }) {
+  useMobileColorScheme()
   const t = useMobileTranslation()
   const [prompt, setPrompt] = useState('')
   const [chatMode, setChatMode] = useState<MobileChatMode>('chat')
@@ -121,9 +123,9 @@ export function MobileForkEcosystemChatView(props: {
           style={[styles.sendBtn, (props.busy !== null || !prompt.trim()) && styles.disabled]}
         >
           {props.busy === 'ask' || props.busy === 'review' || props.busy === 'learn' ? (
-            <ActivityIndicator size="small" color={colors.background} />
+            <ActivityIndicator size="small" color={colors.onAccent} />
           ) : (
-            <Send size={15} color={colors.background} />
+            <Send size={15} color={colors.onAccent} />
           )}
         </Pressable>
       </View>
@@ -143,8 +145,8 @@ const styles = themedStyleSheet(() => ({
     borderColor: colors.borderSubtle,
     gap: 2
   },
-  msgBubbleUser: { backgroundColor: colors.surfaceElevated, marginLeft: spacing.lg },
-  msgBubbleAssistant: { backgroundColor: colors.surface, marginRight: spacing.md },
+  msgBubbleUser: { backgroundColor: colors.bgRaised, marginLeft: spacing.lg },
+  msgBubbleAssistant: { backgroundColor: colors.bgPanel, marginRight: spacing.md },
   msgMeta: { fontSize: 10, fontWeight: '600', color: colors.textMuted },
   msgText: { fontSize: 12, color: colors.textPrimary, lineHeight: 17 },
   clearRow: {
@@ -165,11 +167,11 @@ const styles = themedStyleSheet(() => ({
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface
+    backgroundColor: colors.bgPanel
   },
   modeChipActive: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.textPrimary
+    backgroundColor: colors.bgRaised,
+    borderColor: colors.inputBorder
   },
   modeChipText: { fontSize: 11, fontWeight: '600', color: colors.textPrimary },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
@@ -178,8 +180,8 @@ const styles = themedStyleSheet(() => ({
     minHeight: 40,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.bgPanel,
     paddingHorizontal: spacing.sm,
     fontSize: 13,
     color: colors.textPrimary
@@ -188,7 +190,7 @@ const styles = themedStyleSheet(() => ({
     width: 40,
     height: 40,
     borderRadius: radii.md,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.accentBlue,
     alignItems: 'center',
     justifyContent: 'center'
   },

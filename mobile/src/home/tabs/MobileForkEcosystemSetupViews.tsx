@@ -9,6 +9,7 @@ import type {
 import { useMobileTranslation } from '../../i18n/use-mobile-translation'
 import { colors, radii, spacing } from '../../theme/mobile-theme'
 import { themedStyleSheet } from '../../theme/themed-styles'
+import { useMobileColorScheme } from '../../theme/use-mobile-color-scheme'
 
 // Fork: Channels (WhatsApp QR + Telegram Token/Pairing) & Hermes Suite sub-views on Mobile (§16).
 
@@ -28,6 +29,7 @@ export function MobileForkEcosystemChannelsView(props: {
     }
   ) => void
 }) {
+  useMobileColorScheme()
   const t = useMobileTranslation()
   const [tgToken, setTgToken] = useState('')
   const [pairCode, setPairCode] = useState('')
@@ -54,7 +56,7 @@ export function MobileForkEcosystemChannelsView(props: {
             onPress={() => props.onControl('whatsapp-login')}
             style={styles.primaryActionBtn}
           >
-            <QrCode size={13} color={colors.background} />
+            <QrCode size={13} color={colors.onAccent} />
             <Text style={styles.primaryActionText}>
               {t('fork.ecosystem.waGenerateQr', 'Generate WhatsApp QR')}
             </Text>
@@ -213,6 +215,7 @@ export function MobileForkEcosystemHermesView(props: {
   onSearchSkills: (query: string) => void
   onInstallSkill: (target: string) => void
 }) {
+  useMobileColorScheme()
   const t = useMobileTranslation()
   const [query, setQuery] = useState('')
 
@@ -259,7 +262,7 @@ export function MobileForkEcosystemHermesView(props: {
             onPress={() => props.onSearchSkills(query.trim())}
             style={[styles.primaryActionBtn, !query.trim() && styles.disabled]}
           >
-            <Search size={13} color={colors.background} />
+            <Search size={13} color={colors.onAccent} />
             <Text style={styles.primaryActionText}>{t('fork.ecosystem.searchBtn', 'Search')}</Text>
           </Pressable>
         </View>
@@ -320,7 +323,7 @@ const styles = themedStyleSheet(() => ({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgPanel,
     padding: spacing.sm,
     gap: spacing.xs
   },
@@ -340,8 +343,8 @@ const styles = themedStyleSheet(() => ({
     minHeight: 36,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.bgRaised,
     paddingHorizontal: spacing.sm,
     fontSize: 12,
     color: colors.textPrimary
@@ -350,19 +353,19 @@ const styles = themedStyleSheet(() => ({
     minHeight: 34,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.md,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.accentBlue,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5
   },
-  primaryActionText: { fontSize: 12, fontWeight: '600', color: colors.background },
+  primaryActionText: { fontSize: 12, fontWeight: '600', color: colors.onAccent },
   outlineBtn: {
     minHeight: 34,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.bgRaised,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4
@@ -373,7 +376,7 @@ const styles = themedStyleSheet(() => ({
     alignItems: 'center',
     padding: spacing.sm,
     borderRadius: radii.md,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.bgRaised,
     gap: spacing.xs,
     marginTop: 4
   },
