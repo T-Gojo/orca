@@ -29,7 +29,10 @@ import { ensureRikuganRunning, ensureRikuganToken, probeRikuganStatus } from './
 
 /** Fork: unified Ecosystem status & lifecycle supervisor across Rikugan, Hermes, and OpenClaw (§16). */
 
-const DEFAULT_REPO_ROOT = '/Volumes/ssd_thunder_apfs/MainCodeBase/OpenSourceGit/orca'
+const DEFAULT_REPO_ROOT =
+  process.platform === 'win32'
+    ? join(homedir(), 'Desktop', 'MainCodeBase', 'orca')
+    : '/Volumes/ssd_thunder_apfs/MainCodeBase/OpenSourceGit/orca'
 
 const ORCA_HQ_SEED =
   'Primary unified coordinator for the owner across Mac, Android, Telegram, and WhatsApp. ' +

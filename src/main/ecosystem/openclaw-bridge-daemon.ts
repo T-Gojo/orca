@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { ecosystemPaths, stageStandaloneEcosystemRuntime } from './ecosystem-config'
 import { callBridgeJson } from './openclaw-connector'
 
-/** Fork: Mac-standalone LaunchAgent lifecycle for OpenClaw bridge & legacy gateway parking (§16). */
+/** Fork: Cross-platform (macOS LaunchAgent + Windows/Linux detached daemon) lifecycle for OpenClaw bridge (§16). */
 
 const BridgePidSchema = z.object({
   pid: z.number().int().nullable().optional()
@@ -20,6 +20,17 @@ async function pathExists(target: string): Promise<boolean> {
 }
 
 async function resolveExecutableNode(): Promise<string> {
+  if (process.platform === 'win32') {
+    for (const candidate of [
+      join(process.env.ProgramFiles ?? 'C:\\Program Files', 'nodejs', 'node.exe'),
+      join(process.env.LOCALAPPDATA ?? '', 'Programs', 'nodejs', 'node.exe'),
+      'node.exe'
+    ]) {
+      if (candidate === 'node.exe' || (await pathExists(candidate))) {
+        return candidate
+      }
+    }
+  }
   for (const candidate of [
     '/opt/homebrew/opt/node@24/bin/node',
     '/opt/homebrew/bin/node',
@@ -33,7 +44,7 @@ async function resolveExecutableNode(): Promise<string> {
   return process.execPath
 }
 
-/** Installs Baileys + QR runtime deps inside Mac-internal `~/.config/orca-ecosystem/runtime/`. */
+/** Installs Baileys + QR runtime deps inside `~/.config/orca-ecosystem/runtime/`. */
 export async function ensureBridgeRuntimeDeps(
   repoRoot: string,
   home: string = homedir()
@@ -43,20 +54,23 @@ export async function ensureBridgeRuntimeDeps(
   if (await pathExists(baileysDir)) {
     return runtimeDir
   }
-  for (const npmBin of [
-    '/opt/homebrew/opt/node@24/bin/npm',
-    '/opt/homebrew/bin/npm',
-    '/usr/local/bin/npm'
-  ]) {
-    if (await pathExists(npmBin)) {
+  const npmCandidates =
+    process.platform === 'win32'
+      ? [join(process.env.ProgramFiles ?? 'C:\\Program Files', 'nodejs', 'npm.cmd'), 'npm.cmd']
+      : ['/opt/homebrew/opt/node@24/bin/npm', '/opt/homebrew/bin/npm', '/usr/local/bin/npm']
+  for (const npmBin of npmCandidates) {
+    if (npmBin === 'npm.cmd' || (await pathExists(npmBin))) {
       await runProcess({
         program: npmBin,
         args: ['install', '--omit=dev', '--no-audit', '--no-fund'],
         cwd: runtimeDir,
-        env: {
-          ...process.env,
-          PATH: `/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:${process.env.PATH ?? ''}`
-        },
+        env:
+          process.platform === 'win32'
+            ? process.env
+            : {
+                ...process.env,
+                PATH: `/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:${process.env.PATH ?? ''}`
+              },
         timeoutMs: 90_000,
         maxOutputBytes: 32_768
       }).catch(() => null)
@@ -130,6 +144,30 @@ export async function startOpenClawBridgeDaemon(
       program: '/bin/launchctl',
       args: ['kickstart', '-k', `gui/${uid}/com.thunder.orca-ecosystem-bridge`],
       timeoutMs: 5_000,
+      maxOutputBytes: 4_096
+    }).catch(() => null)
+  } else if (process.platform === 'win32') {
+    await mkdir(paths.logsDir, { recursive: true })
+    const psQuote = (val: string) => `'${val.replace(/'/g, "''")}'`
+    const outLog = join(paths.logsDir, 'bridge.out.log')
+    const errLog = join(paths.logsDir, 'bridge.err.log')
+    await runProcess({
+      program: 'powershell.exe',
+      args: [
+        '-NoProfile',
+        '-NonInteractive',
+        '-WindowStyle',
+        'Hidden',
+        '-Command',
+        `Start-Process -FilePath ${psQuote(nodeBin)} -ArgumentList ${psQuote(bridgeScript)} -WorkingDirectory ${psQuote(runtimeDir)} -WindowStyle Hidden -RedirectStandardOutput ${psQuote(outLog)} -RedirectStandardError ${psQuote(errLog)}`
+      ],
+      env: {
+        ...process.env,
+        HOME: home,
+        USERPROFILE: home,
+        ORCA_ECOSYSTEM_DIR: paths.root
+      },
+      timeoutMs: 8_000,
       maxOutputBytes: 4_096
     }).catch(() => null)
   }
