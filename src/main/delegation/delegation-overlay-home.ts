@@ -1,6 +1,6 @@
-import { copyFile, lstat, mkdir, readdir, readlink, rm, symlink } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, readdir, readlink, rm, stat, symlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join, relative, sep } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 
 /**
  * Fork: a private HOME for one worker that sees the user's real home (git, ssh, tools, settings)
@@ -55,7 +55,40 @@ export async function mirrorDirectoryExcept(
     const target = join(real, name)
     const link = join(overlay, name)
     const existing = await lstat(link).catch(() => null)
-    if (existing?.isSymbolicLink() && (await readlink(link)) === target) {
+    if (existing?.isSymbolicLink()) {
+      const linked = resolve(dirname(link), await readlink(link))
+      const matches =
+        process.platform === 'win32'
+          ? linked.toLowerCase() === target.toLowerCase()
+          : linked === target
+      if (matches) {
+        continue
+      }
+    }
+    if (process.platform === 'win32') {
+      const targetStat = await stat(target).catch(() => null)
+      if (!targetStat) {
+        continue
+      }
+      if (targetStat.isDirectory()) {
+        if (existing && !existing.isSymbolicLink()) {
+          continue
+        }
+        await rm(link, { force: true, recursive: true })
+        await symlink(target, link, 'junction')
+      } else if (targetStat.isFile()) {
+        // Windows file symlinks require Developer Mode; copy small config files when new or updated.
+        if (
+          existing &&
+          !existing.isSymbolicLink() &&
+          existing.size === targetStat.size &&
+          existing.mtimeMs >= targetStat.mtimeMs
+        ) {
+          continue
+        }
+        await rm(link, { force: true })
+        await copyFile(target, link)
+      }
       continue
     }
     if (existing && !existing.isSymbolicLink()) {

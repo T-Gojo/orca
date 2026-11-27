@@ -90,7 +90,17 @@ export class ForkAntigravityAccountService extends AntigravityAccountService {
    */
   override prepareForLaunch(): Promise<void> {
     return this.serialize(async () => {
-      const { vault, current } = await this.reconcile()
+      let reconciled: Awaited<ReturnType<ForkAntigravityAccountService['reconcile']>>
+      try {
+        reconciled = await this.reconcile()
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('keyring fallback marker')) {
+          console.warn('[antigravity] Keyring fallback marker present; letting agy launch:', error)
+          return
+        }
+        throw error
+      }
+      const { vault, current } = reconciled
       if (!vault.selectedAccountId) {
         return
       }

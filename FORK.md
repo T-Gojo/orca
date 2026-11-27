@@ -72,7 +72,11 @@ of that login for each account and swaps it in to switch accounts.
   changes `private` to `protected` on the members it uses, so merges of that file stay small.
 - **Launches follow agy:** Bridge Hub and `agy /logout` switch agy's single login behind Orca's back. Before a launch,
   `prepareForLaunch` now moves Orca's selection to the saved account agy is signed in to (or clears it for an unsaved
-  login) instead of refusing with "The native Antigravity account changed".
+  login, and skips stale `antigravity-keyring-unavailable` fallback markers) instead of refusing with
+  "The native Antigravity account changed". Isolated worker/chat launches (`ORCA_ACCOUNT_HOME`,
+  `ORCA_DELEGATION_WORKER=1`, `GEMINI_HOME`, `AGY_ACCOUNT`, custom `HOME`/`USERPROFILE`, or `SSH_CONNECTION`)
+  return immediately in `native-account-launch.ts` (`native-account-launch.test.ts`) instead of throwing
+  "This agy launch uses a different credential authority from the selected Antigravity account."
 
 ### 3. Account choice when launching agents
 
@@ -179,13 +183,14 @@ result. It builds on upstream's `orca orchestration` (workers, `worker_done`, `s
     saved account is active: without it the active account's overlay would apply. Env only, so
     Windows is fine. See §11 for the accounts, rows and pins.
   - antigravity/kiro keep ONE machine-wide login, so a worker gets a private `HOME` overlay
-    (`userData/delegation-homes/<agent>/<accountId>/home`): symlinks to every entry of the real
-    home except the agent's login location, which holds that account's saved login —
-    agy: `.gemini/antigravity-cli/antigravity-oauth-token` plus `SSH_CONNECTION` so agy uses the
-    file login instead of the keychain; kiro: a copy of `Library/Application Support/kiro-cli/data.sqlite3`
-    with the account's login rows. Verified: parallel accounts work and the shared login and
-    Bridge Hub rotation are never touched. Tokens the agent refreshes are written back to Orca's
-    vault on the next start. Not supported on Windows (refused with a message).
+    (`userData/delegation-homes/<agent>/<accountId>/home`): symlinks (or directory junctions + file copies on
+    Windows) to every entry of the real home except the agent's login location, which holds that account's
+    saved login — agy: `.gemini/antigravity-cli/antigravity-oauth-token` (written via `writeCredentialFileAtomic`)
+    plus `SSH_CONNECTION` (and `USERPROFILE` on Windows) so agy uses the file login instead of the keychain/CredMan;
+    kiro: a copy of `Library/Application Support/kiro-cli/data.sqlite3` with the account's login rows (Kiro `--account`
+    remains POSIX-only; Antigravity `--account` works on macOS, Linux, and Windows). Verified: parallel accounts work
+    and the shared login and Bridge Hub rotation are never touched. Tokens the agent refreshes are written back to Orca's
+    vault on the next start.
   - `auto` refreshes usage and picks the least-used account under the threshold; the worker is
     forced to terminal mode (chats sign in their own way).
 - **`orca delegation usage | route | preferences`**: per-account used % for every delegation agent
@@ -441,41 +446,33 @@ CLI, account, and model across `1h`, `5h`, `7d`, `30d`, `90d`, and `all` windows
   `accountUsage:removeEntry`), `agent-usage-api.ts` + `account-usage-bridge.ts`, `UsageOverviewPane.tsx`
   (+1 import, +1 render above `UsageAccountsSection`), `en.json` (`stats.usageWindows.*`).
 
-### 13. Background-task sidebar panel with ETA estimates
+### 13. Session-scoped Background-task sidebar panel with live shell progress & ETA estimates
 
-Adds a **Background Tasks** right-sidebar panel (`'background-tasks'`) that unifies live agent panes across
-every CLI (`claude`, `kiro`, `codex`, `antigravity`, `mistral-vibe`, `opencode`, and any other agent) with
-durable orchestration workers, complete with explicitly labeled estimated ETAs, subagent progress, click-to-focus,
-and worker stop controls.
+Adds a **Background Tasks** right-sidebar panel (`'background-tasks'`) scoped by default to **This session** (`session` | `workspace` | `all`), showing the actual background tasks running inside the focused agent session rather than duplicating the left sidebar's global list of top-level sessions:
 
-- **Durable worker + duration-prior RPC (`delegation.backgroundTasks`):**
-  - Appended at the end of `DELEGATION_METHODS` in `src/main/runtime/rpc/methods/delegation/delegation-methods.ts`
-    (keeping `rpc-method-registry.ts` untouched) with params `DelegationBackgroundTasksParams` in
-    `src/shared/rpc-contract/delegation-params.ts`.
-  - Electron-free query (`src/main/delegation/background-tasks-query.ts`) reads active dispatches plus recently
-    settled dispatches (default 60 minutes) from the orchestration DB (`runtime.getExistingOrchestrationDb()`),
-    extracts `agent`, `model`, and `account` from `worker_dispatches.start_options`, counts mailbox messages per
-    worker, and computes empirical `medianMs` and `p75Ms` duration priors per agent plus a `globalPrior` from up to
-    500 completed dispatches (clamped 5s–4h).
+1. **Background shells (`kind: 'shell'`)** — e.g. Claude Code's `"1 shell still running"` builds/scripts, structured-session background commands, and OS descendant processes under the session's agent PID, with live `.output` log tails, parsed build step counters (`[2410/4900]` / `%`), CPU %, and PID.
+2. **Background subagents (`kind: 'subagent'`)** — in-session child agents/subagents.
+3. **Delegated orchestration workers (`kind: 'worker'`)** — child workers linked via `dispatch_contexts.creator_pane_key` (with stop controls and click-to-focus).
+
+- **Session shell + durable worker + duration-prior RPC (`delegation.backgroundTasks`):**
+  - Appended in `DELEGATION_METHODS` (`src/main/runtime/rpc/methods/delegation/delegation-methods.ts`) with params `DelegationBackgroundTasksParams` (`recentMinutes`, `paneKey`, `worktreeId`) in `src/shared/rpc-contract/delegation-params.ts`.
+  - `src/main/delegation/session-background-shells.ts` + `src/main/delegation/claude-background-shell-logs.ts` read live pane shell contexts from `agentHookServer.readPaneBackgroundShellContexts()`, tail the last 16 KB of Claude's `/tmp/claude-<uid>/<project>/<sessionId>/tasks/*.output` files to extract clean log tails and step/percent progress (`[done/total]` or `%`), and attach live OS descendant PID/CPU/elapsed stats via `@orca/process-host`.
+  - `src/main/delegation/background-tasks-query.ts` reads active and recent dispatches (including `creator_pane_key`) plus empirical `medianMs` / `p75Ms` duration priors from the orchestration DB.
 - **ETA estimation heuristics (`background-task-eta.ts` + `background-task-eta.test.ts`):**
-  - Every estimate is explicitly labeled as an estimate (`~Xm left (est.)`, `Over typical (est.)`,
-    `Waiting on input`, `Stalled? (est.)`) and never renders `0s left` or negative values.
-  - Precedence: terminal `done`/`failed` → `waiting`/`blocked` → stale heartbeat (`>120s` without background wait) →
-    subagent completion-ratio pacing (60/40 blend with prior when `>=2` subagents have partial completion after 5s) →
-    per-pane `stateHistory` working-turn median (60/40 blend with prior) → DB `agentPrior` (`>=2` samples) →
-    `globalPrior` (`>=3` samples) → conservative per-agent defaults (`antigravity: 90s`, `kiro`/`mistral-vibe`/
-    `opencode`: `150s`, `codex`/`claude`: `210s`, fallback `180s`).
-  - Applies stage bounds for early (`launching`/`starting`, capped `<=15%`) and late (`verifying`/`settling`,
-    floored `>=80%`) orchestration stages, and switches to `overrun` past `1.15x` expected duration.
+  - Every estimate is explicitly labeled (`~Xm left (est.)`, `+Xm past ~Ym (est.)`, `Waiting on input`, `Stalled? (est.)`) and never renders `0s left` or negative values.
+  - Precedence: terminal `done`/`failed` → `waiting`/`blocked` → **live shell step/percent velocity pacing (`basis: 'steps'`, e.g. Ninja `[2450/4900]` → exact linear remaining ETA)** → stale heartbeat (`>120s` without background wait) → command-class duration priors (`basis: 'command'`: 20m heavy native/Gradle/Ninja builds, 8m media renders, 4m standard builds, 3m test suites, 90s general shell) → subagent completion-ratio pacing → per-pane `stateHistory` median → DB `agentPrior` / `globalPrior` → conservative per-agent defaults.
 - **Files:** `src/shared/delegation/background-tasks-types.ts`, `src/main/delegation/background-tasks-query.ts`,
-  `src/renderer/src/components/right-sidebar/background-tasks/background-task-eta.ts` (+ `background-task-eta.test.ts`),
+  `src/main/delegation/session-background-shells.ts`, `src/main/delegation/claude-background-shell-logs.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/background-task-eta.ts` (+ `background-task-eta-priors.ts`, `background-task-eta.test.ts`),
   `src/renderer/src/components/right-sidebar/background-tasks/background-task-item.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/background-task-scope.ts`,
+  `src/renderer/src/components/right-sidebar/background-tasks/background-task-shell-items.ts`,
   `src/renderer/src/components/right-sidebar/background-tasks/background-task-merge.ts`,
   `src/renderer/src/components/right-sidebar/background-tasks/use-active-background-task-count.ts`,
   `src/renderer/src/components/right-sidebar/background-tasks/use-background-tasks-feed.ts`,
   `src/renderer/src/components/right-sidebar/background-tasks/BackgroundTaskCard.tsx`,
   `src/renderer/src/components/right-sidebar/background-tasks/BackgroundTasksPanel.tsx`.
-- **Hooks into:** `STATIC_RIGHT_SIDEBAR_TABS` (`ui-chrome-types.ts`), `normalizeRightSidebarTab`
+- **Hooks into:** `server-status-queries.ts` (`readPaneBackgroundShellContexts`), `STATIC_RIGHT_SIDEBAR_TABS` (`ui-chrome-types.ts`), `normalizeRightSidebarTab`
   (`ui-selection-normalization.ts`), `normalizeRightSidebarRoute` (`right-sidebar-route.ts`),
   `getDefaultRightSidebarActivityItems` (`right-sidebar-default-activity-items.ts` +
   `activity-bar-arrangement.test.ts`), `useRightSidebarActivityItems` (`use-right-sidebar-activity-items.ts`),

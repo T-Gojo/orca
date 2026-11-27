@@ -1,5 +1,5 @@
 import React from 'react'
-import { Square } from 'lucide-react'
+import { GitFork, Square, Terminal } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -18,7 +18,7 @@ import {
 } from './background-task-eta'
 import type { BackgroundTaskItem } from './background-task-merge'
 
-/** Fork: monochrome card showing a single background agent/worker with estimated ETA (FORK.md §13). */
+/** Fork: monochrome card showing a background shell, subagent, or child worker with live progress & ETA (FORK.md §13). */
 
 type BackgroundTaskCardProps = {
   item: BackgroundTaskItem
@@ -68,8 +68,14 @@ function toDotState(state: BackgroundTaskEtaState): AgentDotState {
   }
 }
 
-function statusLabel(state: BackgroundTaskEtaState, t: ReturnType<typeof useTranslate>): string {
-  switch (state) {
+function statusLabel(
+  item: Pick<BackgroundTaskItem, 'kind' | 'state'>,
+  t: ReturnType<typeof useTranslate>
+): string {
+  if (item.state === 'working' && item.kind === 'shell') {
+    return t('rightSidebar.backgroundTasks.statusRunning', 'Running')
+  }
+  switch (item.state) {
     case 'working':
       return t('rightSidebar.backgroundTasks.statusWorking', 'Working')
     case 'blocked':
@@ -83,14 +89,35 @@ function statusLabel(state: BackgroundTaskEtaState, t: ReturnType<typeof useTran
   }
 }
 
-function etaLabel(eta: BackgroundTaskEtaEstimate, t: ReturnType<typeof useTranslate>): string {
+function kindBadgeLabel(
+  kind: BackgroundTaskItem['kind'],
+  t: ReturnType<typeof useTranslate>
+): string {
+  switch (kind) {
+    case 'shell':
+      return t('rightSidebar.backgroundTasks.kindShell', 'Shell')
+    case 'subagent':
+      return t('rightSidebar.backgroundTasks.kindSubagent', 'Subagent')
+    case 'worker':
+      return t('rightSidebar.backgroundTasks.kindWorker', 'Worker')
+  }
+}
+
+function etaLabel(
+  eta: BackgroundTaskEtaEstimate,
+  elapsedMs: number,
+  t: ReturnType<typeof useTranslate>
+): string {
   switch (eta.kind) {
     case 'countdown':
       return t('rightSidebar.backgroundTasks.etaCountdown', '~{{duration}} left (est.)', {
         duration: formatDurationCompact(eta.remainingMs ?? 0)
       })
     case 'overrun':
-      return t('rightSidebar.backgroundTasks.etaOverrun', 'Over typical (est.)')
+      if (eta.expectedTotalMs !== null && elapsedMs > eta.expectedTotalMs) {
+        return `+${formatDurationCompact(elapsedMs - eta.expectedTotalMs)} past ~${formatDurationCompact(eta.expectedTotalMs)} (est.)`
+      }
+      return t('rightSidebar.backgroundTasks.etaOverrun', 'Still running (est.)')
     case 'waiting':
       return t('rightSidebar.backgroundTasks.etaWaiting', 'Waiting on input')
     case 'stalled':
@@ -108,6 +135,16 @@ function etaBasisTooltip(
   t: ReturnType<typeof useTranslate>
 ): string {
   switch (eta.basis) {
+    case 'steps':
+      return t(
+        'rightSidebar.backgroundTasks.etaBasisSteps',
+        'Paced from live build/command step progress'
+      )
+    case 'command':
+      return t(
+        'rightSidebar.backgroundTasks.etaBasisCommand',
+        'Estimated from typical duration for this command kind'
+      )
     case 'subagents':
       return t('rightSidebar.backgroundTasks.etaBasisSubagents', 'Estimated from subagent progress')
     case 'history':
@@ -145,20 +182,19 @@ export const BackgroundTaskCard = React.memo(function BackgroundTaskCard({
   const elapsedText = t('rightSidebar.backgroundTasks.elapsed', 'Elapsed {{duration}}', {
     duration: formatDurationCompact(elapsedMs)
   })
-  const etaText = etaLabel(item.eta, t)
+  const etaText = etaLabel(item.eta, elapsedMs, t)
   const etaTip = etaBasisTooltip(item.eta, agentLabel, t)
+
   const metadataParts = [
+    kindBadgeLabel(item.kind, t),
     agentLabel,
     item.repoName && item.workspaceName && item.repoName !== item.workspaceName
       ? `${item.repoName} / ${item.workspaceName}`
       : (item.workspaceName ?? item.repoName),
-    item.model,
-    item.account
+    item.account,
+    item.cpuPercent !== null && item.cpuPercent >= 1 ? `${Math.round(item.cpuPercent)}% CPU` : null,
+    item.pid !== null ? `PID ${item.pid}` : null
   ].filter((part): part is string => Boolean(part))
-
-  const subagentsDone = item.subagents.filter(
-    (sub) => sub.state === 'done' || sub.state === 'failed'
-  ).length
 
   const canReveal = item.revealTarget !== null
   const handleReveal = (): void => {
@@ -189,8 +225,14 @@ export const BackgroundTaskCard = React.memo(function BackgroundTaskCard({
       )}
     >
       <div className="flex items-start gap-2">
-        <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
-          <AgentIcon agent={toTerminalAgent(item.agentType)} size={14} />
+        <div className="mt-0.5 flex shrink-0 items-center gap-1.5 text-muted-foreground">
+          {item.kind === 'shell' ? (
+            <Terminal size={13} />
+          ) : item.kind === 'subagent' ? (
+            <GitFork size={13} />
+          ) : (
+            <AgentIcon agent={toTerminalAgent(item.agentType)} size={14} />
+          )}
           <AgentStateDot state={toDotState(item.state)} size="sm" />
         </div>
         <div className="min-w-0 flex-1">
@@ -199,7 +241,7 @@ export const BackgroundTaskCard = React.memo(function BackgroundTaskCard({
               {displayTitle}
             </span>
             <div className="flex shrink-0 items-center gap-1">
-              <Badge variant={statusBadgeVariant(item.state)}>{statusLabel(item.state, t)}</Badge>
+              <Badge variant={statusBadgeVariant(item.state)}>{statusLabel(item, t)}</Badge>
               {item.canStop && item.dispatchId ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -228,7 +270,7 @@ export const BackgroundTaskCard = React.memo(function BackgroundTaskCard({
           </div>
 
           {metadataParts.length > 0 ? (
-            <div className="mt-1 truncate text-2xs text-muted-foreground">
+            <div className="mt-1 truncate text-2xs text-muted-foreground tabular-nums">
               {metadataParts.join(' · ')}
             </div>
           ) : null}
@@ -239,18 +281,30 @@ export const BackgroundTaskCard = React.memo(function BackgroundTaskCard({
                 'mt-1 truncate font-mono text-2xs',
                 item.lastError ? 'text-destructive' : 'text-muted-foreground'
               )}
+              title={item.activityLine}
             >
               {item.activityLine}
             </div>
           ) : null}
 
+          {item.outputTail && item.outputTail !== item.activityLine ? (
+            <div
+              className="mt-1 truncate rounded bg-muted/40 px-1.5 py-0.5 font-mono text-2xs text-foreground/80"
+              title={item.outputTail}
+            >
+              {item.outputTail}
+            </div>
+          ) : null}
+
           <div className="mt-2 flex items-center justify-between gap-2 text-2xs tabular-nums">
-            <span className="text-muted-foreground">{elapsedText}</span>
+            <span className="truncate text-muted-foreground">
+              {item.progressLabel ? `${item.progressLabel} · ${elapsedText}` : elapsedText}
+            </span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
                   className={cn(
-                    'truncate',
+                    'shrink-0',
                     item.eta.kind === 'stalled' || item.eta.kind === 'waiting'
                       ? 'text-status-warning-text'
                       : 'text-foreground/80'
@@ -275,31 +329,6 @@ export const BackgroundTaskCard = React.memo(function BackgroundTaskCard({
                 className="h-full rounded-full bg-foreground/60 transition-[width] duration-500"
                 style={{ width: `${Math.round(item.eta.progressRatio * 100)}%` }}
               />
-            </div>
-          ) : null}
-
-          {item.subagents.length > 0 ? (
-            <div className="mt-2 space-y-1 border-t border-border/40 pt-1.5">
-              <div className="text-2xs text-muted-foreground tabular-nums">
-                {t(
-                  'rightSidebar.backgroundTasks.subagentsProgress',
-                  '{{done}}/{{total}} subagents',
-                  {
-                    done: subagentsDone,
-                    total: item.subagents.length
-                  }
-                )}
-              </div>
-              <div className="space-y-0.5">
-                {item.subagents.slice(0, 4).map((sub) => (
-                  <div key={sub.id} className="flex items-center gap-1.5 text-2xs">
-                    <AgentStateDot state={toDotState(sub.state)} size="sm" />
-                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                      {sub.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </div>
           ) : null}
         </div>

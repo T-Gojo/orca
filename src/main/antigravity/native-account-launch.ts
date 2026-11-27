@@ -37,15 +37,24 @@ export async function prepareAntigravityAccountForLaunch(args: {
   for (const key of args.envToDelete ?? []) {
     delete env[key]
   }
-  const home = env.HOME ?? env.USERPROFILE
-  if (
-    args.envToDelete?.some((key) => ['HOME', 'USERPROFILE'].includes(key)) ||
-    (home && resolve(home) !== resolve(getAppEnvironment().getPath('home'))) ||
+  const hostHome = getAppEnvironment().getPath('home')
+  const home = env.ORCA_ACCOUNT_HOME ?? env.HOME ?? env.USERPROFILE
+  // Fork: isolated worker/chat homes and explicit agy auth overrides carry their own credentials (FORK.md §2, §8).
+  const usesIsolatedCredentialAuthority =
+    Boolean(
+      env.ORCA_ACCOUNT_HOME ||
+      env.ORCA_DELEGATION_WORKER === '1' ||
+      env.GEMINI_HOME ||
+      env.AGY_ACCOUNT ||
+      env.AGY_ADC_AUTH ||
+      env.GEMINI_API_KEY ||
+      env.AGY_LLM_GATEWAY_API_KEY ||
+      env.AGY_LLM_GATEWAY_URL
+    ) ||
+    Boolean(home && resolve(home) !== resolve(hostHome)) ||
     isAntigravityFileStorageHost(env) !== isAntigravityFileStorageHost(process.env)
-  ) {
-    throw new Error(
-      'This agy launch uses a different credential authority from the selected Antigravity account.'
-    )
+  if (usesIsolatedCredentialAuthority) {
+    return
   }
   await (await getAntigravityAccountService({ runtime: 'host' })).prepareForLaunch()
 }

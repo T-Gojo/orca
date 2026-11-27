@@ -1,51 +1,37 @@
-import type { BackgroundTaskWorkerRecord } from '../../../../../shared/delegation/background-tasks-types'
-import type { AgentType } from '../../../../../shared/agent-status/contracts/agent-status-types'
-import type { DashboardRevealAgentArgs } from '../../../../../shared/agent-status/presentation/dashboard-snapshot'
 import type { AgentPaneThread } from '@/components/activity/threads/activity-thread-types'
-import { getAgentCatalog } from '@/lib/agent-catalog/agent-catalog'
-import { parsePaneKey } from '../../../../../shared/workspace-layout/stable-pane-id'
 import { estimateBackgroundTaskEta, normalizeEtaAgentKey } from './background-task-eta'
 import {
   buildBackgroundActivityLine,
   extractBackgroundSubagents,
   isActiveBackgroundTaskState,
   isStoppableBackgroundWorker,
-  mapThreadToBackgroundState,
   mapWorkerToBackgroundState,
   STATE_SORT_RANK,
   type BackgroundTaskItem,
+  type BackgroundTasksScope,
   type BackgroundTaskSubagentItem,
   type MergeBackgroundTasksArgs
 } from './background-task-item'
+import { filterBackgroundTasksByScope } from './background-task-scope'
+import {
+  buildShellAndSubagentItems,
+  resolveKnownAgentType,
+  resolveRevealTarget
+} from './background-task-shell-items'
 
-export type { BackgroundTaskItem, BackgroundTaskSubagentItem, MergeBackgroundTasksArgs }
-
-/** Fork: merges live agent pane threads with durable orchestration worker records (FORK.md §13). */
-
-function resolveKnownAgentType(agent: string | null | undefined): AgentType | null {
-  if (!agent) {
-    return null
-  }
-  if (agent === 'dsb' || agent === 'unknown') {
-    return agent
-  }
-  return getAgentCatalog().find((entry) => entry.id === agent)?.id ?? null
+export { filterBackgroundTasksByScope }
+export type {
+  BackgroundTaskItem,
+  BackgroundTasksScope,
+  BackgroundTaskSubagentItem,
+  MergeBackgroundTasksArgs
 }
 
-function resolveRevealTarget(thread: AgentPaneThread): DashboardRevealAgentArgs | null {
-  if (!thread.worktree.id || !thread.tab.id) {
-    return null
-  }
-  return {
-    repoId: thread.repo?.id ?? thread.worktree.repoId ?? '',
-    worktreeId: thread.worktree.id,
-    tabId: thread.tab.id,
-    leafId: parsePaneKey(thread.paneKey)?.leafId ?? null
-  }
-}
+/** Fork: merges delegated workers, session background shells, and subagents (FORK.md §13). */
 
 export function mergeBackgroundTasks(args: MergeBackgroundTasksArgs): BackgroundTaskItem[] {
   const {
+    shells,
     threads,
     workers,
     priorsByAgent,
@@ -55,105 +41,51 @@ export function mergeBackgroundTasks(args: MergeBackgroundTasksArgs): Background
     nowMs
   } = args
 
-  const workerByPaneKey = new Map<string, BackgroundTaskWorkerRecord>()
-  const workerByDispatchId = new Map<string, BackgroundTaskWorkerRecord>()
-  for (const worker of workers) {
-    workerByDispatchId.set(worker.dispatchId, worker)
-    if (worker.paneKey && !workerByPaneKey.has(worker.paneKey)) {
-      workerByPaneKey.set(worker.paneKey, worker)
+  const threadByPaneKey = new Map<string, AgentPaneThread>()
+  const threadByDispatchId = new Map<string, AgentPaneThread>()
+  for (const thread of threads) {
+    threadByPaneKey.set(thread.paneKey, thread)
+    const dispatchId = (thread.currentAgentEntry ?? thread.paneEntry)?.orchestration?.dispatchId
+    if (dispatchId) {
+      threadByDispatchId.set(dispatchId, thread)
     }
   }
 
-  const matchedDispatchIds = new Set<string>()
+  const workerPaneKeys = new Set<string>()
+  const activeWorkerOwnerPanes = new Set<string>()
   const items: BackgroundTaskItem[] = []
 
-  for (const thread of threads) {
-    const entry = thread.currentAgentEntry ?? thread.paneEntry
-    const dispatchIdFromEntry = entry?.orchestration?.dispatchId ?? null
-    const worker =
-      (dispatchIdFromEntry ? workerByDispatchId.get(dispatchIdFromEntry) : undefined) ??
-      workerByPaneKey.get(thread.paneKey) ??
-      null
-    if (worker) {
-      matchedDispatchIds.add(worker.dispatchId)
-    }
-
-    const state = mapThreadToBackgroundState(thread)
-    const agentType: AgentType | null =
-      (thread.agentType && thread.agentType !== 'unknown' ? thread.agentType : null) ??
-      resolveKnownAgentType(worker?.agent) ??
-      null
-    const normalizedAgent = normalizeEtaAgentKey(agentType)
-    const startedAt =
-      entry?.turnStartedAt ?? entry?.stateStartedAt ?? worker?.startedAt ?? thread.latestTimestamp
-    const updatedAt = Math.max(
-      entry?.updatedAt ?? 0,
-      worker?.updatedAt ?? 0,
-      thread.latestTimestamp
-    )
-    const completedAt =
-      state === 'done' || state === 'failed'
-        ? (entry?.turnEndedAt ?? worker?.completedAt ?? updatedAt)
-        : null
-    const { items: subagents, counts: subagentCounts } = extractBackgroundSubagents(entry)
-
-    items.push({
-      id: `pane:${thread.paneKey}`,
-      paneKey: thread.paneKey,
-      title:
-        worker?.displayName?.trim() ||
-        worker?.taskTitle?.trim() ||
-        entry?.prompt?.trim() ||
-        thread.paneTitle?.trim() ||
-        worker?.objective?.trim() ||
-        '',
-      agentType,
-      normalizedAgent,
-      model: entry?.model ?? worker?.model ?? null,
-      account: worker?.account ?? null,
-      state,
-      isActive: isActiveBackgroundTaskState(state),
-      workspaceName: thread.worktree.displayName || thread.worktree.branch || null,
-      repoName: thread.repo?.displayName ?? null,
-      activityLine: buildBackgroundActivityLine(entry, worker),
-      stage: worker?.stage ?? null,
-      lastError: worker?.lastError ?? null,
-      startedAt,
-      updatedAt,
-      completedAt,
-      eta: estimateBackgroundTaskEta({
-        state,
-        agentType,
-        startedAt,
-        updatedAt,
-        nowMs,
-        stage: worker?.stage ?? null,
-        stateHistory: entry?.stateHistory,
-        subagentCounts,
-        agentPrior: normalizedAgent ? (priorsByAgent[normalizedAgent] ?? null) : null,
-        globalPrior,
-        hasBackgroundWait: entry?.workingMode === 'monitoring'
-      }),
-      dispatchId: worker?.dispatchId ?? dispatchIdFromEntry,
-      runId: worker?.runId ?? entry?.orchestration?.orchestrationRunId ?? null,
-      messageCount: worker?.messageCount ?? 0,
-      canStop: isStoppableBackgroundWorker(worker),
-      subagents,
-      revealTarget: resolveRevealTarget(thread)
-    })
-  }
-
   for (const worker of workers) {
-    if (matchedDispatchIds.has(worker.dispatchId)) {
-      continue
+    const workerThread =
+      threadByDispatchId.get(worker.dispatchId) ??
+      (worker.paneKey ? threadByPaneKey.get(worker.paneKey) : undefined)
+    if (worker.paneKey) {
+      workerPaneKeys.add(worker.paneKey)
     }
+    if (workerThread) {
+      workerPaneKeys.add(workerThread.paneKey)
+    }
+    const entry = workerThread?.currentAgentEntry ?? workerThread?.paneEntry
     const state = mapWorkerToBackgroundState(worker)
-    const agentType = resolveKnownAgentType(worker.agent)
+    const isActive = isActiveBackgroundTaskState(state)
+    if (isActive && worker.creatorPaneKey) {
+      activeWorkerOwnerPanes.add(worker.creatorPaneKey)
+    }
+    const agentType =
+      (workerThread?.agentType && workerThread.agentType !== 'unknown'
+        ? workerThread.agentType
+        : null) ?? resolveKnownAgentType(worker.agent)
     const normalizedAgent = normalizeEtaAgentKey(agentType)
+    const worktreeId = worker.worktreeId ?? workerThread?.worktree.id ?? null
+    const { items: subagents, counts: subagentCounts } = extractBackgroundSubagents(entry)
+    const updatedAt = Math.max(worker.updatedAt, entry?.updatedAt ?? 0)
 
     items.push({
       id: `dispatch:${worker.dispatchId}`,
-      paneKey: worker.paneKey,
+      kind: 'worker',
+      paneKey: worker.paneKey ?? workerThread?.paneKey ?? null,
+      ownerPaneKey: worker.creatorPaneKey ?? worker.paneKey ?? null,
+      worktreeId,
       title:
         worker.displayName?.trim() ||
         worker.taskTitle?.trim() ||
@@ -161,41 +93,67 @@ export function mergeBackgroundTasks(args: MergeBackgroundTasksArgs): Background
         worker.dispatchId,
       agentType,
       normalizedAgent,
-      model: worker.model,
+      model: entry?.model ?? worker.model,
       account: worker.account,
       state,
-      isActive: isActiveBackgroundTaskState(state),
-      workspaceName: worker.worktreeId ? (worktreeNameById.get(worker.worktreeId) ?? null) : null,
-      repoName: worker.worktreeId ? (repoNameByWorktreeId.get(worker.worktreeId) ?? null) : null,
-      activityLine: buildBackgroundActivityLine(null, worker),
+      isActive,
+      workspaceName:
+        workerThread?.worktree.displayName ||
+        workerThread?.worktree.branch ||
+        (worktreeId ? (worktreeNameById.get(worktreeId) ?? null) : null),
+      repoName:
+        workerThread?.repo?.displayName ??
+        (worktreeId ? (repoNameByWorktreeId.get(worktreeId) ?? null) : null),
+      activityLine: buildBackgroundActivityLine(entry, worker),
+      outputTail: null,
+      progressLabel: null,
+      cpuPercent: null,
+      pid: null,
       stage: worker.stage,
       lastError: worker.lastError,
       startedAt: worker.startedAt,
-      updatedAt: worker.updatedAt,
+      updatedAt,
       completedAt: worker.completedAt,
       eta: estimateBackgroundTaskEta({
         state,
         agentType,
         startedAt: worker.startedAt,
-        updatedAt: worker.updatedAt,
+        updatedAt,
         nowMs,
         stage: worker.stage,
+        stateHistory: entry?.stateHistory,
+        subagentCounts,
         agentPrior: normalizedAgent ? (priorsByAgent[normalizedAgent] ?? null) : null,
-        globalPrior
+        globalPrior,
+        hasBackgroundWait: entry?.workingMode === 'monitoring'
       }),
       dispatchId: worker.dispatchId,
       runId: worker.runId,
       messageCount: worker.messageCount,
       canStop: isStoppableBackgroundWorker(worker),
-      subagents: [],
-      revealTarget: null
+      subagents,
+      revealTarget: resolveRevealTarget(workerThread)
     })
   }
+
+  items.push(
+    ...buildShellAndSubagentItems({
+      shells,
+      threads,
+      threadByPaneKey,
+      workerPaneKeys,
+      activeWorkerOwnerPanes,
+      priorsByAgent,
+      globalPrior,
+      worktreeNameById,
+      repoNameByWorktreeId,
+      nowMs
+    })
+  )
 
   items.sort((left, right) => {
     const rankDelta = STATE_SORT_RANK[left.state] - STATE_SORT_RANK[right.state]
     return rankDelta !== 0 ? rankDelta : right.updatedAt - left.updatedAt
   })
-
   return items
 }

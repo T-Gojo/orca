@@ -5,25 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
-import { formatAgentTypeLabel } from '../../../../../shared/agent-status/presentation/agent-type-label'
 import { BackgroundTaskCard } from './BackgroundTaskCard'
 import { formatDurationCompact } from './background-task-eta'
 import { useBackgroundTasksFeed } from './use-background-tasks-feed'
 import { EcosystemHubPanel } from '../ecosystem/EcosystemHubPanel'
 
-/** Fork: cross-agent Background Tasks + Unified Ecosystem Hub right-sidebar panel (FORK.md §13 & §16). */
+/** Fork: session-scoped Background Tasks + Unified Ecosystem Hub right-sidebar panel (FORK.md §13 & §16). */
 
 type PanelSurface = 'tasks' | 'ecosystem'
 type StatusFilter = 'active' | 'all'
-
-const PRIMARY_AGENTS = [
-  'claude',
-  'kiro',
-  'codex',
-  'antigravity',
-  'mistral-vibe',
-  'opencode'
-] as const
 
 export default function BackgroundTasksPanel({
   isVisible
@@ -33,9 +23,20 @@ export default function BackgroundTasksPanel({
   const t = useTranslate()
   const [surface, setSurface] = useState<PanelSurface>('tasks')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
-  const [agentFilter, setAgentFilter] = useState<string>('all')
-  const { items, isRefreshing, stoppingDispatchIds, nowMs, refresh, stopWorker } =
-    useBackgroundTasksFeed(isVisible)
+  const {
+    items,
+    allBackgroundCount,
+    workspaceBackgroundCount,
+    sessionBackgroundCount,
+    scope,
+    setScope,
+    activeSessionLabel,
+    isRefreshing,
+    stoppingDispatchIds,
+    nowMs,
+    refresh,
+    stopWorker
+  } = useBackgroundTasksFeed(isVisible)
 
   const summary = useMemo(() => {
     let runningCount = 0
@@ -57,42 +58,9 @@ export default function BackgroundTasksPanel({
     return { runningCount, waitingCount, maxRemainingMs }
   }, [items])
 
-  const agentOptions = useMemo(() => {
-    const presentAgents = new Set<string>()
-    for (const item of items) {
-      if (item.normalizedAgent) {
-        presentAgents.add(item.normalizedAgent)
-      }
-    }
-    const ordered: string[] = []
-    for (const agent of PRIMARY_AGENTS) {
-      if (presentAgents.has(agent)) {
-        ordered.push(agent)
-      }
-    }
-    for (const agent of presentAgents) {
-      if (!ordered.includes(agent)) {
-        ordered.push(agent)
-      }
-    }
-    return ordered
-  }, [items])
-
-  const effectiveAgentFilter =
-    agentFilter === 'all' || agentOptions.includes(agentFilter) ? agentFilter : 'all'
-
   const filteredItems = useMemo(
-    () =>
-      items.filter((item) => {
-        if (statusFilter === 'active' && !item.isActive) {
-          return false
-        }
-        if (effectiveAgentFilter !== 'all' && item.normalizedAgent !== effectiveAgentFilter) {
-          return false
-        }
-        return true
-      }),
-    [items, statusFilter, effectiveAgentFilter]
+    () => items.filter((item) => (statusFilter === 'active' ? item.isActive : true)),
+    [items, statusFilter]
   )
 
   const summaryParts: string[] = []
@@ -112,7 +80,7 @@ export default function BackgroundTasksPanel({
   }
   if (summary.maxRemainingMs !== null) {
     summaryParts.push(
-      t('rightSidebar.backgroundTasks.summaryEstToClear', 'Est. ~{{duration}} to clear', {
+      t('rightSidebar.backgroundTasks.summaryEstToClear', 'Est. ~{{duration}} left', {
         duration: formatDurationCompact(summary.maxRemainingMs)
       })
     )
@@ -167,56 +135,68 @@ export default function BackgroundTasksPanel({
         <EcosystemHubPanel isVisible={isVisible && surface === 'ecosystem'} />
       ) : (
         <>
+          <div className="flex shrink-0 flex-col gap-1.5 border-b border-border/40 px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant={scope === 'session' ? 'secondary' : 'ghost-muted'}
+                  size="xs"
+                  onClick={() => setScope('session')}
+                >
+                  {t('rightSidebar.backgroundTasks.scopeSession', 'This session')}
+                  {sessionBackgroundCount > 0 ? ` (${sessionBackgroundCount})` : ''}
+                </Button>
+                <Button
+                  type="button"
+                  variant={scope === 'workspace' ? 'secondary' : 'ghost-muted'}
+                  size="xs"
+                  onClick={() => setScope('workspace')}
+                >
+                  {t('rightSidebar.backgroundTasks.scopeWorkspace', 'Workspace')}
+                  {workspaceBackgroundCount > 0 ? ` (${workspaceBackgroundCount})` : ''}
+                </Button>
+                <Button
+                  type="button"
+                  variant={scope === 'all' ? 'secondary' : 'ghost-muted'}
+                  size="xs"
+                  onClick={() => setScope('all')}
+                >
+                  {t('rightSidebar.backgroundTasks.scopeAll', 'All')}
+                  {allBackgroundCount > 0 ? ` (${allBackgroundCount})` : ''}
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant={statusFilter === 'active' ? 'secondary' : 'ghost-muted'}
+                  size="xs"
+                  onClick={() => setStatusFilter('active')}
+                >
+                  {t('rightSidebar.backgroundTasks.filterActive', 'Active')}
+                </Button>
+                <Button
+                  type="button"
+                  variant={statusFilter === 'all' ? 'secondary' : 'ghost-muted'}
+                  size="xs"
+                  onClick={() => setStatusFilter('all')}
+                >
+                  {t('rightSidebar.backgroundTasks.filterRecent', 'Recent')}
+                </Button>
+              </div>
+            </div>
+
+            {scope === 'session' && activeSessionLabel ? (
+              <div className="truncate text-2xs text-muted-foreground">{activeSessionLabel}</div>
+            ) : null}
+          </div>
+
           {summaryParts.length > 0 ? (
             <div className="shrink-0 border-b border-border/40 bg-muted/30 px-3 py-1.5 text-2xs text-muted-foreground tabular-nums">
               {summaryParts.join(' · ')}
             </div>
           ) : null}
-
-          <div className="flex shrink-0 flex-col gap-1.5 border-b border-border/40 px-3 py-2">
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant={statusFilter === 'active' ? 'secondary' : 'ghost-muted'}
-                size="xs"
-                onClick={() => setStatusFilter('active')}
-              >
-                {t('rightSidebar.backgroundTasks.filterActive', 'Active')}
-              </Button>
-              <Button
-                type="button"
-                variant={statusFilter === 'all' ? 'secondary' : 'ghost-muted'}
-                size="xs"
-                onClick={() => setStatusFilter('all')}
-              >
-                {t('rightSidebar.backgroundTasks.filterAll', 'All')}
-              </Button>
-            </div>
-
-            {agentOptions.length > 1 ? (
-              <div className="flex flex-wrap items-center gap-1">
-                <Button
-                  type="button"
-                  variant={effectiveAgentFilter === 'all' ? 'secondary' : 'ghost-muted'}
-                  size="xs"
-                  onClick={() => setAgentFilter('all')}
-                >
-                  {t('rightSidebar.backgroundTasks.filterAgentAll', 'All agents')}
-                </Button>
-                {agentOptions.map((agent) => (
-                  <Button
-                    key={agent}
-                    type="button"
-                    variant={effectiveAgentFilter === agent ? 'secondary' : 'ghost-muted'}
-                    size="xs"
-                    onClick={() => setAgentFilter(agent)}
-                  >
-                    {formatAgentTypeLabel(agent)}
-                  </Button>
-                ))}
-              </div>
-            ) : null}
-          </div>
 
           <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
             {filteredItems.length === 0 ? (
@@ -224,26 +204,46 @@ export default function BackgroundTasksPanel({
                 <ListTodo size={24} className="mb-2 text-muted-foreground/50" />
                 <p className="text-xs font-medium text-foreground/80">
                   {items.length === 0
-                    ? t(
-                        'rightSidebar.backgroundTasks.emptyActiveTitle',
-                        'No background tasks running'
-                      )
+                    ? scope === 'session'
+                      ? t(
+                          'rightSidebar.backgroundTasks.emptySessionTitle',
+                          'No background tasks in this session'
+                        )
+                      : t(
+                          'rightSidebar.backgroundTasks.emptyActiveTitle',
+                          'No background tasks running'
+                        )
                     : t(
                         'rightSidebar.backgroundTasks.emptyFilteredTitle',
-                        'No matching background tasks'
+                        'No active background tasks'
                       )}
                 </p>
                 <p className="mt-1 text-2xs text-muted-foreground">
                   {items.length === 0
                     ? t(
-                        'rightSidebar.backgroundTasks.emptyActiveSubtitle',
-                        'Active agents and delegated workers across every CLI appear here with estimated ETAs.'
+                        'rightSidebar.backgroundTasks.emptySessionSubtitle',
+                        'Background shells (such as builds or watchers), subagents, and delegated workers from this session appear here with live progress and estimated ETAs.'
                       )
                     : t(
                         'rightSidebar.backgroundTasks.emptyFilteredSubtitle',
-                        'Try switching filters or showing completed tasks.'
+                        'Switch to Recent to view completed background tasks.'
                       )}
                 </p>
+                {scope === 'session' && allBackgroundCount > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost-muted"
+                    size="xs"
+                    className="mt-2"
+                    onClick={() => setScope('all')}
+                  >
+                    {t(
+                      'rightSidebar.backgroundTasks.viewOtherSessions',
+                      'Show {{count}} running in other sessions',
+                      { count: allBackgroundCount }
+                    )}
+                  </Button>
+                ) : null}
               </div>
             ) : (
               <div className="space-y-2">

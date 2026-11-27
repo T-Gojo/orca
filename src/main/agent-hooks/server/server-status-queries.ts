@@ -57,4 +57,62 @@ export abstract class AgentHookServerStatusQueries extends AgentHookServerState 
       this.queryIndex().bySession.get(providerSessionIndexKey(agent, session)) ?? []
     ).flatMap((key) => this.getStatusSnapshotForPane(key))
   }
+
+  /** Fork: live local pane shell & process context for the Background Tasks panel (FORK.md §13). */
+  readPaneBackgroundShellContexts(): {
+    paneKey: string
+    worktreeId: string | null
+    agentType: string | null
+    providerSessionId: string | null
+    agentPid: number | null
+    runningCommands: readonly string[]
+  }[] {
+    const results: {
+      paneKey: string
+      worktreeId: string | null
+      agentType: string | null
+      providerSessionId: string | null
+      agentPid: number | null
+      runningCommands: readonly string[]
+    }[] = []
+    const visited = new Set<string>()
+    for (const [paneKey, row] of this.state.lastStatusByPaneKey) {
+      if (row.connectionId !== null || row.providerSessionOnly === true) {
+        continue
+      }
+      visited.add(paneKey)
+      const claudeCmds = this.state.claudeRunningNonAgentTasksByPaneKey.get(paneKey)
+      const commands = claudeCmds ?? row.payload.backgroundCommands ?? []
+      const pid =
+        row.agentPresence?.ended === true ? null : (row.agentPresence?.process?.pid ?? null)
+      results.push({
+        paneKey,
+        worktreeId: row.worktreeId ?? null,
+        agentType: row.payload.agentType ?? null,
+        providerSessionId: row.providerSession?.id ?? null,
+        agentPid: typeof pid === 'number' && Number.isFinite(pid) && pid > 0 ? pid : null,
+        runningCommands: commands
+      })
+    }
+    for (const [paneKey, subjects] of this.canonicalSubjectsByPane) {
+      if (visited.has(paneKey)) {
+        continue
+      }
+      for (const [, subject] of subjects) {
+        const status = this.canonicalStatusStore.getParent(subject)?.status
+        if (!status || status.connectionId !== null) {
+          continue
+        }
+        results.push({
+          paneKey,
+          worktreeId: status.worktreeId ?? null,
+          agentType: status.agentType ?? null,
+          providerSessionId: status.providerSession?.id ?? null,
+          agentPid: null,
+          runningCommands: status.backgroundCommands ?? []
+        })
+      }
+    }
+    return results
+  }
 }

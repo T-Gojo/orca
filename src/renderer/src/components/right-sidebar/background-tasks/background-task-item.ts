@@ -1,5 +1,6 @@
 import type {
   AgentDurationPrior,
+  BackgroundTaskShellRecord,
   BackgroundTaskWorkerRecord
 } from '../../../../../shared/delegation/background-tasks-types'
 import type {
@@ -10,7 +11,10 @@ import type { DashboardRevealAgentArgs } from '../../../../../shared/agent-statu
 import type { AgentPaneThread } from '@/components/activity/threads/activity-thread-types'
 import type { BackgroundTaskEtaEstimate, BackgroundTaskEtaState } from './background-task-eta'
 
-/** Fork: unified background-task view-model types and state mappers (FORK.md §13). */
+/** Fork: session-scoped background task view-model types and mappers (FORK.md §13). */
+
+export type BackgroundTaskKind = 'shell' | 'subagent' | 'worker'
+export type BackgroundTasksScope = 'session' | 'workspace' | 'all'
 
 export type BackgroundTaskSubagentItem = {
   id: string
@@ -21,7 +25,10 @@ export type BackgroundTaskSubagentItem = {
 
 export type BackgroundTaskItem = {
   id: string
+  kind: BackgroundTaskKind
   paneKey: string | null
+  ownerPaneKey: string | null
+  worktreeId: string | null
   title: string
   agentType: AgentType | null
   normalizedAgent: string
@@ -32,6 +39,10 @@ export type BackgroundTaskItem = {
   workspaceName: string | null
   repoName: string | null
   activityLine: string | null
+  outputTail: string | null
+  progressLabel: string | null
+  cpuPercent: number | null
+  pid: number | null
   stage: string | null
   lastError: string | null
   startedAt: number
@@ -47,6 +58,7 @@ export type BackgroundTaskItem = {
 }
 
 export type MergeBackgroundTasksArgs = {
+  shells: readonly BackgroundTaskShellRecord[]
   threads: readonly AgentPaneThread[]
   workers: readonly BackgroundTaskWorkerRecord[]
   priorsByAgent: Readonly<Record<string, AgentDurationPrior>>
@@ -89,24 +101,6 @@ export function isStoppableBackgroundWorker(worker: BackgroundTaskWorkerRecord |
   )
 }
 
-export function mapThreadToBackgroundState(thread: AgentPaneThread): BackgroundTaskEtaState {
-  const live = thread.currentAgentState
-  if (live === 'working' || live === 'monitoring') {
-    return 'working'
-  }
-  if (live === 'blocked' || live === 'waiting') {
-    return live
-  }
-  const entry = thread.currentAgentEntry ?? thread.paneEntry
-  if (entry?.mainAgent?.outcome === 'failure') {
-    return 'failed'
-  }
-  if (entry?.state === 'working' || entry?.state === 'blocked' || entry?.state === 'waiting') {
-    return entry.state
-  }
-  return 'done'
-}
-
 export function mapWorkerToBackgroundState(
   worker: BackgroundTaskWorkerRecord
 ): BackgroundTaskEtaState {
@@ -124,6 +118,18 @@ export function mapWorkerToBackgroundState(
     return 'done'
   }
   return isStoppableBackgroundWorker(worker) ? 'working' : 'done'
+}
+
+export function mapShellToBackgroundState(
+  shell: Pick<BackgroundTaskShellRecord, 'state'>
+): BackgroundTaskEtaState {
+  if (shell.state === 'failed') {
+    return 'failed'
+  }
+  if (shell.state === 'done') {
+    return 'done'
+  }
+  return 'working'
 }
 
 function mapChildState(state: string, outcome?: string): BackgroundTaskEtaState {
@@ -164,6 +170,38 @@ export function extractBackgroundSubagents(entry: AgentStatusEntry | null | unde
   }
   const done = items.filter((item) => item.state === 'done' || item.state === 'failed').length
   return { items, counts: { done, total: items.length } }
+}
+
+export function summarizeShellCommandTitle(command: string): string {
+  const trimmed = command.trim()
+  if (!trimmed) {
+    return 'Background shell'
+  }
+  if (/\borca\s+orchestration\s+check\b/i.test(trimmed)) {
+    return 'Waiting for delegated worker'
+  }
+  if (/\b(autoninja|ninja)\b/i.test(trimmed)) {
+    return 'Native build (ninja)'
+  }
+  if (/\bbuild-macos|out\/Release\b/i.test(trimmed)) {
+    return 'Release build'
+  }
+  if (/\bgradlew\s+assemble/i.test(trimmed)) {
+    return 'Android Gradle build'
+  }
+  if (/\b(vitest|jest|pytest|playwright|cargo\s+test|go\s+test|gradlew\s+test)\b/i.test(trimmed)) {
+    return 'Background test run'
+  }
+  if (/\b(ffmpeg|blender|remotion)\b/i.test(trimmed)) {
+    return 'Background media render'
+  }
+  // Strip leading `cd ... &&` or `export ... &&` boilerplate so the actual command leads.
+  const core =
+    trimmed
+      .split(/\s*(?:&&|;)\s*/)
+      .map((seg) => seg.trim())
+      .find((seg) => seg.length > 0 && !/^(?:cd|export|set)\s+/i.test(seg)) ?? trimmed
+  return core.length > 72 ? `${core.slice(0, 69)}…` : core
 }
 
 export function buildBackgroundActivityLine(

@@ -78,10 +78,11 @@ export const DELEGATION_METHODS = [
     permission: 'workspace',
     params: DelegationBackgroundTasksParams,
     handler: async (params, { runtime }) =>
-      queryBackgroundTasksSnapshot(
-        runtime,
-        params?.recentMinutes !== undefined ? { recentMinutes: params.recentMinutes } : undefined
-      )
+      queryBackgroundTasksSnapshot(runtime, {
+        ...(params?.recentMinutes !== undefined ? { recentMinutes: params.recentMinutes } : {}),
+        ...(params?.paneKey ? { paneKey: params.paneKey } : {}),
+        ...(params?.worktreeId ? { worktreeId: params.worktreeId } : {})
+      })
   }),
   defineMethod({
     name: 'delegation.usageWindows',

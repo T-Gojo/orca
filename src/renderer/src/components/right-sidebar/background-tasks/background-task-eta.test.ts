@@ -216,6 +216,26 @@ describe('background-task ETA estimation', () => {
     expect(verifying.progressRatio).toBe(0.8)
   })
 
+  it('paces remaining time directly from live shell step counters even past default turn priors', () => {
+    // 2,450 / 4,900 steps (50%) after 12m -> ~12m remaining (720_000ms), never overrun.
+    const paced = estimateBackgroundTaskEta({
+      state: 'working',
+      agentType: 'claude',
+      startedAt: baseNow - 720_000,
+      updatedAt: baseNow - 2_000,
+      nowMs: baseNow,
+      stepProgress: { completedSteps: 2450, totalSteps: 4900, percent: 50 },
+      commandHint: 'ninja -C out/Release Dusk',
+      hasBackgroundWait: true
+    })
+    expect(paced).toMatchObject({
+      kind: 'countdown',
+      remainingMs: 720_000,
+      progressRatio: 0.5,
+      basis: 'steps'
+    })
+  })
+
   it('formats durations compactly across seconds, minutes, and hours', () => {
     expect(formatDurationCompact(0)).toBe('0s')
     expect(formatDurationCompact(-5000)).toBe('0s')

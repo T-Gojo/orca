@@ -34,7 +34,11 @@ export const DelegationAdviceParams = z
 export const DelegationBackgroundTasksParams = z
   .object({
     /** Include settled workers finished within this many minutes (default 60). */
-    recentMinutes: z.number().int().min(1).max(1440).optional()
+    recentMinutes: z.number().int().min(1).max(1440).optional(),
+    /** Optional focused session pane key for deep shell/log inspection. */
+    paneKey: z.string().min(1).max(600).optional(),
+    /** Optional active worktree ID for workspace-scoped shell/log inspection. */
+    worktreeId: z.string().min(1).max(1024).optional()
   })
   .strict()
   .optional()

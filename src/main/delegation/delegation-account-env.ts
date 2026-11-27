@@ -1,7 +1,11 @@
-import { chmod, readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-lifecycle/app-environment'
+import {
+  restrictCredentialFileToOwner,
+  writeCredentialFileAtomic
+} from '../credentials/integration-credential-file'
 import {
   CLAUDE_TERMINAL_ACCOUNT_PIN_ENV,
   CODEX_TERMINAL_ACCOUNT_PIN_ENV,
@@ -56,7 +60,9 @@ function refuseOnWindows(agent: DelegationAgent): void {
  * trampoline restores it from ORCA_ACCOUNT_HOME (tcc-login-shell.ts).
  */
 function accountHomeEnv(home: string): Record<string, string> {
-  return { HOME: home, ORCA_ACCOUNT_HOME: home }
+  return process.platform === 'win32'
+    ? { HOME: home, USERPROFILE: home, ORCA_ACCOUNT_HOME: home }
+    : { HOME: home, ORCA_ACCOUNT_HOME: home }
 }
 
 function sameAgyGrant(a: string, b: string): boolean {
@@ -71,7 +77,6 @@ function sameAgyGrant(a: string, b: string): boolean {
 }
 
 async function antigravityEnv(accountId: string): Promise<Record<string, string>> {
-  refuseOnWindows('antigravity')
   const service = await getAntigravityAccountService({ runtime: 'host' })
   const saved = await service.readSavedCredential(accountId)
   if (!saved) {
@@ -92,8 +97,8 @@ async function antigravityEnv(accountId: string): Promise<Record<string, string>
       await service.updateSavedCredential(accountId, saved, current).catch(() => undefined)
     }
   } else {
-    await writeFile(tokenPath, saved, { mode: 0o600 })
-    await chmod(tokenPath, 0o600)
+    await writeCredentialFileAtomic(tokenPath, Buffer.from(saved, 'utf8'), undefined, true)
+    await restrictCredentialFileToOwner(tokenPath)
   }
   return { ...accountHomeEnv(home), ...AGY_FILE_LOGIN_ENV }
 }

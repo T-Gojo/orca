@@ -5,6 +5,7 @@ import type {
   BackgroundTaskWorkerRecord
 } from '../../shared/delegation/background-tasks-types'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
+import { collectSessionBackgroundShells } from './session-background-shells'
 
 /** Fork: Electron-free durable orchestration worker + empirical duration prior query (FORK.md §13). */
 
@@ -26,6 +27,7 @@ type RawWorkerRow = {
   worker_stage: string | null
   dispatch_status: string
   pane_key: string | null
+  creator_pane_key: string | null
   worktree_id: string | null
   terminal_handle: string | null
   start_options: string | null
@@ -158,6 +160,7 @@ const ACTIVE_AND_RECENT_WORKERS_SQL = `
          w.stage AS worker_stage,
          d.status AS dispatch_status,
          COALESCE(tr.pane_key, d.assignee_pane_key) AS pane_key,
+         d.creator_pane_key AS creator_pane_key,
          COALESCE(w.worktree_id, tr.worktree_id) AS worktree_id,
          COALESCE(w.agent_terminal_handle, d.assignee_handle) AS terminal_handle,
          w.start_options AS start_options,
@@ -213,15 +216,21 @@ const COMPLETED_DURATION_SAMPLES_SQL = `
    LIMIT ?
 `
 
-export function queryBackgroundTasksSnapshot(
+export async function queryBackgroundTasksSnapshot(
   runtime: OrcaRuntimeService,
-  options?: { recentMinutes?: number; nowMs?: number }
-): BackgroundTasksSnapshot {
+  options?: { recentMinutes?: number; paneKey?: string; worktreeId?: string; nowMs?: number }
+): Promise<BackgroundTasksSnapshot> {
   const fetchedAt = options?.nowMs ?? Date.now()
   const recentMinutes = options?.recentMinutes ?? DEFAULT_RECENT_MINUTES
+  const shells = await collectSessionBackgroundShells({
+    paneKey: options?.paneKey,
+    worktreeId: options?.worktreeId,
+    nowMs: fetchedAt
+  }).catch(() => [])
   const db = runtime.getExistingOrchestrationDb()
   if (!db) {
     return {
+      shells,
       workers: [],
       priorsByAgent: {},
       globalPrior: null,
@@ -254,6 +263,7 @@ export function queryBackgroundTasksSnapshot(
       stage: row.worker_stage,
       dispatchStatus: row.dispatch_status,
       paneKey: row.pane_key,
+      creatorPaneKey: row.creator_pane_key,
       worktreeId: row.worktree_id,
       terminalHandle: row.terminal_handle,
       startedAt,
@@ -303,6 +313,7 @@ export function queryBackgroundTasksSnapshot(
   }
 
   return {
+    shells,
     workers,
     priorsByAgent,
     globalPrior: buildDurationPrior('all', globalSamples),

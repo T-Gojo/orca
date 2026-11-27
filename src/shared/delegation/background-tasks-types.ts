@@ -1,4 +1,28 @@
-/** Fork: unified background-task sidebar snapshot types (FORK.md §13). */
+/** Fork: session-scoped background shell, subagent, and worker snapshot types (FORK.md §13). */
+
+export type BackgroundTaskShellProgress = {
+  completedSteps: number | null
+  totalSteps: number | null
+  percent: number
+  label: string
+}
+
+export type BackgroundTaskShellRecord = {
+  id: string
+  paneKey: string
+  worktreeId: string | null
+  agent: string | null
+  command: string
+  outputTail: string | null
+  progress: BackgroundTaskShellProgress | null
+  pid: number | null
+  cpuPercent: number | null
+  state: 'running' | 'done' | 'failed'
+  startedAt: number
+  updatedAt: number
+  completedAt: number | null
+  exitCode: number | null
+}
 
 export type BackgroundTaskWorkerRecord = {
   dispatchId: string
@@ -14,6 +38,7 @@ export type BackgroundTaskWorkerRecord = {
   stage: string | null
   dispatchStatus: string
   paneKey: string | null
+  creatorPaneKey: string | null
   worktreeId: string | null
   terminalHandle: string | null
   startedAt: number
@@ -31,6 +56,7 @@ export type AgentDurationPrior = {
 }
 
 export type BackgroundTasksSnapshot = {
+  shells: BackgroundTaskShellRecord[]
   workers: BackgroundTaskWorkerRecord[]
   priorsByAgent: Record<string, AgentDurationPrior>
   globalPrior: AgentDurationPrior | null
