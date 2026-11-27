@@ -8744,7 +8744,10 @@
       "pillHermes": "Hermes ({{count}})",
       "undoSkill": "Undo {{name}}",
       "approve": "Approve",
-      "tabSetupSkills": "Setup & Skills"
+      "tabSetupSkills": "Setup & Skills",
+      "connectedBadge": "Connected",
+      "hideConfig": "Hide Setup",
+      "manageToken": "Change Token / Pair"
     }
   }
 }

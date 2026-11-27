@@ -25,10 +25,8 @@ import {
   ecosystemStatusReadOp
 } from './mobile-fork-ecosystem-rpc'
 import { MobileForkEcosystemChatView, type MobileChatMode } from './MobileForkEcosystemChatView'
-import {
-  MobileForkEcosystemChannelsView,
-  MobileForkEcosystemHermesView
-} from './MobileForkEcosystemSetupViews'
+import { MobileForkEcosystemHermesView } from './MobileForkEcosystemHermesView'
+import { MobileForkEcosystemChannelsView } from './MobileForkEcosystemSetupViews'
 
 // Fork: unified OpenClaw & Hermes Chat + Setup Hub on Mobile Feed, Bots, and Agents tabs (FORK.md §16).
 
@@ -52,8 +50,8 @@ export function MobileForkEcosystemSection(props: {
   const [banner, setBanner] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
-  const primaryTarget = useMemo(() => {
-    const clientMap = new Map(props.allClients.map((entry) => [entry.hostId, entry.client]))
+  const primaryHostId = useMemo(() => {
+    const clientIds = new Set(props.allClients.map((entry) => entry.hostId))
     for (const host of props.hosts) {
       if (props.hostFilter !== null && host.id !== props.hostFilter) {
         continue
@@ -61,21 +59,27 @@ export function MobileForkEcosystemSection(props: {
       if (props.hostStates[host.id] !== 'connected') {
         continue
       }
-      const client = clientMap.get(host.id)
-      if (client) {
-        return { host, client }
+      if (clientIds.has(host.id)) {
+        return host.id
       }
     }
     return null
   }, [props.hosts, props.hostFilter, props.hostStates, props.allClients])
 
+  const primaryClient = useMemo(
+    () =>
+      primaryHostId
+        ? (props.allClients.find((entry) => entry.hostId === primaryHostId)?.client ?? null)
+        : null,
+    [primaryHostId, props.allClients]
+  )
+
   useEffect(() => {
-    if (!primaryTarget) {
-      setSnapshot(null)
+    if (!primaryClient) {
       return
     }
     let cancelled = false
-    void runRpcOperation(primaryTarget.client, ecosystemStatusReadOp, {}).then(
+    void runRpcOperation(primaryClient, ecosystemStatusReadOp, {}).then(
       (res) => {
         if (!cancelled && res) {
           setSnapshot(res)
@@ -86,7 +90,7 @@ export function MobileForkEcosystemSection(props: {
     return () => {
       cancelled = true
     }
-  }, [primaryTarget, tick])
+  }, [primaryHostId, primaryClient, tick])
 
   const onControl = useCallback(
     (
@@ -99,13 +103,13 @@ export function MobileForkEcosystemSection(props: {
         channel?: 'auto' | 'telegram' | 'whatsapp'
       } = {}
     ) => {
-      if (!primaryTarget || busy) {
+      if (!primaryClient || busy) {
         return
       }
       triggerSelection()
       setBusy(action)
       setBanner(null)
-      void runRpcOperation(primaryTarget.client, ecosystemControlOp, { action, ...extra }).then(
+      void runRpcOperation(primaryClient, ecosystemControlOp, { action, ...extra }).then(
         (res) => {
           setSnapshot(res.status)
           setBanner(res.detail)
@@ -117,18 +121,18 @@ export function MobileForkEcosystemSection(props: {
         }
       )
     },
-    [primaryTarget, busy]
+    [primaryClient, busy]
   )
 
   const onRunHermes = useCallback(
     (mode: 'learn' | 'review' | 'skills-search' | 'skills-install', value: string) => {
-      if (!primaryTarget || busy) {
+      if (!primaryClient || busy) {
         return
       }
       triggerSelection()
       setBusy(mode)
       setBanner(null)
-      void runRpcOperation(primaryTarget.client, ecosystemLearnOp, {
+      void runRpcOperation(primaryClient, ecosystemLearnOp, {
         mode,
         ...(mode === 'learn' ? { topic: value } : {}),
         ...(mode === 'review' ? { focus: value } : {}),
@@ -148,12 +152,12 @@ export function MobileForkEcosystemSection(props: {
         }
       )
     },
-    [primaryTarget, busy]
+    [primaryClient, busy]
   )
 
   const onSendChat = useCallback(
     (trimmed: string, mode: MobileChatMode, useRikugan: boolean) => {
-      if (!primaryTarget || busy) {
+      if (!primaryClient || busy) {
         return
       }
       if (mode === 'review') {
@@ -167,7 +171,7 @@ export function MobileForkEcosystemSection(props: {
       triggerSelection()
       setBusy('ask')
       setBanner(null)
-      void runRpcOperation(primaryTarget.client, ecosystemAskOp, {
+      void runRpcOperation(primaryClient, ecosystemAskOp, {
         prompt: trimmed,
         source: 'orca-mobile',
         wait: true,
@@ -192,10 +196,10 @@ export function MobileForkEcosystemSection(props: {
         }
       )
     },
-    [primaryTarget, busy, onRunHermes, t]
+    [primaryClient, busy, onRunHermes, t]
   )
 
-  if (!primaryTarget) {
+  if (!primaryClient && !snapshot) {
     if (!props.onPairDesktop) {
       return null
     }

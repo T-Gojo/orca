@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Image, Pressable, Text, TextInput, View } from 'react-native'
-import { Download, QrCode, RotateCcw, Search } from 'lucide-react-native'
+import { QrCode } from 'lucide-react-native'
 import type {
   EcosystemControlAction,
-  EcosystemLearnResult,
   EcosystemStatusSnapshot
 } from '../../../../src/shared/ecosystem/ecosystem-types'
 import { useMobileTranslation } from '../../i18n/use-mobile-translation'
@@ -11,9 +10,7 @@ import { colors, radii, spacing } from '../../theme/mobile-theme'
 import { themedStyleSheet } from '../../theme/themed-styles'
 import { useMobileColorScheme } from '../../theme/use-mobile-color-scheme'
 
-// Fork: Channels (WhatsApp QR + Telegram Token/Pairing) & Hermes Suite sub-views on Mobile (§16).
-
-type SkillItem = NonNullable<EcosystemLearnResult['items']>[number]
+// Fork: Channels (WhatsApp QR + Telegram Token/Pairing) sub-view on Mobile (§16).
 
 export function MobileForkEcosystemChannelsView(props: {
   snapshot: EcosystemStatusSnapshot | null
@@ -33,9 +30,12 @@ export function MobileForkEcosystemChannelsView(props: {
   const t = useMobileTranslation()
   const [tgToken, setTgToken] = useState('')
   const [pairCode, setPairCode] = useState('')
+  const [showTgForm, setShowTgForm] = useState(false)
 
   const tg = props.snapshot?.channels.find((c) => c.id === 'telegram') ?? null
   const wa = props.snapshot?.channels.find((c) => c.id === 'whatsapp') ?? null
+  const tgConnected = tg?.state === 'online'
+  const showWaQr = wa?.state === 'qr_ready' && Boolean(wa.qrDataUrl)
 
   return (
     <View style={styles.stack}>
@@ -94,7 +94,7 @@ export function MobileForkEcosystemChannelsView(props: {
             </>
           ) : null}
         </View>
-        {wa?.qrDataUrl ? (
+        {showWaQr && wa?.qrDataUrl ? (
           <View style={styles.qrBox}>
             <Image
               source={{ uri: wa.qrDataUrl }}
@@ -116,58 +116,27 @@ export function MobileForkEcosystemChannelsView(props: {
           <Text style={styles.subTitle}>
             {t('fork.ecosystem.tgTitle', 'Telegram Bot & Pairing')}
           </Text>
-          <Text style={styles.stateLabel}>
-            {tg?.botUsername ?? tg?.state ?? t('fork.ecosystem.offline', 'offline')}
-          </Text>
-        </View>
-        {tg?.detail ? <Text style={styles.detailText}>{tg.detail}</Text> : null}
-
-        <View style={styles.inlineInputRow}>
-          <TextInput
-            value={tgToken}
-            onChangeText={setTgToken}
-            secureTextEntry
-            placeholder={t('fork.ecosystem.tgPlaceholder', 'Paste @BotFather token…')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.field}
-            editable={props.busy === null}
-          />
-          <Pressable
-            accessibilityRole="button"
-            disabled={props.busy !== null || !tgToken.trim()}
-            onPress={() => {
-              props.onControl('set-telegram-token', { token: tgToken.trim() })
-              setTgToken('')
-            }}
-            style={[styles.primaryActionBtn, !tgToken.trim() && styles.disabled]}
-          >
-            <Text style={styles.primaryActionText}>
-              {t('fork.ecosystem.tgSave', 'Save & Connect')}
+          {tgConnected ? (
+            <View style={styles.connectedPill}>
+              <View style={styles.connectedDot} />
+              <Text style={styles.connectedText}>
+                {t('fork.ecosystem.connectedBadge', 'Connected')}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.stateLabel}>
+              {tg?.state ?? t('fork.ecosystem.offline', 'offline')}
             </Text>
-          </Pressable>
+          )}
         </View>
+        <Text style={styles.detailText}>
+          {tgConnected
+            ? `${tg?.botUsername ?? '@bot'} · ${tg?.detail ?? ''}`
+            : (tg?.detail ?? t('fork.ecosystem.offline', 'offline'))}
+        </Text>
 
-        <View style={styles.inlineInputRow}>
-          <TextInput
-            value={pairCode}
-            onChangeText={setPairCode}
-            placeholder={t('fork.ecosystem.pairPlaceholder', '6-digit pairing code…')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.field}
-            editable={props.busy === null}
-          />
-          <Pressable
-            accessibilityRole="button"
-            disabled={props.busy !== null || !pairCode.trim()}
-            onPress={() => {
-              props.onControl('approve-pairing', { code: pairCode.trim() })
-              setPairCode('')
-            }}
-            style={[styles.outlineBtn, !pairCode.trim() && styles.disabled]}
-          >
-            <Text style={styles.outlineBtnText}>{t('fork.ecosystem.approve', 'Approve')}</Text>
-          </Pressable>
-          {tg?.state === 'online' ? (
+        {tgConnected ? (
+          <View style={styles.buttonWrapRow}>
             <Pressable
               accessibilityRole="button"
               disabled={props.busy !== null}
@@ -180,12 +149,77 @@ export function MobileForkEcosystemChannelsView(props: {
                   )
                 })
               }
+              style={styles.primaryActionBtn}
+            >
+              <Text style={styles.primaryActionText}>
+                {t('fork.ecosystem.sendTest', 'Send Test')}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setShowTgForm((v) => !v)}
               style={styles.outlineBtn}
             >
-              <Text style={styles.outlineBtnText}>{t('fork.ecosystem.sendTest', 'Send Test')}</Text>
+              <Text style={styles.outlineBtnText}>
+                {showTgForm
+                  ? t('fork.ecosystem.hideConfig', 'Hide Setup')
+                  : t('fork.ecosystem.manageToken', 'Change Token / Pair')}
+              </Text>
             </Pressable>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
+
+        {!tgConnected || showTgForm ? (
+          <>
+            <View style={styles.inlineInputRow}>
+              <TextInput
+                value={tgToken}
+                onChangeText={setTgToken}
+                secureTextEntry
+                placeholder={t('fork.ecosystem.tgPlaceholder', 'Paste @BotFather token…')}
+                placeholderTextColor={colors.textMuted}
+                style={styles.field}
+                editable={props.busy === null}
+              />
+              <Pressable
+                accessibilityRole="button"
+                disabled={props.busy !== null || !tgToken.trim()}
+                onPress={() => {
+                  props.onControl('set-telegram-token', { token: tgToken.trim() })
+                  setTgToken('')
+                  setShowTgForm(false)
+                }}
+                style={[styles.primaryActionBtn, !tgToken.trim() && styles.disabled]}
+              >
+                <Text style={styles.primaryActionText}>
+                  {t('fork.ecosystem.tgSave', 'Save & Connect')}
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.inlineInputRow}>
+              <TextInput
+                value={pairCode}
+                onChangeText={setPairCode}
+                placeholder={t('fork.ecosystem.pairPlaceholder', '6-digit pairing code…')}
+                placeholderTextColor={colors.textMuted}
+                style={styles.field}
+                editable={props.busy === null}
+              />
+              <Pressable
+                accessibilityRole="button"
+                disabled={props.busy !== null || !pairCode.trim()}
+                onPress={() => {
+                  props.onControl('approve-pairing', { code: pairCode.trim() })
+                  setPairCode('')
+                }}
+                style={[styles.outlineBtn, !pairCode.trim() && styles.disabled]}
+              >
+                <Text style={styles.outlineBtnText}>{t('fork.ecosystem.approve', 'Approve')}</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
 
         {(props.snapshot?.pendingPairings ?? []).map((req) => (
           <View key={req.code} style={styles.pairItem}>
@@ -199,116 +233,6 @@ export function MobileForkEcosystemChannelsView(props: {
               style={styles.primaryActionBtn}
             >
               <Text style={styles.primaryActionText}>{t('fork.ecosystem.approve', 'Approve')}</Text>
-            </Pressable>
-          </View>
-        ))}
-      </View>
-    </View>
-  )
-}
-
-export function MobileForkEcosystemHermesView(props: {
-  snapshot: EcosystemStatusSnapshot | null
-  busy: string | null
-  skillResults: readonly SkillItem[]
-  onControl: (action: EcosystemControlAction, extra?: { skillName?: string }) => void
-  onSearchSkills: (query: string) => void
-  onInstallSkill: (target: string) => void
-}) {
-  useMobileColorScheme()
-  const t = useMobileTranslation()
-  const [query, setQuery] = useState('')
-
-  return (
-    <View style={styles.stack}>
-      <View style={styles.subCard}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.subTitle}>
-            {t('fork.ecosystem.pillHermes', 'Hermes ({{count}})', {
-              count: props.snapshot?.hermes.installedSkillsCount ?? 0
-            })}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            disabled={props.busy !== null}
-            onPress={() => props.onControl('toggle-auto-learn')}
-            style={styles.outlineBtn}
-          >
-            <Text style={styles.outlineBtnText}>
-              {props.snapshot?.hermes.autoLearnEnabled
-                ? t('fork.ecosystem.autoLearnOn', 'Auto-Learn: On')
-                : t('fork.ecosystem.autoLearnOff', 'Auto-Learn: Paused')}
-            </Text>
-          </Pressable>
-        </View>
-        {props.snapshot?.hermes.detail ? (
-          <Text style={styles.detailText}>{props.snapshot.hermes.detail}</Text>
-        ) : null}
-
-        <View style={styles.inlineInputRow}>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t('fork.ecosystem.skillsPlaceholder', 'Search 1,426+ skills…')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.field}
-            editable={props.busy === null}
-            returnKeyType="search"
-            onSubmitEditing={() => query.trim() && props.onSearchSkills(query.trim())}
-          />
-          <Pressable
-            accessibilityRole="button"
-            disabled={props.busy !== null || !query.trim()}
-            onPress={() => props.onSearchSkills(query.trim())}
-            style={[styles.primaryActionBtn, !query.trim() && styles.disabled]}
-          >
-            <Search size={13} color={colors.onAccent} />
-            <Text style={styles.primaryActionText}>{t('fork.ecosystem.searchBtn', 'Search')}</Text>
-          </Pressable>
-        </View>
-
-        {props.skillResults.slice(0, 5).map((item) => (
-          <View key={`${item.source}:${item.name}`} style={styles.pairItem}>
-            <View style={styles.skillMeta}>
-              <Text style={styles.skillName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.detailText} numberOfLines={1}>
-                {item.description}
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              disabled={props.busy !== null}
-              onPress={() => props.onInstallSkill(item.url ?? item.name)}
-              style={styles.outlineBtn}
-            >
-              <Download size={12} color={colors.textPrimary} />
-              <Text style={styles.outlineBtnText}>{t('fork.ecosystem.installBtn', 'Install')}</Text>
-            </Pressable>
-          </View>
-        ))}
-
-        {(props.snapshot?.hermes.recentLearnedSkills ?? []).slice(0, 4).map((entry) => (
-          <View key={entry.backupId} style={styles.pairItem}>
-            <View style={styles.skillMeta}>
-              <Text style={styles.skillName} numberOfLines={1}>
-                {entry.skillName}
-              </Text>
-              <Text style={styles.detailText} numberOfLines={1}>
-                {entry.description}
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              disabled={props.busy !== null}
-              onPress={() => props.onControl('undo-skill', { skillName: entry.backupId })}
-              style={styles.outlineBtn}
-            >
-              <RotateCcw size={12} color={colors.textSecondary} />
-              <Text style={styles.outlineBtnText}>
-                {t('fork.ecosystem.undoSkill', 'Undo {{name}}', { name: entry.skillName })}
-              </Text>
             </Pressable>
           </View>
         ))}
@@ -335,6 +259,24 @@ const styles = themedStyleSheet(() => ({
   },
   subTitle: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, flex: 1 },
   stateLabel: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  connectedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: colors.bgRaised,
+    borderWidth: 1,
+    borderColor: colors.mergeGreen
+  },
+  connectedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.mergeGreen
+  },
+  connectedText: { fontSize: 11, fontWeight: '700', color: colors.mergeGreen },
   detailText: { fontSize: 11, color: colors.textMuted, lineHeight: 15 },
   buttonWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingTop: 2 },
   inlineInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingTop: 2 },
