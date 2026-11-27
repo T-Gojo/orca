@@ -16,13 +16,21 @@ import type { UpdateInstallMode } from './lifecycle/updater-state'
 import { setDesktopReportUpdateStatus } from '../orca-profiles/cloud-auth/desktop-client-report'
 
 const updater = new UpdaterSetup()
-setDesktopReportUpdateStatus(() => updater.getUpdateStatus())
+// Fork: official upstream auto-updater is disabled; builds are managed directly from T-Gojo/orca.
+const FORK_UPDATES_DISABLED = true
+const FORK_IDLE_UPDATE_STATUS: UpdateStatus = { state: 'idle' }
+setDesktopReportUpdateStatus(() =>
+  FORK_UPDATES_DISABLED ? FORK_IDLE_UPDATE_STATUS : updater.getUpdateStatus()
+)
 
 export function resolveUpdateInstallMode(isServeMode: boolean): UpdateInstallMode {
   return updater.resolveUpdateInstallMode(isServeMode)
 }
 
 export function getUpdateStatus(): UpdateStatus {
+  if (FORK_UPDATES_DISABLED) {
+    return FORK_IDLE_UPDATE_STATUS
+  }
   return updater.getUpdateStatus()
 }
 
@@ -50,24 +58,39 @@ export function installRemoteServerUpdate(runtimeId: string): RemoteServerUpdate
 }
 
 export function checkForUpdates(): void {
+  if (FORK_UPDATES_DISABLED) {
+    return
+  }
   updater.checkForUpdates()
 }
 
 export function checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
+  if (FORK_UPDATES_DISABLED) {
+    return
+  }
   updater.checkForUpdatesFromMenu(options)
 }
 
 export function applyAutomaticUpdatesSetting(enabled: boolean | undefined): void {
+  if (FORK_UPDATES_DISABLED) {
+    return
+  }
   if (enabled === true) {
     updater.applyAutomaticUpdatesSetting()
   }
 }
 
 export function downloadUpdate(): void {
+  if (FORK_UPDATES_DISABLED) {
+    return
+  }
   updater.downloadUpdate()
 }
 
 export function quitAndInstall(): void {
+  if (FORK_UPDATES_DISABLED) {
+    return
+  }
   updater.quitAndInstall()
 }
 
@@ -114,5 +137,8 @@ export function setupAutoUpdater(
   mainWindow: BrowserWindow | null,
   opts?: UpdaterSetupOptions
 ): void {
+  if (FORK_UPDATES_DISABLED) {
+    return
+  }
   updater.setupAutoUpdater(mainWindow, opts)
 }
